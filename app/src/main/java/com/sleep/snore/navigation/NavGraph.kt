@@ -20,6 +20,7 @@ import com.sleep.snore.ui.screen.home.HomeScreen
 import com.sleep.snore.ui.screen.playback.PlaybackScreen
 import com.sleep.snore.ui.screen.recording.RecordingScreen
 import com.sleep.snore.ui.screen.result.ResultScreen
+import com.sleep.snore.ui.screen.risk.RiskAssessmentScreen
 import com.sleep.snore.ui.screen.settings.SettingsScreen
 
 @Composable
@@ -53,9 +54,7 @@ fun SleepNavGraph(navController: NavHostController, modifier: Modifier = Modifie
             ResultScreen(navController = navController, recordId = recordId)
         }
         composable(Route.RiskAssessment.route) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("OSA 风险评估", style = MaterialTheme.typography.titleLarge)
-            }
+            RiskAssessmentScreen(navController = navController)
         }
     }
 }
