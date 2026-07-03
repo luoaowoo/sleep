@@ -81,17 +81,22 @@ class SleepRecordingService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        when (intent?.action) {
-            ACTION_STOP -> finishSessionAndStop()
-            else -> startSessionIfNeeded()
+        return when (intent?.action) {
+            ACTION_STOP -> {
+                finishSessionAndStop()
+                START_NOT_STICKY
+            }
+            else -> {
+                startSessionIfNeeded()
+                START_STICKY
+            }
         }
-        return START_NOT_STICKY
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onTaskRemoved(rootIntent: Intent?) {
-        finishSessionAndStop()
+        Log.i(TAG, "task removed while recording; foreground service keeps running")
         super.onTaskRemoved(rootIntent)
     }
 

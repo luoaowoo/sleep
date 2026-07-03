@@ -65,7 +65,7 @@ fun RecordingScreen(navController: NavHostController) {
     }
 
     fun startRecording() {
-        if (!recordingState.isActive && hasAudioPermission && hasNotificationPermission) {
+        if (!recordingState.isActive && hasAudioPermission) {
             ContextCompat.startForegroundService(context, SleepRecordingService.startIntent(context))
         }
     }
@@ -77,15 +77,14 @@ fun RecordingScreen(navController: NavHostController) {
 
     val audioPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         hasAudioPermission = granted
-        if (granted && hasNotificationPermission) startRecording()
+        if (granted) startRecording()
     }
     val notificationPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         hasNotificationPermission = granted
-        if (granted && hasAudioPermission) startRecording()
     }
 
-    LaunchedEffect(hasAudioPermission, hasNotificationPermission) {
-        if (hasAudioPermission && hasNotificationPermission) startRecording()
+    LaunchedEffect(hasAudioPermission) {
+        if (hasAudioPermission) startRecording()
     }
 
     LaunchedEffect(recordingState.isActive, recordingState.startTime) {
@@ -104,15 +103,9 @@ fun RecordingScreen(navController: NavHostController) {
         label = "pulseAlpha"
     )
 
-    if (!hasAudioPermission || !hasNotificationPermission) {
+    if (!hasAudioPermission) {
         PermissionContent(
-            missingNotificationPermission = !hasNotificationPermission,
             onGrantAudio = { audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO) },
-            onGrantNotification = {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                }
-            }
         )
         return
     }
@@ -148,6 +141,18 @@ fun RecordingScreen(navController: NavHostController) {
             }
             Spacer(Modifier.height(Spacing.xl))
             Text(TEXT_MONITORING, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+            if (!hasNotificationPermission && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                Spacer(Modifier.height(Spacing.sm))
+                Text(
+                    TEXT_NOTIFICATION_HINT,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(Spacing.sm))
+                Button(onClick = { notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS) }, shape = PillShape) {
+                    Text(TEXT_GRANT_NOTIFICATION)
+                }
+            }
             Spacer(Modifier.height(Spacing.xxl))
             OutlinedButton(
                 onClick = { stopRecording() },
@@ -162,9 +167,7 @@ fun RecordingScreen(navController: NavHostController) {
 
 @Composable
 private fun PermissionContent(
-    missingNotificationPermission: Boolean,
-    onGrantAudio: () -> Unit,
-    onGrantNotification: () -> Unit
+    onGrantAudio: () -> Unit
 ) {
     Column(
         modifier = Modifier.fillMaxSize().padding(Spacing.xxl),
@@ -178,10 +181,6 @@ private fun PermissionContent(
         Text(TEXT_PERMISSION_HINT, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(Spacing.xl))
         Button(onClick = onGrantAudio, shape = PillShape) { Text(TEXT_GRANT_AUDIO) }
-        if (missingNotificationPermission) {
-            Spacer(Modifier.height(Spacing.sm))
-            OutlinedButton(onClick = onGrantNotification, shape = PillShape) { Text(TEXT_GRANT_NOTIFICATION) }
-        }
     }
 }
 
@@ -192,3 +191,4 @@ private const val TEXT_NEED_AUDIO_PERMISSION = "\u9700\u8981\u5f55\u97f3\u6743\u
 private const val TEXT_PERMISSION_HINT = "\u6388\u6743\u540e\u5373\u53ef\u5f00\u59cb\u9f3e\u58f0\u76d1\u6d4b"
 private const val TEXT_GRANT_AUDIO = "\u6388\u6743\u5f55\u97f3"
 private const val TEXT_GRANT_NOTIFICATION = "\u6388\u6743\u901a\u77e5"
+private const val TEXT_NOTIFICATION_HINT = "\u5df2\u5f00\u59cb\u76d1\u6d4b\uff0c\u6388\u6743\u901a\u77e5\u540e\u53ef\u5728\u901a\u77e5\u680f\u5feb\u901f\u7ed3\u675f"
