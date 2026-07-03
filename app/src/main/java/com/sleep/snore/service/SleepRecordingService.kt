@@ -6,6 +6,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.app.Notification
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -195,6 +196,16 @@ class SleepRecordingService : Service() {
     }
 
     private fun startForegroundNotification(eventCount: Int) {
+        val notification = buildRecordingNotification(eventCount)
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
+        } else {
+            startForeground(NOTIFICATION_ID, notification)
+        }
+    }
+
+    private fun buildRecordingNotification(eventCount: Int): Notification {
         val contentIntent = PendingIntent.getActivity(
             this,
             0,
@@ -207,7 +218,7 @@ class SleepRecordingService : Service() {
             Intent(this, SleepRecordingService::class.java).setAction(ACTION_STOP),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        val notification = NotificationCompat.Builder(this, CHANNEL_ID)
+        return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(TEXT_RECORDING_TITLE)
             .setContentText(TEXT_SNORE_SEGMENTS.format(eventCount))
             .setSmallIcon(android.R.drawable.ic_btn_speak_now)
@@ -215,24 +226,13 @@ class SleepRecordingService : Service() {
             .setContentIntent(contentIntent)
             .addAction(android.R.drawable.ic_menu_close_clear_cancel, TEXT_STOP, stopIntent)
             .build()
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
-        } else {
-            startForeground(NOTIFICATION_ID, notification)
-        }
     }
 
     @SuppressLint("MissingPermission")
     private fun updateNotification() {
         val count = synchronized(pendingEvents) { pendingEvents.size }
         _recordingState.value = _recordingState.value.copy(eventCount = count)
-        val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle(TEXT_RECORDING_TITLE)
-            .setContentText(TEXT_SNORE_SEGMENTS.format(count))
-            .setSmallIcon(android.R.drawable.ic_btn_speak_now)
-            .setOngoing(true)
-            .build()
+        val notification = buildRecordingNotification(count)
         if (canPostNotifications()) {
             runCatching {
                 NotificationManagerCompat.from(this).notify(NOTIFICATION_ID, notification)
