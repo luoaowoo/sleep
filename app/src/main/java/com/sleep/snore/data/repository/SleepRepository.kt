@@ -23,6 +23,7 @@ class SleepRepository @Inject constructor(
     suspend fun updateRecord(record: SleepRecordEntity) = sleepRecordDao.update(record)
     fun getAllRecords(): Flow<List<SleepRecordEntity>> = sleepRecordDao.getAllRecords()
     suspend fun getRecordById(id: Long): SleepRecordEntity? = sleepRecordDao.getById(id)
+    suspend fun getActiveRecordingRecord(): SleepRecordEntity? = sleepRecordDao.getActiveRecordingRecord()
     suspend fun getLatestRecord(): SleepRecordEntity? = sleepRecordDao.getLatest()
     fun getLatestRecordFlow(): Flow<SleepRecordEntity?> = sleepRecordDao.getLatestFlow()
     fun getRecentRecords(limit: Int): Flow<List<SleepRecordEntity>> = sleepRecordDao.getRecent(limit)
@@ -50,6 +51,8 @@ class SleepRepository @Inject constructor(
     suspend fun insertEvents(events: List<SnoreEventEntity>) = snoreEventDao.insertAll(events)
     fun getAllEvents(): Flow<List<SnoreEventEntity>> = snoreEventDao.getAll()
     fun getEventsByRecordId(recordId: Long): Flow<List<SnoreEventEntity>> = snoreEventDao.getByRecordId(recordId)
+    suspend fun getEventsSnapshotByRecordId(recordId: Long): List<SnoreEventEntity> =
+        snoreEventDao.getSnapshotByRecordId(recordId)
     suspend fun getEventsBefore(before: Long): List<SnoreEventEntity> = snoreEventDao.getBefore(before)
     suspend fun countEvents(recordId: Long): Int = snoreEventDao.countByRecordId(recordId)
     fun getFavoriteEvents(): Flow<List<SnoreEventEntity>> = snoreEventDao.getFavorites()

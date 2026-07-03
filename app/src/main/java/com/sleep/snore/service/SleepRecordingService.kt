@@ -87,6 +87,10 @@ class SleepRecordingService : Service() {
                 finishSessionAndStop()
                 START_NOT_STICKY
             }
+            ACTION_REFRESH_NOTIFICATION -> {
+                if (isSessionActive) updateNotification()
+                START_STICKY
+            }
             else -> {
                 startSessionIfNeeded()
                 START_STICKY
@@ -131,7 +135,12 @@ class SleepRecordingService : Service() {
             try {
                 val settings = preferencesRepository.settings.first()
                 if (settings.autoCleanEnabled) cleanOldData()
-                val recordId = repository.insertRecord(createEmptyRecord(sessionStartTime))
+                val activeRecord = recoverActiveRecordingIfAvailable()
+                val recordId = if (activeRecord == null) {
+                    repository.insertRecord(createEmptyRecord(sessionStartTime))
+                } else {
+                    activeRecord.id
+                }
                 currentRecordId = recordId
                 if (!isSessionActive) return@launch
                 startSnoreDetection(
@@ -187,7 +196,7 @@ class SleepRecordingService : Service() {
         val recordId = currentRecordId
         if (recordId != null) {
             val endTime = System.currentTimeMillis()
-            val events = synchronized(pendingEvents) { pendingEvents.toList() }
+            val events = getCurrentSessionEvents(recordId)
             repository.updateRecord(buildFinalRecord(recordId, sessionStartTime, endTime, events))
         }
         val settings = withTimeoutOrNull(SETTINGS_READ_TIMEOUT_MS) {
@@ -200,6 +209,42 @@ class SleepRecordingService : Service() {
         if (serviceJob.isActive) return
         serviceJob = SupervisorJob()
         serviceScope = CoroutineScope(Dispatchers.IO + serviceJob)
+    }
+
+    private suspend fun recoverActiveRecordingIfAvailable(): SleepRecordEntity? {
+        val activeRecord = repository.getActiveRecordingRecord() ?: return null
+        val now = System.currentTimeMillis()
+        val ageMs = now - activeRecord.startTime
+        val events = repository.getEventsSnapshotByRecordId(activeRecord.id)
+        if (ageMs !in 0..MAX_SESSION_RECOVERY_MS) {
+            Log.w(TAG, "finalizing stale recording record: ${activeRecord.id}")
+            val endTime = events.maxOfOrNull { it.startTimestamp + it.durationMs }
+                ?: (activeRecord.startTime + STALE_EMPTY_RECORD_DURATION_MS).coerceAtMost(now)
+            repository.updateRecord(buildFinalRecord(activeRecord.id, activeRecord.startTime, endTime, events))
+            return null
+        }
+
+        sessionStartTime = activeRecord.startTime
+        synchronized(pendingEvents) {
+            pendingEvents.clear()
+            pendingEvents.addAll(events)
+        }
+        _recordingState.value = RecordingRuntimeState(
+            isActive = true,
+            startTime = activeRecord.startTime,
+            eventCount = events.size
+        )
+        updateNotification()
+        Log.i(TAG, "recovered active recording record: ${activeRecord.id}")
+        return activeRecord
+    }
+
+    private suspend fun getCurrentSessionEvents(recordId: Long): List<SnoreEventEntity> {
+        val savedEvents = repository.getEventsSnapshotByRecordId(recordId)
+        val pendingSnapshot = synchronized(pendingEvents) { pendingEvents.toList() }
+        return (savedEvents + pendingSnapshot)
+            .distinctBy { event -> event.id.takeIf { it != 0L } ?: event.audioFilePath }
+            .sortedBy { it.startTimestamp }
     }
 
     private fun createNotificationChannel() {
@@ -443,6 +488,7 @@ class SleepRecordingService : Service() {
     companion object {
         const val ACTION_START = "com.sleep.snore.action.START_RECORDING"
         const val ACTION_STOP = "com.sleep.snore.action.STOP_RECORDING"
+        const val ACTION_REFRESH_NOTIFICATION = "com.sleep.snore.action.REFRESH_NOTIFICATION"
         const val CHANNEL_ID = "sleep_recording"
         const val NOTIFICATION_ID = 1001
         private const val TAG = "SleepRecordingService"
@@ -460,9 +506,13 @@ class SleepRecordingService : Service() {
         private const val APNEA_GAP_MS = 10_000L
         private const val FINALIZE_TIMEOUT_MS = 20_000L
         private const val SETTINGS_READ_TIMEOUT_MS = 2_000L
+        private const val MAX_SESSION_RECOVERY_MS = 16L * 60L * 60L * 1000L
+        private const val STALE_EMPTY_RECORD_DURATION_MS = 60_000L
 
         fun startIntent(context: Context): Intent = Intent(context, SleepRecordingService::class.java).setAction(ACTION_START)
         fun stopIntent(context: Context): Intent = Intent(context, SleepRecordingService::class.java).setAction(ACTION_STOP)
+        fun refreshNotificationIntent(context: Context): Intent =
+            Intent(context, SleepRecordingService::class.java).setAction(ACTION_REFRESH_NOTIFICATION)
     }
 }
 

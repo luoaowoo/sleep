@@ -63,10 +63,16 @@ fun RecordingScreen(navController: NavHostController) {
                 ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
         )
     }
+    var startError by remember { mutableStateOf<String?>(null) }
 
     fun startRecording() {
         if (!recordingState.isActive && hasAudioPermission) {
-            ContextCompat.startForegroundService(context, SleepRecordingService.startIntent(context))
+            startError = null
+            runCatching {
+                ContextCompat.startForegroundService(context, SleepRecordingService.startIntent(context))
+            }.onFailure {
+                startError = TEXT_START_FAILED
+            }
         }
     }
 
@@ -81,6 +87,9 @@ fun RecordingScreen(navController: NavHostController) {
     }
     val notificationPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         hasNotificationPermission = granted
+        if (granted && recordingState.isActive) {
+            context.startService(SleepRecordingService.refreshNotificationIntent(context))
+        }
     }
 
     LaunchedEffect(hasAudioPermission) {
@@ -141,6 +150,14 @@ fun RecordingScreen(navController: NavHostController) {
             }
             Spacer(Modifier.height(Spacing.xl))
             Text(TEXT_MONITORING, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+            startError?.let { error ->
+                Spacer(Modifier.height(Spacing.sm))
+                Text(
+                    error,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
             if (!hasNotificationPermission && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 Spacer(Modifier.height(Spacing.sm))
                 Text(
@@ -192,3 +209,4 @@ private const val TEXT_PERMISSION_HINT = "\u6388\u6743\u540e\u5373\u53ef\u5f00\u
 private const val TEXT_GRANT_AUDIO = "\u6388\u6743\u5f55\u97f3"
 private const val TEXT_GRANT_NOTIFICATION = "\u6388\u6743\u901a\u77e5"
 private const val TEXT_NOTIFICATION_HINT = "\u5df2\u5f00\u59cb\u76d1\u6d4b\uff0c\u6388\u6743\u901a\u77e5\u540e\u53ef\u5728\u901a\u77e5\u680f\u5feb\u901f\u7ed3\u675f"
+private const val TEXT_START_FAILED = "\u542f\u52a8\u5f55\u97f3\u5931\u8d25\uff0c\u8bf7\u68c0\u67e5\u6743\u9650\u6216\u9ea6\u514b\u98ce\u662f\u5426\u88ab\u5360\u7528"

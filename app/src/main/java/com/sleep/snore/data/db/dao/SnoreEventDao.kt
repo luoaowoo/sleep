@@ -19,6 +19,9 @@ interface SnoreEventDao {
     @Query("SELECT * FROM snore_events WHERE record_id = :recordId ORDER BY start_timestamp ASC")
     fun getByRecordId(recordId: Long): Flow<List<SnoreEventEntity>>
 
+    @Query("SELECT * FROM snore_events WHERE record_id = :recordId ORDER BY start_timestamp ASC")
+    suspend fun getSnapshotByRecordId(recordId: Long): List<SnoreEventEntity>
+
     @Query("SELECT * FROM snore_events ORDER BY start_timestamp DESC")
     fun getAll(): Flow<List<SnoreEventEntity>>
 

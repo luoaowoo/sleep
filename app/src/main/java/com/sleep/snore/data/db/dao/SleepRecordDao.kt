@@ -23,6 +23,9 @@ interface SleepRecordDao {
     @Query("SELECT * FROM sleep_records WHERE id = :id")
     suspend fun getById(id: Long): SleepRecordEntity?
 
+    @Query("SELECT * FROM sleep_records WHERE end_time = start_time AND ai_evaluation = '' ORDER BY start_time DESC LIMIT 1")
+    suspend fun getActiveRecordingRecord(): SleepRecordEntity?
+
     @Query("SELECT * FROM sleep_records ORDER BY start_time DESC LIMIT 1")
     suspend fun getLatest(): SleepRecordEntity?
 
