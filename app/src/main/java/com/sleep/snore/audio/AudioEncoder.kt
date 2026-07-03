@@ -58,12 +58,20 @@ class AudioEncoder {
                 fos.write(header)
                 fos.write(pcmData)
             }
-            Log.d(TAG, "WAV 回退保存: ${file.absolutePath}")
+            logDebug("WAV 回退保存: ${file.absolutePath}")
             file
         } catch (e: Exception) {
-            Log.e(TAG, "WAV 保存失败: ${e.message}", e)
+            logError("WAV 保存失败: ${e.message}", e)
             null
         }
+    }
+
+    private fun logDebug(message: String) {
+        runCatching { Log.d(TAG, message) }
+    }
+
+    private fun logError(message: String, throwable: Throwable) {
+        runCatching { Log.e(TAG, message, throwable) }
     }
 
     private fun writeIntLE(buffer: ByteArray, offset: Int, value: Int) {
