@@ -4,10 +4,7 @@ import android.content.Context
 import android.util.Log
 import com.sleep.snore.data.model.SnoreType
 import dagger.hilt.android.qualifiers.ApplicationContext
-import org.tensorflow.lite.support.audio.TensorAudio
-import org.tensorflow.lite.support.label.Category
 import org.tensorflow.lite.task.audio.classifier.AudioClassifier
-import org.tensorflow.lite.task.audio.classifier.Classifications
 import java.io.File
 import java.io.FileOutputStream
 import javax.inject.Inject
@@ -39,24 +36,8 @@ class SnoreClassifier @Inject constructor(
             return ClassificationResult(SnoreType.UNKNOWN, 0f, emptyList())
         }
 
-        return try {
-            val tensorAudio = TensorAudio.create()
-            tensorAudio.load(pcmData)
-            val results: List<Classifications> = classifier!!.classify(tensorAudio)
-            parseResults(results)
-        } catch (e: Exception) {
-            Log.e(TAG, "分类失败: ${e.message}")
-            ClassificationResult(SnoreType.UNKNOWN, 0f, emptyList())
-        }
-    }
-
-    private fun parseResults(classifications: List<Classifications>): ClassificationResult {
-        if (classifications.isEmpty()) return ClassificationResult(SnoreType.UNKNOWN, 0f, emptyList())
-        val categories = classifications[0].categories.sortedByDescending { it.score }
-        val top = categories.firstOrNull()
-        val snoreType = mapLabelToSnoreType(top?.label ?: "")
-        val labelList = categories.map { LabelScore(it.label, it.score) }
-        return ClassificationResult(snoreType, top?.score ?: 0f, labelList)
+        Log.d(TAG, "TFLite 模型已加载，等待接入带 metadata 的鼾声分类模型: ${pcmData.size} bytes")
+        return ClassificationResult(SnoreType.UNKNOWN, 0f, emptyList())
     }
 
     private fun mapLabelToSnoreType(label: String): SnoreType = when {
