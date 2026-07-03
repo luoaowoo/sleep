@@ -5,12 +5,15 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.sleep.snore.data.preferences.SettingsPreferences
 import com.sleep.snore.data.preferences.SettingsPreferencesRepository
 import com.sleep.snore.navigation.SleepScaffold
+import com.sleep.snore.ui.theme.LocalUiPreferences
 import com.sleep.snore.ui.theme.SleepSnoreTheme
+import com.sleep.snore.ui.theme.UiPreferences
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
@@ -33,7 +36,14 @@ class MainActivity : ComponentActivity() {
                 darkTheme = darkTheme,
                 dynamicColor = settings.dynamicColorEnabled
             ) {
-                SleepScaffold()
+                CompositionLocalProvider(
+                    LocalUiPreferences provides UiPreferences(
+                        compactModeEnabled = settings.compactModeEnabled,
+                        showTechnicalDetails = settings.showTechnicalDetails
+                    )
+                ) {
+                    SleepScaffold()
+                }
             }
         }
     }

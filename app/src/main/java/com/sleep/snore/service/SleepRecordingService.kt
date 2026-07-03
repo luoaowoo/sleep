@@ -46,6 +46,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 
 data class RecordingRuntimeState(
     val isActive: Boolean = false,
@@ -71,6 +72,7 @@ class SleepRecordingService : Service() {
     private var currentRecordId: Long? = null
     private var sessionStartTime: Long = 0L
     private var isSessionActive = false
+    private var isFinishingSession = false
 
     override fun onCreate() {
         super.onCreate()
@@ -93,9 +95,12 @@ class SleepRecordingService : Service() {
     }
 
     override fun onDestroy() {
-        if (isSessionActive) {
+        if (isSessionActive && !isFinishingSession) {
             isSessionActive = false
             stopSnoreDetection()
+            runBlocking(Dispatchers.IO) {
+                finalizeCurrentSession()
+            }
         }
         _recordingState.value = RecordingRuntimeState()
         releaseWakeLock()
@@ -106,6 +111,7 @@ class SleepRecordingService : Service() {
     private fun startSessionIfNeeded() {
         if (isSessionActive) return
         ensureServiceScope()
+        isFinishingSession = false
         isSessionActive = true
         sessionStartTime = System.currentTimeMillis()
         _recordingState.value = RecordingRuntimeState(isActive = true, startTime = sessionStartTime)
@@ -141,22 +147,13 @@ class SleepRecordingService : Service() {
             stopSelf()
             return
         }
+        isFinishingSession = true
         isSessionActive = false
         stopSnoreDetection()
 
         serviceScope.launch {
             try {
-                startJob?.join()
-                val jobs = synchronized(encodingJobs) { encodingJobs.toList() }
-                jobs.joinAll()
-                val recordId = currentRecordId
-                if (recordId != null) {
-                    val endTime = System.currentTimeMillis()
-                    val events = synchronized(pendingEvents) { pendingEvents.toList() }
-                    repository.updateRecord(buildFinalRecord(recordId, sessionStartTime, endTime, events))
-                }
-                val settings = preferencesRepository.settings.first()
-                if (settings.autoCleanEnabled) cleanOldData()
+                finalizeCurrentSession()
             } catch (e: Exception) {
                 Log.e(TAG, "failed to finish recording session", e)
             } finally {
@@ -167,6 +164,20 @@ class SleepRecordingService : Service() {
                 serviceScope.cancel()
             }
         }
+    }
+
+    private suspend fun finalizeCurrentSession() {
+        startJob?.join()
+        val jobs = synchronized(encodingJobs) { encodingJobs.toList() }
+        jobs.joinAll()
+        val recordId = currentRecordId
+        if (recordId != null) {
+            val endTime = System.currentTimeMillis()
+            val events = synchronized(pendingEvents) { pendingEvents.toList() }
+            repository.updateRecord(buildFinalRecord(recordId, sessionStartTime, endTime, events))
+        }
+        val settings = preferencesRepository.settings.first()
+        if (settings.autoCleanEnabled) cleanOldData()
     }
 
     private fun ensureServiceScope() {
@@ -256,6 +267,10 @@ class SleepRecordingService : Service() {
                 val job = serviceScope.launch {
                     val features = SnoreFeatureAnalyzer.analyze(pcmData, peakDb, durationMs)
                     val audioFile = audioEncoder.encodeToOpus(pcmData, outputDir, "snore_$startTimestamp")
+                    if (audioFile == null || audioFile.length() == 0L) {
+                        Log.w(TAG, "skip snore event because audio file was not saved: $startTimestamp")
+                        return@launch
+                    }
                     val event = SnoreEventEntity(
                         recordId = recordId,
                         startTimestamp = startTimestamp,
@@ -264,8 +279,8 @@ class SleepRecordingService : Service() {
                         avgDb = features.avgDb,
                         dominantFreq = features.dominantFreq,
                         snoreType = features.snoreType.name,
-                        audioFilePath = audioFile?.absolutePath.orEmpty(),
-                        audioFileSizeBytes = audioFile?.length() ?: 0L,
+                        audioFilePath = audioFile.absolutePath,
+                        audioFileSizeBytes = audioFile.length(),
                         aiTypeLabel = features.aiTypeLabel
                     )
                     val savedId = repository.insertEvent(event)

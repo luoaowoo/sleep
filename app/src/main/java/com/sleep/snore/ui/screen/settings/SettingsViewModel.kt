@@ -22,6 +22,8 @@ data class SettingsUiState(
     val autoCleanEnabled: Boolean = SettingsPreferencesRepository.DEFAULT_AUTO_CLEAN_ENABLED,
     val dynamicColorEnabled: Boolean = SettingsPreferencesRepository.DEFAULT_DYNAMIC_COLOR_ENABLED,
     val themeMode: String = SettingsPreferencesRepository.DEFAULT_THEME_MODE,
+    val compactModeEnabled: Boolean = SettingsPreferencesRepository.DEFAULT_COMPACT_MODE_ENABLED,
+    val showTechnicalDetails: Boolean = SettingsPreferencesRepository.DEFAULT_SHOW_TECHNICAL_DETAILS,
     val storageUsageText: String = "计算中..."
 )
 
@@ -42,7 +44,9 @@ class SettingsViewModel @Inject constructor(
                         silenceThresholdDb = settings.silenceThresholdDb,
                         autoCleanEnabled = settings.autoCleanEnabled,
                         dynamicColorEnabled = settings.dynamicColorEnabled,
-                        themeMode = settings.themeMode
+                        themeMode = settings.themeMode,
+                        compactModeEnabled = settings.compactModeEnabled,
+                        showTechnicalDetails = settings.showTechnicalDetails
                     )
                 }
             }
@@ -79,6 +83,20 @@ class SettingsViewModel @Inject constructor(
         _uiState.update { it.copy(themeMode = mode) }
         viewModelScope.launch {
             preferencesRepository.setThemeMode(mode)
+        }
+    }
+
+    fun onCompactModeChange(enabled: Boolean) {
+        _uiState.update { it.copy(compactModeEnabled = enabled) }
+        viewModelScope.launch {
+            preferencesRepository.setCompactModeEnabled(enabled)
+        }
+    }
+
+    fun onShowTechnicalDetailsChange(enabled: Boolean) {
+        _uiState.update { it.copy(showTechnicalDetails = enabled) }
+        viewModelScope.launch {
+            preferencesRepository.setShowTechnicalDetails(enabled)
         }
     }
 

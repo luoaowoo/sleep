@@ -34,6 +34,7 @@ import com.sleep.snore.data.db.entity.SleepRecordEntity
 import com.sleep.snore.navigation.Route
 import com.sleep.snore.ui.components.SnoreScoreRing
 import com.sleep.snore.ui.theme.HeroCardShape
+import com.sleep.snore.ui.theme.LocalUiPreferences
 import com.sleep.snore.ui.theme.PillShape
 import com.sleep.snore.ui.theme.Spacing
 import com.sleep.snore.ui.theme.snoreScoreColor
@@ -47,6 +48,7 @@ fun HomeScreen(
 ) {
     val latestRecord by viewModel.latestRecord.collectAsStateWithLifecycle()
     val recentRecords by viewModel.recentRecords.collectAsStateWithLifecycle()
+    val uiPreferences = LocalUiPreferences.current
 
     Scaffold(
         topBar = {
@@ -72,9 +74,9 @@ fun HomeScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(horizontal = Spacing.lg)
+                .padding(horizontal = uiPreferences.pageHorizontalPadding)
                 .padding(top = Spacing.md),
-            verticalArrangement = Arrangement.spacedBy(Spacing.md)
+            verticalArrangement = Arrangement.spacedBy(uiPreferences.sectionSpacing)
         ) {
             latestRecord?.let { record ->
                 SleepOverviewCard(record = record) {
@@ -101,6 +103,7 @@ fun HomeScreen(
 
 @Composable
 private fun SleepOverviewCard(record: SleepRecordEntity, onClick: () -> Unit) {
+    val uiPreferences = LocalUiPreferences.current
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -109,7 +112,7 @@ private fun SleepOverviewCard(record: SleepRecordEntity, onClick: () -> Unit) {
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
     ) {
         Column(
-            modifier = Modifier.padding(Spacing.lg),
+            modifier = Modifier.padding(uiPreferences.cardPadding),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text("昨晚睡眠", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
@@ -138,6 +141,7 @@ private fun MetricItem(label: String, value: String) {
 
 @Composable
 private fun EmptyStateCard() {
+    val uiPreferences = LocalUiPreferences.current
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = HeroCardShape,
@@ -146,7 +150,7 @@ private fun EmptyStateCard() {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(Spacing.xxl),
+                .padding(if (uiPreferences.compactModeEnabled) Spacing.xl else Spacing.xxl),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text("睡", style = MaterialTheme.typography.displayLarge)
@@ -159,12 +163,13 @@ private fun EmptyStateCard() {
 
 @Composable
 private fun WeeklyTrendCard(records: List<SleepRecordEntity>) {
+    val uiPreferences = LocalUiPreferences.current
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = HeroCardShape,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
-        Column(modifier = Modifier.padding(Spacing.md)) {
+        Column(modifier = Modifier.padding(uiPreferences.cardPadding)) {
             Text("本周趋势", style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(Spacing.sm))
             Row(
@@ -191,6 +196,7 @@ private fun WeeklyTrendCard(records: List<SleepRecordEntity>) {
 
 @Composable
 private fun AIQuickCard(summary: String, onClick: () -> Unit) {
+    val uiPreferences = LocalUiPreferences.current
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -199,7 +205,7 @@ private fun AIQuickCard(summary: String, onClick: () -> Unit) {
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)
     ) {
         Row(
-            modifier = Modifier.padding(Spacing.md),
+            modifier = Modifier.padding(uiPreferences.cardPadding),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text("AI", style = MaterialTheme.typography.titleMedium)

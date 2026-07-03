@@ -37,6 +37,19 @@ class ExportViewModel @Inject constructor(
         }
     }
 
+    fun exportEvents() {
+        viewModelScope.launch {
+            _isExporting.value = true
+            val file = exporter.exportAllEventsCsv()
+            if (file == null) {
+                _exportMessage.value = "暂无可导出的鼾声片段"
+            } else {
+                _exportFile.value = file
+            }
+            _isExporting.value = false
+        }
+    }
+
     fun clearExportMessage() {
         _exportMessage.value = null
     }

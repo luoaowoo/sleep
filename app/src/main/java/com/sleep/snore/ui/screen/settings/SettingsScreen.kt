@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -62,6 +63,20 @@ fun SettingsScreen(
                             }
                         }
                     }
+                    Spacer(Modifier.height(Spacing.sm))
+                    SettingSwitchRow(
+                        title = "紧凑布局",
+                        supportingText = "减少卡片留白，适合小屏或单手快速查看",
+                        checked = uiState.compactModeEnabled,
+                        onCheckedChange = viewModel::onCompactModeChange
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(vertical = Spacing.sm))
+                    SettingSwitchRow(
+                        title = "显示专业技术指标",
+                        supportingText = "在报告中展示片段主频、峰值响度和时长",
+                        checked = uiState.showTechnicalDetails,
+                        onCheckedChange = viewModel::onShowTechnicalDetailsChange
+                    )
                 }
             }
 
@@ -119,5 +134,35 @@ fun SettingsScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun SettingSwitchRow(
+    title: String,
+    supportingText: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = Spacing.touchTargetMin),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(end = Spacing.md)
+        ) {
+            Text(title, style = MaterialTheme.typography.bodyMedium)
+            Text(
+                supportingText,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }

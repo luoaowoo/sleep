@@ -75,7 +75,9 @@ fun PlaybackScreen(
                             shape = HeroCardShape
                         ) {
                             Row(
-                                modifier = Modifier.padding(Spacing.md),
+                                modifier = Modifier
+                                    .heightIn(min = Spacing.touchTargetMin)
+                                    .padding(Spacing.md),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Column(Modifier.weight(1f)) {

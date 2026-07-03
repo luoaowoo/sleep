@@ -38,6 +38,7 @@ import com.sleep.snore.ui.components.SnoreScoreRing
 import com.sleep.snore.ui.components.SnoreTimeline
 import com.sleep.snore.ui.components.SnoreTypePieChart
 import com.sleep.snore.ui.theme.HeroCardShape
+import com.sleep.snore.ui.theme.LocalUiPreferences
 import com.sleep.snore.ui.theme.Spacing
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -52,6 +53,7 @@ fun ResultScreen(
 ) {
     val record by viewModel.record.collectAsStateWithLifecycle()
     val events by viewModel.events.collectAsStateWithLifecycle()
+    val uiPreferences = LocalUiPreferences.current
 
     LaunchedEffect(recordId) {
         viewModel.loadRecord(recordId)
@@ -73,16 +75,16 @@ fun ResultScreen(
                     .fillMaxSize()
                     .padding(padding)
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = Spacing.lg),
+                    .padding(horizontal = uiPreferences.pageHorizontalPadding),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(Spacing.md)
+                verticalArrangement = Arrangement.spacedBy(uiPreferences.sectionSpacing)
             ) {
                 Spacer(Modifier.height(Spacing.md))
-                SnoreScoreRing(score = r.snoreScore, size = 180.dp)
+                SnoreScoreRing(score = r.snoreScore, size = if (uiPreferences.compactModeEnabled) 152.dp else 180.dp)
                 Spacer(Modifier.height(Spacing.md))
 
                 Card(shape = HeroCardShape) {
-                    Column(modifier = Modifier.padding(Spacing.md)) {
+                    Column(modifier = Modifier.padding(uiPreferences.cardPadding)) {
                         MetricsRow(
                             Metric("睡眠时长", "${r.sleepDurationMin / 60}h ${r.sleepDurationMin % 60}m"),
                             Metric("AHI 估算", String.format(Locale.getDefault(), "%.1f", r.estAHI)),
@@ -103,7 +105,7 @@ fun ResultScreen(
 
                 if (events.isNotEmpty()) {
                     Card(shape = HeroCardShape, modifier = Modifier.fillMaxWidth()) {
-                        Column(modifier = Modifier.padding(Spacing.md)) {
+                        Column(modifier = Modifier.padding(uiPreferences.cardPadding)) {
                             SnoreTimeline(
                                 hourlyData = buildHourlyData(events),
                                 maxValue = events.groupingBy {
@@ -114,7 +116,7 @@ fun ResultScreen(
                     }
 
                     Card(shape = HeroCardShape, modifier = Modifier.fillMaxWidth()) {
-                        Column(modifier = Modifier.padding(Spacing.md)) {
+                        Column(modifier = Modifier.padding(uiPreferences.cardPadding)) {
                             SnoreTypePieChart(slices = buildTypeSlices(events))
                         }
                     }
@@ -125,7 +127,7 @@ fun ResultScreen(
                         shape = HeroCardShape,
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)
                     ) {
-                        Column(modifier = Modifier.padding(Spacing.md)) {
+                        Column(modifier = Modifier.padding(uiPreferences.cardPadding)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text("AI", style = MaterialTheme.typography.titleMedium)
                                 Spacer(Modifier.width(Spacing.sm))
@@ -141,7 +143,7 @@ fun ResultScreen(
                     shape = HeroCardShape,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(modifier = Modifier.padding(Spacing.md)) {
+                    Column(modifier = Modifier.padding(uiPreferences.cardPadding)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text("音频", style = MaterialTheme.typography.titleMedium)
                             Spacer(Modifier.width(Spacing.sm))
@@ -150,7 +152,7 @@ fun ResultScreen(
                                 Text("${r.snoreEventCount} 个片段", style = MaterialTheme.typography.bodySmall)
                             }
                         }
-                        if (events.isNotEmpty()) {
+                        if (uiPreferences.showTechnicalDetails && events.isNotEmpty()) {
                             HorizontalDivider(modifier = Modifier.padding(vertical = Spacing.sm))
                             Text("片段技术信息", style = MaterialTheme.typography.titleSmall)
                             Spacer(Modifier.height(Spacing.sm))

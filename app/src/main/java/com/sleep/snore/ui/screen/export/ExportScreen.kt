@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -77,40 +78,69 @@ fun ExportScreen(
                 .padding(Spacing.md),
             verticalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
-            Card(shape = HeroCardShape) {
-                Column(
-                    modifier = Modifier.padding(Spacing.md),
-                    verticalArrangement = Arrangement.spacedBy(Spacing.sm)
-                ) {
-                    Text("导出睡眠汇总", style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        "生成 CSV 文件，可用微信、QQ、网盘或邮件分享。数据来自本机数据库，不上传云端。",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(Modifier.height(Spacing.xs))
-                    Button(
-                        onClick = viewModel::exportRecords,
-                        enabled = !isExporting,
-                        shape = PillShape,
-                        contentPadding = PaddingValues(horizontal = Spacing.lg, vertical = Spacing.sm),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        if (isExporting) {
-                            CircularProgressIndicator(color = MaterialTheme.colorScheme.onPrimary)
-                        } else {
-                            Text("生成并分享 CSV")
-                        }
-                    }
-                }
-            }
+            ExportCard(
+                title = "导出睡眠汇总",
+                description = "生成每晚睡眠记录、SnoreScore、AHI 估算和鼾声占比等汇总 CSV。",
+                buttonText = "生成并分享汇总 CSV",
+                isExporting = isExporting,
+                onClick = viewModel::exportRecords
+            )
+
+            ExportCard(
+                title = "导出片段明细",
+                description = "生成每个鼾声片段的时间、持续时长、峰值 dB、主频 Hz、AI 标签和音频路径。",
+                buttonText = "生成并分享片段 CSV",
+                isExporting = isExporting,
+                onClick = viewModel::exportEvents
+            )
 
             OutlinedButton(
                 onClick = { navController.popBackStack() },
                 shape = PillShape,
-                modifier = Modifier.align(Alignment.CenterHorizontally)
+                modifier = Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .heightIn(min = Spacing.touchTargetMin)
             ) {
                 Text("返回")
+            }
+        }
+    }
+}
+
+@Composable
+private fun ExportCard(
+    title: String,
+    description: String,
+    buttonText: String,
+    isExporting: Boolean,
+    onClick: () -> Unit
+) {
+    Card(shape = HeroCardShape) {
+        Column(
+            modifier = Modifier.padding(Spacing.md),
+            verticalArrangement = Arrangement.spacedBy(Spacing.sm)
+        ) {
+            Text(title, style = MaterialTheme.typography.titleMedium)
+            Text(
+                description,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(Spacing.xs))
+            Button(
+                onClick = onClick,
+                enabled = !isExporting,
+                shape = PillShape,
+                contentPadding = PaddingValues(horizontal = Spacing.lg, vertical = Spacing.sm),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = Spacing.touchTargetMin)
+            ) {
+                if (isExporting) {
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.onPrimary)
+                } else {
+                    Text(buttonText)
+                }
             }
         }
     }

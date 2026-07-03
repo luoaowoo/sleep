@@ -75,5 +75,32 @@ class DataExporter @Inject constructor(
         }
     }
 
+    /**
+     * 导出全部鼾声事件详情 CSV。
+     */
+    suspend fun exportAllEventsCsv(): File? = withContext(Dispatchers.IO) {
+        try {
+            val events = repository.getAllEvents().first()
+            if (events.isEmpty()) return@withContext null
+
+            val file = File(context.cacheDir, "snore_events_${System.currentTimeMillis()}.csv")
+            FileWriter(file).use { writer ->
+                writer.write("\uFEFF")
+                writer.write("记录ID,时间,持续(ms),峰值dB,平均dB,主导频率Hz,类型,AI标签,音频路径,文件大小(bytes)\n")
+                events.forEach { e ->
+                    writer.write("${e.recordId},${formatDate(e.startTimestamp)},${e.durationMs},${e.peakDb},${e.avgDb},")
+                    writer.write("${e.dominantFreq},${e.snoreType},${e.aiTypeLabel},${csv(e.audioFilePath)},${e.audioFileSizeBytes}\n")
+                }
+            }
+            file
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     private fun formatDate(timestamp: Long): String = dateFormat.format(Date(timestamp))
+
+    private fun csv(value: String): String {
+        return "\"${value.replace("\"", "\"\"")}\""
+    }
 }
