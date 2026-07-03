@@ -6,7 +6,9 @@ import com.sleep.snore.data.db.dao.SnoreEventDao
 import com.sleep.snore.data.db.entity.FactorLogEntity
 import com.sleep.snore.data.db.entity.SleepRecordEntity
 import com.sleep.snore.data.db.entity.SnoreEventEntity
+import java.io.File
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -27,6 +29,14 @@ class SleepRepository @Inject constructor(
     fun getRecordsSince(since: Long): Flow<List<SleepRecordEntity>> = sleepRecordDao.getRecordsSince(since)
     fun getRecordsBetween(start: Long, end: Long): Flow<List<SleepRecordEntity>> = sleepRecordDao.getRecordsBetween(start, end)
     suspend fun deleteRecord(id: Long) = sleepRecordDao.deleteById(id)
+    suspend fun deleteRecordWithAudio(id: Long) {
+        getEventsByRecordId(id).first().forEach { event ->
+            if (event.audioFilePath.isNotBlank()) {
+                runCatching { File(event.audioFilePath).delete() }
+            }
+        }
+        sleepRecordDao.deleteById(id)
+    }
     suspend fun deleteOldRecords(before: Long) = sleepRecordDao.deleteOlderThan(before)
 
     // ===== SnoreEvent =====

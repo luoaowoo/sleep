@@ -9,6 +9,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -23,6 +24,12 @@ class ResultViewModel @Inject constructor(
     private val _events = MutableStateFlow<List<SnoreEventEntity>>(emptyList())
     val events: StateFlow<List<SnoreEventEntity>> = _events
 
+    private val _deleteCompleted = MutableStateFlow(false)
+    val deleteCompleted: StateFlow<Boolean> = _deleteCompleted.asStateFlow()
+
+    private val _deleteError = MutableStateFlow<String?>(null)
+    val deleteError: StateFlow<String?> = _deleteError.asStateFlow()
+
     private var eventsJob: Job? = null
 
     fun loadRecord(recordId: Long) {
@@ -35,5 +42,22 @@ class ResultViewModel @Inject constructor(
                 _events.value = eventList
             }
         }
+    }
+
+    fun deleteCurrentRecord() {
+        val recordId = _record.value?.id ?: return
+        viewModelScope.launch {
+            runCatching {
+                repository.deleteRecordWithAudio(recordId)
+            }.onSuccess {
+                _deleteCompleted.value = true
+            }.onFailure {
+                _deleteError.value = "删除失败，请稍后重试"
+            }
+        }
+    }
+
+    fun clearDeleteError() {
+        _deleteError.value = null
     }
 }
