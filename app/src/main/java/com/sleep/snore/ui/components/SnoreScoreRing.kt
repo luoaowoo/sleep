@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import com.sleep.snore.data.model.Severity
 import com.sleep.snore.data.model.severityFromScore
 import com.sleep.snore.ui.theme.snoreScoreColor

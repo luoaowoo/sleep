@@ -50,7 +50,7 @@ fun RiskAssessmentScreen(navController: NavHostController) {
     ) { padding ->
         if (showResult) {
             val score = answers.values.count { it }
-            RiskResultContent(score = score, padding = padding)
+            RiskResultContent(score = score, padding = padding, navController = navController)
         } else {
             Column(
                 modifier = Modifier
@@ -116,7 +116,7 @@ fun RiskAssessmentScreen(navController: NavHostController) {
 }
 
 @Composable
-private fun RiskResultContent(score: Int, padding: PaddingValues) {
+private fun RiskResultContent(score: Int, padding: PaddingValues, navController: NavHostController) {
     val riskLevel = when {
         score <= 2 -> "低风险"
         score in 3..4 -> "中风险"

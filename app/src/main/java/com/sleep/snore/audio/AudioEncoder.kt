@@ -37,7 +37,7 @@ class AudioEncoder {
 
         try {
             // 查找 OPUS 编码器
-            val mime = MediaFormat.MIME_AUDIO_OPUS
+            val mime = "audio/opus"
             val codecName = findEncoderForMime(mime)
                 ?: run {
                     Log.w(TAG, "OPUS 编码器不可用，使用 WAV 回退")
