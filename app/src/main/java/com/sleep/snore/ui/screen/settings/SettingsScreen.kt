@@ -1,4 +1,4 @@
-﻿package com.sleep.snore.ui.screen.settings
+package com.sleep.snore.ui.screen.settings
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -115,13 +116,23 @@ fun SettingsScreen(
             Text("数据", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
             Card(shape = HeroCardShape) {
                 Column {
-                    ListItem(headlineContent = { Text("导出数据 (CSV)") }, modifier = Modifier.clickable {
-                        navController.navigate(Route.Export.route)
-                    })
+                    ListItem(
+                        headlineContent = { Text("导出数据 (CSV)") },
+                        modifier = Modifier
+                            .heightIn(min = Spacing.touchTargetMin)
+                            .clickable(role = Role.Button) {
+                                navController.navigate(Route.Export.route)
+                            }
+                    )
                     HorizontalDivider()
-                    ListItem(headlineContent = { Text("OSA 风险评估") }, modifier = Modifier.clickable {
-                        navController.navigate(Route.RiskAssessment.route)
-                    })
+                    ListItem(
+                        headlineContent = { Text("OSA 风险评估") },
+                        modifier = Modifier
+                            .heightIn(min = Spacing.touchTargetMin)
+                            .clickable(role = Role.Button) {
+                                navController.navigate(Route.RiskAssessment.route)
+                            }
+                    )
                 }
             }
 
