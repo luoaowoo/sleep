@@ -16,7 +16,7 @@ import com.sleep.snore.data.db.entity.SnoreEventEntity
         FactorLogEntity::class
     ],
     version = 2,
-    exportSchema = false
+    exportSchema = true
 )
 abstract class SleepDatabase : RoomDatabase() {
     abstract fun sleepRecordDao(): SleepRecordDao

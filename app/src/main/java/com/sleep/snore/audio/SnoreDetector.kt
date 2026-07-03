@@ -39,6 +39,9 @@ class SnoreDetector(
     /** 连续鼾声帧计数 (用于减少误触发) */
     private var snoreFrameCount = 0
 
+    /** 是否已经达到触发阈值，只有触发后才保存片段 */
+    private var hasTriggeredSegment = false
+
     /** 触发鼾声录音所需连续帧数 (约 200ms = 4帧) */
     private val triggerFrameCount = 4
 
@@ -107,6 +110,7 @@ class SnoreDetector(
 
             // 触发达标通知
             if (snoreFrameCount == triggerFrameCount) {
+                hasTriggeredSegment = true
                 callback.onSnoreStarted(
                     timestamp = segmentStartTime,
                     db = energyDetector.currentDb
@@ -115,13 +119,17 @@ class SnoreDetector(
         } else {
             // 有声音但非鼾声(语音/环境音)
             if (inSnoreSegment) {
-                silenceFrameCount++
-                addSegmentFrame(pcmFrame)
-                if (silenceFrameCount >= endSilenceFrames) {
-                    flushCurrentSegment()
+                if (hasTriggeredSegment) {
+                    silenceFrameCount++
+                    addSegmentFrame(pcmFrame)
+                    if (silenceFrameCount >= endSilenceFrames) {
+                        flushCurrentSegment()
+                    }
+                } else {
+                    resetCurrentSegment()
                 }
             } else {
-                // 非鼾声且不在片段中，丢弃
+                snoreFrameCount = 0
             }
         }
     }
@@ -140,7 +148,7 @@ class SnoreDetector(
             System.currentTimeMillis() - segmentStartTime
         } else 0L
 
-        if (durationMs < 500) {
+        if (!hasTriggeredSegment || durationMs < 500) {
             // 太短，可能是误触发，丢弃
             Log.d(TAG, "丢弃过短片段: ${durationMs}ms")
         } else {
@@ -153,7 +161,12 @@ class SnoreDetector(
             )
         }
 
+        resetCurrentSegment()
+    }
+
+    private fun resetCurrentSegment() {
         inSnoreSegment = false
+        hasTriggeredSegment = false
         segmentBuffer.clear()
         snoreFrameCount = 0
         silenceFrameCount = 0

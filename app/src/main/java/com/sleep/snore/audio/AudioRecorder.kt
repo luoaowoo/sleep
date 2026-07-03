@@ -1,5 +1,6 @@
 ﻿package com.sleep.snore.audio
 
+import android.annotation.SuppressLint
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
@@ -66,6 +67,7 @@ class AudioRecorder(
         Log.i(TAG, "录音已启动 (${AudioConfig.SAMPLE_RATE}Hz, ${AudioConfig.BITS_PER_SAMPLE}bit, Mono)")
     }
 
+    @SuppressLint("MissingPermission")
     private fun createRecorder(bufferSize: Int): AudioRecord {
         val sources = listOf(
             MediaRecorder.AudioSource.UNPROCESSED,

@@ -1,0 +1,362 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 2,
+    "identityHash": "dd519cdf1ba06f8454b92f85715061e3",
+    "entities": [
+      {
+        "tableName": "sleep_records",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `start_time` INTEGER NOT NULL, `end_time` INTEGER NOT NULL, `sleep_duration_min` INTEGER NOT NULL, `snore_score` INTEGER NOT NULL, `severity` TEXT NOT NULL, `est_ahi` REAL NOT NULL, `snore_duration_min` INTEGER NOT NULL, `snore_ratio` REAL NOT NULL, `avg_db` REAL NOT NULL, `max_db` REAL NOT NULL, `snore_event_count` INTEGER NOT NULL, `apnea_event_count` INTEGER NOT NULL, `longest_apnea_sec` INTEGER NOT NULL, `snore_type_distribution` TEXT NOT NULL, `hourly_distribution` TEXT NOT NULL, `ai_summary` TEXT NOT NULL, `ai_evaluation` TEXT NOT NULL, `ai_suggestions` TEXT NOT NULL, `is_favorited` INTEGER NOT NULL, `created_at` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "startTime",
+            "columnName": "start_time",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "endTime",
+            "columnName": "end_time",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sleepDurationMin",
+            "columnName": "sleep_duration_min",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "snoreScore",
+            "columnName": "snore_score",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "severity",
+            "columnName": "severity",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "estAHI",
+            "columnName": "est_ahi",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "snoreDurationMin",
+            "columnName": "snore_duration_min",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "snoreRatio",
+            "columnName": "snore_ratio",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "avgDb",
+            "columnName": "avg_db",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "maxDb",
+            "columnName": "max_db",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "snoreEventCount",
+            "columnName": "snore_event_count",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "apneaEventCount",
+            "columnName": "apnea_event_count",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "longestApneaSec",
+            "columnName": "longest_apnea_sec",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "snoreTypeDistribution",
+            "columnName": "snore_type_distribution",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "hourlyDistribution",
+            "columnName": "hourly_distribution",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "aiSummary",
+            "columnName": "ai_summary",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "aiEvaluation",
+            "columnName": "ai_evaluation",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "aiSuggestions",
+            "columnName": "ai_suggestions",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isFavorited",
+            "columnName": "is_favorited",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "created_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_sleep_records_start_time",
+            "unique": false,
+            "columnNames": [
+              "start_time"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_sleep_records_start_time` ON `${TABLE_NAME}` (`start_time`)"
+          },
+          {
+            "name": "index_sleep_records_created_at",
+            "unique": false,
+            "columnNames": [
+              "created_at"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_sleep_records_created_at` ON `${TABLE_NAME}` (`created_at`)"
+          }
+        ],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "snore_events",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `record_id` INTEGER NOT NULL, `start_timestamp` INTEGER NOT NULL, `duration_ms` INTEGER NOT NULL, `peak_db` REAL NOT NULL, `avg_db` REAL NOT NULL, `dominant_freq` REAL NOT NULL, `snore_type` TEXT NOT NULL, `audio_file_path` TEXT NOT NULL, `audio_file_size_bytes` INTEGER NOT NULL, `ai_type_label` TEXT NOT NULL, `is_favorited` INTEGER NOT NULL, FOREIGN KEY(`record_id`) REFERENCES `sleep_records`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "recordId",
+            "columnName": "record_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "startTimestamp",
+            "columnName": "start_timestamp",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "durationMs",
+            "columnName": "duration_ms",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "peakDb",
+            "columnName": "peak_db",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "avgDb",
+            "columnName": "avg_db",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dominantFreq",
+            "columnName": "dominant_freq",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "snoreType",
+            "columnName": "snore_type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "audioFilePath",
+            "columnName": "audio_file_path",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "audioFileSizeBytes",
+            "columnName": "audio_file_size_bytes",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "aiTypeLabel",
+            "columnName": "ai_type_label",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isFavorited",
+            "columnName": "is_favorited",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_snore_events_record_id",
+            "unique": false,
+            "columnNames": [
+              "record_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_snore_events_record_id` ON `${TABLE_NAME}` (`record_id`)"
+          },
+          {
+            "name": "index_snore_events_record_id_start_timestamp",
+            "unique": false,
+            "columnNames": [
+              "record_id",
+              "start_timestamp"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_snore_events_record_id_start_timestamp` ON `${TABLE_NAME}` (`record_id`, `start_timestamp`)"
+          },
+          {
+            "name": "index_snore_events_start_timestamp",
+            "unique": false,
+            "columnNames": [
+              "start_timestamp"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_snore_events_start_timestamp` ON `${TABLE_NAME}` (`start_timestamp`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "sleep_records",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "record_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "factor_logs",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `record_id` INTEGER, `date` TEXT NOT NULL, `alcohol_drinks` INTEGER NOT NULL, `sleep_position` TEXT NOT NULL, `weight_kg` REAL, `nasal_congestion` INTEGER NOT NULL, `notes` TEXT)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "recordId",
+            "columnName": "record_id",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "date",
+            "columnName": "date",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "alcoholDrinks",
+            "columnName": "alcohol_drinks",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sleepPosition",
+            "columnName": "sleep_position",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "weightKg",
+            "columnName": "weight_kg",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "nasalCongestion",
+            "columnName": "nasal_congestion",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "notes",
+            "columnName": "notes",
+            "affinity": "TEXT",
+            "notNull": false
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [],
+        "foreignKeys": []
+      }
+    ],
+    "views": [],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'dd519cdf1ba06f8454b92f85715061e3')"
+    ]
+  }
+}

@@ -41,6 +41,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import com.sleep.snore.service.SleepRecordingService
 import com.sleep.snore.ui.theme.PillShape
@@ -50,8 +51,8 @@ import kotlinx.coroutines.delay
 @Composable
 fun RecordingScreen(navController: NavHostController) {
     val context = LocalContext.current
+    val recordingState by SleepRecordingService.recordingState.collectAsStateWithLifecycle()
     var elapsedSeconds by remember { mutableIntStateOf(0) }
-    var isRecording by remember { mutableStateOf(false) }
     var hasAudioPermission by remember {
         mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED)
     }
@@ -63,17 +64,13 @@ fun RecordingScreen(navController: NavHostController) {
     }
 
     fun startRecording() {
-        if (!isRecording && hasAudioPermission && hasNotificationPermission) {
+        if (!recordingState.isActive && hasAudioPermission && hasNotificationPermission) {
             ContextCompat.startForegroundService(context, SleepRecordingService.startIntent(context))
-            isRecording = true
         }
     }
 
     fun stopRecording() {
-        if (isRecording) {
-            context.startService(SleepRecordingService.stopIntent(context))
-            isRecording = false
-        }
+        context.startService(SleepRecordingService.stopIntent(context))
         navController.popBackStack()
     }
 
@@ -90,14 +87,14 @@ fun RecordingScreen(navController: NavHostController) {
         if (hasAudioPermission && hasNotificationPermission) startRecording()
     }
 
-    LaunchedEffect(isRecording) {
-        while (isRecording) {
+    LaunchedEffect(recordingState.isActive, recordingState.startTime) {
+        while (recordingState.isActive) {
+            elapsedSeconds = ((System.currentTimeMillis() - recordingState.startTime) / 1000L).toInt().coerceAtLeast(0)
             delay(1000)
-            elapsedSeconds++
         }
     }
 
-    BackHandler(enabled = isRecording) { stopRecording() }
+    BackHandler(enabled = recordingState.isActive) { stopRecording() }
 
     val pulseAlpha by rememberInfiniteTransition(label = "pulse").animateFloat(
         initialValue = 0.4f,

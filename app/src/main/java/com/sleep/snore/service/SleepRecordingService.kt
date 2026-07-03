@@ -1,11 +1,14 @@
 package com.sleep.snore.service
 
+import android.Manifest
+import android.annotation.SuppressLint
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
@@ -13,6 +16,7 @@ import android.os.PowerManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import com.sleep.snore.MainActivity
 import com.sleep.snore.audio.AudioEncoder
 import com.sleep.snore.audio.SnoreFeatureAnalyzer
@@ -36,8 +40,17 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
+
+data class RecordingRuntimeState(
+    val isActive: Boolean = false,
+    val startTime: Long = 0L,
+    val eventCount: Int = 0
+)
 
 @AndroidEntryPoint
 class SleepRecordingService : Service() {
@@ -50,6 +63,7 @@ class SleepRecordingService : Service() {
     private val audioEncoder = AudioEncoder()
     private val pendingEvents = mutableListOf<SnoreEventEntity>()
     private val encodingJobs = mutableListOf<Job>()
+    private var startJob: Job? = null
 
     private var wakeLock: PowerManager.WakeLock? = null
     private var snoreDetector: SnoreDetector? = null
@@ -82,6 +96,7 @@ class SleepRecordingService : Service() {
             isSessionActive = false
             stopSnoreDetection()
         }
+        _recordingState.value = RecordingRuntimeState()
         releaseWakeLock()
         serviceScope.cancel()
         super.onDestroy()
@@ -92,19 +107,31 @@ class SleepRecordingService : Service() {
         ensureServiceScope()
         isSessionActive = true
         sessionStartTime = System.currentTimeMillis()
+        _recordingState.value = RecordingRuntimeState(isActive = true, startTime = sessionStartTime)
         synchronized(pendingEvents) { pendingEvents.clear() }
         synchronized(encodingJobs) { encodingJobs.clear() }
         startForegroundNotification(0)
         acquireWakeLock()
 
-        serviceScope.launch {
-            val settings = preferencesRepository.settings.first()
-            if (settings.autoCleanEnabled) cleanOldData()
-            currentRecordId = repository.insertRecord(createEmptyRecord(sessionStartTime))
-            startSnoreDetection(
-                recordId = currentRecordId ?: return@launch,
-                silenceThresholdDb = settings.silenceThresholdDb.toDouble()
-            )
+        startJob = serviceScope.launch {
+            try {
+                val settings = preferencesRepository.settings.first()
+                if (settings.autoCleanEnabled) cleanOldData()
+                val recordId = repository.insertRecord(createEmptyRecord(sessionStartTime))
+                currentRecordId = recordId
+                if (!isSessionActive) return@launch
+                startSnoreDetection(
+                    recordId = recordId,
+                    silenceThresholdDb = settings.silenceThresholdDb.toDouble()
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "failed to start recording session", e)
+                isSessionActive = false
+                _recordingState.value = RecordingRuntimeState()
+                releaseWakeLock()
+                stopForeground(STOP_FOREGROUND_REMOVE)
+                stopSelf()
+            }
         }
     }
 
@@ -118,6 +145,7 @@ class SleepRecordingService : Service() {
 
         serviceScope.launch {
             try {
+                startJob?.join()
                 val jobs = synchronized(encodingJobs) { encodingJobs.toList() }
                 jobs.joinAll()
                 val recordId = currentRecordId
@@ -132,6 +160,7 @@ class SleepRecordingService : Service() {
                 Log.e(TAG, "failed to finish recording session", e)
             } finally {
                 releaseWakeLock()
+                _recordingState.value = RecordingRuntimeState()
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
                 serviceScope.cancel()
@@ -174,22 +203,33 @@ class SleepRecordingService : Service() {
             .addAction(android.R.drawable.ic_menu_close_clear_cancel, TEXT_STOP, stopIntent)
             .build()
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
         } else {
             startForeground(NOTIFICATION_ID, notification)
         }
     }
 
+    @SuppressLint("MissingPermission")
     private fun updateNotification() {
         val count = synchronized(pendingEvents) { pendingEvents.size }
+        _recordingState.value = _recordingState.value.copy(eventCount = count)
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(TEXT_RECORDING_TITLE)
             .setContentText(TEXT_SNORE_SEGMENTS.format(count))
             .setSmallIcon(android.R.drawable.ic_btn_speak_now)
             .setOngoing(true)
             .build()
-        NotificationManagerCompat.from(this).notify(NOTIFICATION_ID, notification)
+        if (canPostNotifications()) {
+            runCatching {
+                NotificationManagerCompat.from(this).notify(NOTIFICATION_ID, notification)
+            }
+        }
+    }
+
+    private fun canPostNotifications(): Boolean {
+        return Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
     }
 
     private fun acquireWakeLock() {
@@ -372,6 +412,9 @@ class SleepRecordingService : Service() {
         const val CHANNEL_ID = "sleep_recording"
         const val NOTIFICATION_ID = 1001
         private const val TAG = "SleepRecordingService"
+
+        private val _recordingState = MutableStateFlow(RecordingRuntimeState())
+        val recordingState: StateFlow<RecordingRuntimeState> = _recordingState.asStateFlow()
 
         private const val TEXT_CHANNEL_NAME = "\u9f3e\u58f0\u5f55\u5236"
         private const val TEXT_CHANNEL_DESCRIPTION = "\u7761\u7720\u9f3e\u58f0\u5f55\u5236\u670d\u52a1\u901a\u77e5"

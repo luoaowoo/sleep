@@ -70,7 +70,7 @@ fun RiskAssessmentScreen(navController: NavHostController) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
-                Divider()
+                HorizontalDivider()
 
                 stopBangQuestions.forEach { q ->
                     Card(shape = HeroCardShape) {

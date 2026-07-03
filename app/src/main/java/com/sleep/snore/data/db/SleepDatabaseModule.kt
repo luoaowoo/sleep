@@ -39,7 +39,7 @@ object SleepDatabaseModule {
     @Provides
     fun provideFactorLogDao(db: SleepDatabase): FactorLogDao = db.factorLogDao()
 
-    private val MIGRATION_1_2 = object : Migration(1, 2) {
+    val MIGRATION_1_2 = object : Migration(1, 2) {
         override fun migrate(db: SupportSQLiteDatabase) {
             db.execSQL("CREATE INDEX IF NOT EXISTS `index_sleep_records_start_time` ON `sleep_records` (`start_time`)")
             db.execSQL("CREATE INDEX IF NOT EXISTS `index_sleep_records_created_at` ON `sleep_records` (`created_at`)")
