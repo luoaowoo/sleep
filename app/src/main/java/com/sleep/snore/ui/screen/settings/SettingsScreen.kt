@@ -94,6 +94,20 @@ fun SettingsScreen(
                         steps = 7
                     )
                     Text("低于此音量的声音不会被录制", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    HorizontalDivider(modifier = Modifier.padding(vertical = Spacing.sm))
+                    Text("单个片段最长: ${uiState.maxSegmentDurationSec} 秒", style = MaterialTheme.typography.bodyMedium)
+                    Spacer(Modifier.height(Spacing.xs))
+                    Slider(
+                        value = uiState.maxSegmentDurationSec.toFloat(),
+                        onValueChange = viewModel::onMaxSegmentDurationChange,
+                        valueRange = SettingsPreferencesRepository.MIN_MAX_SEGMENT_DURATION_SEC.toFloat()..SettingsPreferencesRepository.MAX_MAX_SEGMENT_DURATION_SEC.toFloat(),
+                        steps = 6
+                    )
+                    Text(
+                        "达到上限会自动切分，避免长噪声持续占用内存和存储",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
 

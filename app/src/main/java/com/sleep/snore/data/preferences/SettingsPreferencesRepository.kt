@@ -19,7 +19,8 @@ data class SettingsPreferences(
     val dynamicColorEnabled: Boolean = SettingsPreferencesRepository.DEFAULT_DYNAMIC_COLOR_ENABLED,
     val themeMode: String = SettingsPreferencesRepository.DEFAULT_THEME_MODE,
     val compactModeEnabled: Boolean = SettingsPreferencesRepository.DEFAULT_COMPACT_MODE_ENABLED,
-    val showTechnicalDetails: Boolean = SettingsPreferencesRepository.DEFAULT_SHOW_TECHNICAL_DETAILS
+    val showTechnicalDetails: Boolean = SettingsPreferencesRepository.DEFAULT_SHOW_TECHNICAL_DETAILS,
+    val maxSegmentDurationSec: Int = SettingsPreferencesRepository.DEFAULT_MAX_SEGMENT_DURATION_SEC
 )
 
 @Singleton
@@ -49,7 +50,10 @@ class SettingsPreferencesRepository @Inject constructor(
                 compactModeEnabled = preferences[Keys.COMPACT_MODE_ENABLED]
                     ?: DEFAULT_COMPACT_MODE_ENABLED,
                 showTechnicalDetails = preferences[Keys.SHOW_TECHNICAL_DETAILS]
-                    ?: DEFAULT_SHOW_TECHNICAL_DETAILS
+                    ?: DEFAULT_SHOW_TECHNICAL_DETAILS,
+                maxSegmentDurationSec = preferences[Keys.MAX_SEGMENT_DURATION_SEC]
+                    ?.coerceIn(MIN_MAX_SEGMENT_DURATION_SEC, MAX_MAX_SEGMENT_DURATION_SEC)
+                    ?: DEFAULT_MAX_SEGMENT_DURATION_SEC
             )
         }
 
@@ -95,6 +99,15 @@ class SettingsPreferencesRepository @Inject constructor(
         }
     }
 
+    suspend fun setMaxSegmentDurationSec(value: Int) {
+        dataStore.edit { preferences ->
+            preferences[Keys.MAX_SEGMENT_DURATION_SEC] = value.coerceIn(
+                MIN_MAX_SEGMENT_DURATION_SEC,
+                MAX_MAX_SEGMENT_DURATION_SEC
+            )
+        }
+    }
+
     private object Keys {
         val SILENCE_THRESHOLD_DB = floatPreferencesKey("silence_threshold_db")
         val AUTO_CLEAN_ENABLED = booleanPreferencesKey("auto_clean_enabled")
@@ -102,12 +115,16 @@ class SettingsPreferencesRepository @Inject constructor(
         val THEME_MODE = androidx.datastore.preferences.core.stringPreferencesKey("theme_mode")
         val COMPACT_MODE_ENABLED = booleanPreferencesKey("compact_mode_enabled")
         val SHOW_TECHNICAL_DETAILS = booleanPreferencesKey("show_technical_details")
+        val MAX_SEGMENT_DURATION_SEC = androidx.datastore.preferences.core.intPreferencesKey("max_segment_duration_sec")
     }
 
     companion object {
         const val MIN_SILENCE_THRESHOLD_DB = -60f
         const val MAX_SILENCE_THRESHOLD_DB = -20f
+        const val MIN_MAX_SEGMENT_DURATION_SEC = 15
+        const val MAX_MAX_SEGMENT_DURATION_SEC = 120
         const val DEFAULT_SILENCE_THRESHOLD_DB = -40f
+        const val DEFAULT_MAX_SEGMENT_DURATION_SEC = 60
         const val DEFAULT_AUTO_CLEAN_ENABLED = true
         const val DEFAULT_DYNAMIC_COLOR_ENABLED = true
         const val DEFAULT_COMPACT_MODE_ENABLED = false

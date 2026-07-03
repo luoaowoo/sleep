@@ -24,6 +24,7 @@ data class SettingsUiState(
     val themeMode: String = SettingsPreferencesRepository.DEFAULT_THEME_MODE,
     val compactModeEnabled: Boolean = SettingsPreferencesRepository.DEFAULT_COMPACT_MODE_ENABLED,
     val showTechnicalDetails: Boolean = SettingsPreferencesRepository.DEFAULT_SHOW_TECHNICAL_DETAILS,
+    val maxSegmentDurationSec: Int = SettingsPreferencesRepository.DEFAULT_MAX_SEGMENT_DURATION_SEC,
     val storageUsageText: String = "计算中..."
 )
 
@@ -46,7 +47,8 @@ class SettingsViewModel @Inject constructor(
                         dynamicColorEnabled = settings.dynamicColorEnabled,
                         themeMode = settings.themeMode,
                         compactModeEnabled = settings.compactModeEnabled,
-                        showTechnicalDetails = settings.showTechnicalDetails
+                        showTechnicalDetails = settings.showTechnicalDetails,
+                        maxSegmentDurationSec = settings.maxSegmentDurationSec
                     )
                 }
             }
@@ -97,6 +99,17 @@ class SettingsViewModel @Inject constructor(
         _uiState.update { it.copy(showTechnicalDetails = enabled) }
         viewModelScope.launch {
             preferencesRepository.setShowTechnicalDetails(enabled)
+        }
+    }
+
+    fun onMaxSegmentDurationChange(value: Float) {
+        val durationSec = value.toInt().coerceIn(
+            SettingsPreferencesRepository.MIN_MAX_SEGMENT_DURATION_SEC,
+            SettingsPreferencesRepository.MAX_MAX_SEGMENT_DURATION_SEC
+        )
+        _uiState.update { it.copy(maxSegmentDurationSec = durationSec) }
+        viewModelScope.launch {
+            preferencesRepository.setMaxSegmentDurationSec(durationSec)
         }
     }
 

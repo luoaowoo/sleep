@@ -129,7 +129,8 @@ class SleepRecordingService : Service() {
                 if (!isSessionActive) return@launch
                 startSnoreDetection(
                     recordId = recordId,
-                    silenceThresholdDb = settings.silenceThresholdDb.toDouble()
+                    silenceThresholdDb = settings.silenceThresholdDb.toDouble(),
+                    maxSegmentDurationSec = settings.maxSegmentDurationSec
                 )
             } catch (e: Exception) {
                 Log.e(TAG, "failed to start recording session", e)
@@ -256,40 +257,48 @@ class SleepRecordingService : Service() {
         wakeLock = null
     }
 
-    private fun startSnoreDetection(recordId: Long, silenceThresholdDb: Double) {
+    private fun startSnoreDetection(
+        recordId: Long,
+        silenceThresholdDb: Double,
+        maxSegmentDurationSec: Int
+    ) {
         val outputDir = File(filesDir, "snore_audio").apply { mkdirs() }
-        snoreDetector = SnoreDetector(object : SnoreDetector.SnoreCallback {
-            override fun onSnoreStarted(timestamp: Long, db: Double) {
-                Log.d(TAG, "snore started: $timestamp, ${String.format(Locale.getDefault(), "%.1f", db)}dB")
-            }
-
-            override fun onSnoreEnded(startTimestamp: Long, durationMs: Long, pcmData: ByteArray, peakDb: Double) {
-                val job = serviceScope.launch {
-                    val features = SnoreFeatureAnalyzer.analyze(pcmData, peakDb, durationMs)
-                    val audioFile = audioEncoder.encodeToOpus(pcmData, outputDir, "snore_$startTimestamp")
-                    if (audioFile == null || audioFile.length() == 0L) {
-                        Log.w(TAG, "skip snore event because audio file was not saved: $startTimestamp")
-                        return@launch
-                    }
-                    val event = SnoreEventEntity(
-                        recordId = recordId,
-                        startTimestamp = startTimestamp,
-                        durationMs = durationMs.toInt(),
-                        peakDb = features.peakDb,
-                        avgDb = features.avgDb,
-                        dominantFreq = features.dominantFreq,
-                        snoreType = features.snoreType.name,
-                        audioFilePath = audioFile.absolutePath,
-                        audioFileSizeBytes = audioFile.length(),
-                        aiTypeLabel = features.aiTypeLabel
-                    )
-                    val savedId = repository.insertEvent(event)
-                    synchronized(pendingEvents) { pendingEvents.add(event.copy(id = savedId)) }
-                    updateNotification()
+        snoreDetector = SnoreDetector(
+            callback = object : SnoreDetector.SnoreCallback {
+                override fun onSnoreStarted(timestamp: Long, db: Double) {
+                    Log.d(TAG, "snore started: $timestamp, ${String.format(Locale.getDefault(), "%.1f", db)}dB")
                 }
-                synchronized(encodingJobs) { encodingJobs.add(job) }
-            }
-        }, silenceThresholdDb = silenceThresholdDb)
+
+                override fun onSnoreEnded(startTimestamp: Long, durationMs: Long, pcmData: ByteArray, peakDb: Double) {
+                    val job = serviceScope.launch {
+                        val features = SnoreFeatureAnalyzer.analyze(pcmData, peakDb, durationMs)
+                        val audioFile = audioEncoder.encodeToOpus(pcmData, outputDir, "snore_$startTimestamp")
+                        if (audioFile == null || audioFile.length() == 0L) {
+                            Log.w(TAG, "skip snore event because audio file was not saved: $startTimestamp")
+                            return@launch
+                        }
+                        val event = SnoreEventEntity(
+                            recordId = recordId,
+                            startTimestamp = startTimestamp,
+                            durationMs = durationMs.toInt(),
+                            peakDb = features.peakDb,
+                            avgDb = features.avgDb,
+                            dominantFreq = features.dominantFreq,
+                            snoreType = features.snoreType.name,
+                            audioFilePath = audioFile.absolutePath,
+                            audioFileSizeBytes = audioFile.length(),
+                            aiTypeLabel = features.aiTypeLabel
+                        )
+                        val savedId = repository.insertEvent(event)
+                        synchronized(pendingEvents) { pendingEvents.add(event.copy(id = savedId)) }
+                        updateNotification()
+                    }
+                    synchronized(encodingJobs) { encodingJobs.add(job) }
+                }
+            },
+            silenceThresholdDb = silenceThresholdDb,
+            maxSegmentDurationSec = maxSegmentDurationSec
+        )
 
         try {
             snoreDetector?.startListening()

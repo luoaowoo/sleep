@@ -16,7 +16,8 @@ import java.io.Closeable
  */
 class SnoreDetector(
     private val callback: SnoreCallback,
-    silenceThresholdDb: Double = -40.0
+    silenceThresholdDb: Double = -40.0,
+    maxSegmentDurationSec: Int = DEFAULT_MAX_SEGMENT_DURATION_SEC
 ) : Closeable {
 
     private val audioRecorder: AudioRecorder
@@ -48,8 +49,9 @@ class SnoreDetector(
     /** 结束鼾声片段所需连续静音帧数 (约 1秒 = 20帧) */
     private val endSilenceFrames = 20
 
-    /** 单个片段最大帧数 (约 2分钟)，避免长噪声导致内存持续增长 */
-    private val maxSegmentFrames = 2 * 60 * 20
+    /** 单个片段最大帧数，避免长噪声导致内存持续增长 */
+    private val maxSegmentFrames = ((maxSegmentDurationSec.coerceIn(15, 120) * 1000) / AudioConfig.FRAME_DURATION_MS)
+        .coerceAtLeast(triggerFrameCount + endSilenceFrames)
 
     init {
         audioRecorder = AudioRecorder(object : AudioRecorder.FrameCallback {
@@ -152,7 +154,7 @@ class SnoreDetector(
             // 太短，可能是误触发，丢弃
             Log.d(TAG, "丢弃过短片段: ${durationMs}ms")
         } else {
-            val pcmData = segmentBuffer.flatMap { it.toList() }.toByteArray()
+            val pcmData = PcmBuffer.concatenate(segmentBuffer)
             callback.onSnoreEnded(
                 startTimestamp = segmentStartTime,
                 durationMs = durationMs,
@@ -188,5 +190,6 @@ class SnoreDetector(
 
     companion object {
         private const val TAG = "SnoreDetector"
+        private const val DEFAULT_MAX_SEGMENT_DURATION_SEC = 60
     }
 }
