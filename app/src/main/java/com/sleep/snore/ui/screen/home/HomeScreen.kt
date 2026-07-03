@@ -1,21 +1,42 @@
 package com.sleep.snore.ui.screen.home
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
+import com.sleep.snore.data.db.entity.SleepRecordEntity
 import com.sleep.snore.navigation.Route
 import com.sleep.snore.ui.components.SnoreScoreRing
-import com.sleep.snore.ui.theme.*
+import com.sleep.snore.ui.theme.HeroCardShape
+import com.sleep.snore.ui.theme.PillShape
+import com.sleep.snore.ui.theme.Spacing
+import com.sleep.snore.ui.theme.snoreScoreColor
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -29,7 +50,7 @@ fun HomeScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Ë¯Ãß¸ÅÀÀ") },
+                title = { Text("ç¡çœ æ¦‚è§ˆ") },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
                 )
@@ -38,8 +59,8 @@ fun HomeScreen(
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = { navController.navigate(Route.Recording.route) },
-                icon = { Text("??") },
-                text = { Text("¿ªÊ¼Ë¯Ãß") },
+                icon = { Text("ç¡") },
+                text = { Text("å¼€å§‹ç¡çœ ") },
                 shape = PillShape,
                 containerColor = MaterialTheme.colorScheme.primaryContainer,
                 contentColor = MaterialTheme.colorScheme.onPrimaryContainer
@@ -54,21 +75,16 @@ fun HomeScreen(
                 .padding(top = Spacing.md),
             verticalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
-            // ×òÍíË¯Ãß¸ÅÀÀ¿¨Æ¬
-            if (latestRecord != null) {
-                SleepOverviewCard(record = latestRecord!!) {
-                    navController.navigate(Route.Result.createRoute(latestRecord!!.id))
+            latestRecord?.let { record ->
+                SleepOverviewCard(record = record) {
+                    navController.navigate(Route.Result.createRoute(record.id))
                 }
-            } else {
-                EmptyStateCard()
-            }
+            } ?: EmptyStateCard()
 
-            // ×î½üÆßÌìÇ÷ÊÆÃÔÄãÍ¼
             if (recentRecords.isNotEmpty()) {
                 WeeklyTrendCard(records = recentRecords)
             }
 
-            // AI ¿ìËÙÆÀ¼Û (Èç¹ûÓĞ)
             latestRecord?.let { record ->
                 if (record.aiSummary.isNotBlank()) {
                     AIQuickCard(summary = record.aiSummary) {
@@ -83,7 +99,7 @@ fun HomeScreen(
 }
 
 @Composable
-private fun SleepOverviewCard(record: com.sleep.snore.data.db.entity.SleepRecordEntity, onClick: () -> Unit) {
+private fun SleepOverviewCard(record: SleepRecordEntity, onClick: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -95,22 +111,17 @@ private fun SleepOverviewCard(record: com.sleep.snore.data.db.entity.SleepRecord
             modifier = Modifier.padding(Spacing.lg),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text("×òÍíË¯Ãß", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
-
+            Text("æ˜¨æ™šç¡çœ ", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
             Spacer(Modifier.height(Spacing.sm))
-
             SnoreScoreRing(score = record.snoreScore, size = 160.dp)
-
             Spacer(Modifier.height(Spacing.md))
-
-            // Ö¸±êĞĞ
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                MetricItem("Ë¯ÃßÊ±³¤", "${record.sleepDurationMin / 60}h ${record.sleepDurationMin % 60}m")
-                MetricItem("AHI¹ÀËã", String.format("%.1f", record.estAHI))
-                MetricItem("·åÖµÏì¶È", "${String.format("%.0f", record.maxDb)}dB")
+                MetricItem("ç¡çœ æ—¶é•¿", "${record.sleepDurationMin / 60}h ${record.sleepDurationMin % 60}m")
+                MetricItem("AHIä¼°ç®—", String.format("%.1f", record.estAHI))
+                MetricItem("å³°å€¼å“åº¦", "${String.format("%.0f", record.maxDb)}dB")
             }
         }
     }
@@ -137,27 +148,28 @@ private fun EmptyStateCard() {
                 .padding(Spacing.xxl),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text("??", style = MaterialTheme.typography.displayLarge)
+            Text("ç¡", style = MaterialTheme.typography.displayLarge)
             Spacer(Modifier.height(Spacing.md))
-            Text("»¹Ã»ÓĞË¯Ãß¼ÇÂ¼", style = MaterialTheme.typography.titleLarge)
-            Text("µã»÷ÏÂ·½°´Å¥¿ªÊ¼µÚÒ»´ÎÂ¼Òô", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("è¿˜æ²¡æœ‰ç¡çœ è®°å½•", style = MaterialTheme.typography.titleLarge)
+            Text("ç‚¹å‡»ä¸‹æ–¹æŒ‰é’®å¼€å§‹ç¬¬ä¸€æ¬¡å½•éŸ³", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
 
 @Composable
-private fun WeeklyTrendCard(records: List<com.sleep.snore.data.db.entity.SleepRecordEntity>) {
+private fun WeeklyTrendCard(records: List<SleepRecordEntity>) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = HeroCardShape,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(modifier = Modifier.padding(Spacing.md)) {
-            Text("?? ±¾ÖÜÇ÷ÊÆ", style = MaterialTheme.typography.titleMedium)
+            Text("æœ¬å‘¨è¶‹åŠ¿", style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(Spacing.sm))
-            // ¼ò»¯°æ£ººáÌõÍ¼
             Row(
-                modifier = Modifier.fillMaxWidth().height(80.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(80.dp),
                 horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
                 verticalAlignment = Alignment.Bottom
             ) {
@@ -168,7 +180,7 @@ private fun WeeklyTrendCard(records: List<com.sleep.snore.data.db.entity.SleepRe
                             .weight(1f)
                             .fillMaxHeight(heightFraction),
                         shape = PillShape,
-                        color = com.sleep.snore.ui.theme.snoreScoreColor(record.snoreScore)
+                        color = snoreScoreColor(record.snoreScore)
                     ) {}
                 }
             }
@@ -189,10 +201,10 @@ private fun AIQuickCard(summary: String, onClick: () -> Unit) {
             modifier = Modifier.padding(Spacing.md),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("??", style = MaterialTheme.typography.headlineSmall)
+            Text("AI", style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.width(Spacing.sm))
             Column(modifier = Modifier.weight(1f)) {
-                Text("AI ÆÀ¼Û", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onTertiaryContainer)
+                Text("AI è¯„ä»·", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onTertiaryContainer)
                 Text(summary, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onTertiaryContainer)
             }
             Text(">", color = MaterialTheme.colorScheme.onTertiaryContainer)

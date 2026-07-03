@@ -1,7 +1,12 @@
 package com.sleep.snore.ui.components
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -15,12 +20,6 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 import com.sleep.snore.ui.theme.snoreScoreColor
 
-/**
- * SnoreScore 趋势折线图
- *
- * @param data 分数列表 (越往后越新)
- * @param labels X轴标签
- */
 @Composable
 fun TrendChart(
     data: List<Int>,
@@ -29,7 +28,7 @@ fun TrendChart(
 ) {
     Column(modifier = modifier) {
         Text(
-            "SnoreScore 趋势",
+            "SnoreScore 瓒嬪娍",
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.padding(bottom = 8.dp)
         )
@@ -42,16 +41,16 @@ fun TrendChart(
             if (data.size < 2) return@Canvas
 
             val padding = 24f
-            val w = size.width - padding * 2
-            val h = size.height - padding * 2
-            val stepX = if (data.size > 1) w / (data.size - 1) else 0f
+            val chartWidth = size.width - padding * 2
+            val chartHeight = size.height - padding * 2
+            val stepX = chartWidth / (data.size - 1)
 
             for (i in 0..4) {
-                val y = padding + h * i / 4
+                val y = padding + chartHeight * i / 4
                 drawLine(
                     Color.LightGray.copy(alpha = 0.3f),
                     Offset(padding, y),
-                    Offset(padding + w, y),
+                    Offset(padding + chartWidth, y),
                     strokeWidth = 1f
                 )
             }
@@ -59,7 +58,7 @@ fun TrendChart(
             val path = Path()
             data.forEachIndexed { index, score ->
                 val x = padding + index * stepX
-                val y = padding + h * (1 - score / 100f)
+                val y = padding + chartHeight * (1 - score / 100f)
                 if (index == 0) path.moveTo(x, y) else path.lineTo(x, y)
             }
 
@@ -71,7 +70,7 @@ fun TrendChart(
 
             data.forEachIndexed { index, score ->
                 val x = padding + index * stepX
-                val y = padding + h * (1 - score / 100f)
+                val y = padding + chartHeight * (1 - score / 100f)
                 drawCircle(
                     color = snoreScoreColor(score),
                     radius = 5f,
@@ -96,4 +95,3 @@ fun TrendChart(
         }
     }
 }
-

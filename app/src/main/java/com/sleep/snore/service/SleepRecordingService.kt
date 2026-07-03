@@ -64,9 +64,9 @@ class SleepRecordingService : Service() {
 
     private fun createNotificationChannel() {
         val channel = android.app.NotificationChannel(
-            CHANNEL_ID, "÷ıÉùÂ¼ÖÆ", android.app.NotificationManager.IMPORTANCE_LOW
+            CHANNEL_ID, "é¼¾å£°å½•åˆ¶", android.app.NotificationManager.IMPORTANCE_LOW
         ).apply {
-            description = "Ë¯Ãß÷ıÉùÂ¼ÖÆ·şÎñÍ¨Öª"
+            description = "ç¡çœ é¼¾å£°å½•åˆ¶æœåŠ¡é€šçŸ¥"
         }
         val manager = getSystemService(android.app.NotificationManager::class.java)
         manager.createNotificationChannel(channel)
@@ -79,8 +79,8 @@ class SleepRecordingService : Service() {
         )
 
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("ÕıÔÚÂ¼ÖÆË¯Ãß÷ıÉù")
-            .setContentText("÷ıÉùÆ¬¶Î: 0 ¸ö")
+            .setContentTitle("æ­£åœ¨å½•åˆ¶ç¡çœ é¼¾å£°")
+            .setContentText("é¼¾å£°ç‰‡æ®µ: 0 ä¸ª")
             .setSmallIcon(android.R.drawable.ic_btn_speak_now)
             .setOngoing(true)
             .setContentIntent(pendingIntent)
@@ -117,7 +117,7 @@ class SleepRecordingService : Service() {
 
         snoreDetector = SnoreDetector(object : SnoreDetector.SnoreCallback {
             override fun onSnoreStarted(timestamp: Long, db: Double) {
-                Log.d(TAG, "÷ıÉù¿ªÊ¼: $timestamp, ${String.format("%.1f", db)}dB")
+                Log.d(TAG, "é¼¾å£°å¼€å§‹: $timestamp, ${String.format("%.1f", db)}dB")
             }
 
             override fun onSnoreEnded(startTimestamp: Long, durationMs: Long, pcmData: ByteArray, peakDb: Double) {
@@ -139,11 +139,11 @@ class SleepRecordingService : Service() {
                             snoreType = currentSnoreType.name,
                             audioFilePath = audioFile?.absolutePath ?: "",
                             audioFileSizeBytes = audioFile?.length() ?: 0,
-                            aiTypeLabel = "${currentSnoreType.label}÷ıÉù"
+                            aiTypeLabel = "${currentSnoreType.label}é¼¾å£°"
                         )
                         pendingEvents.add(event)
                     } catch (e: Exception) {
-                        Log.e(TAG, "±£´æ÷ıÉùÊÂ¼şÊ§°Ü", e)
+                        Log.e(TAG, "ä¿å­˜é¼¾å£°äº‹ä»¶å¤±è´¥", e)
                     }
                 }
             }
@@ -161,8 +161,8 @@ class SleepRecordingService : Service() {
 
     private fun updateNotification() {
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("ÕıÔÚÂ¼ÖÆË¯Ãß÷ıÉù")
-            .setContentText("÷ıÉùÆ¬¶Î: $snoreEventCount ¸ö")
+            .setContentTitle("æ­£åœ¨å½•åˆ¶ç¡çœ é¼¾å£°")
+            .setContentText("é¼¾å£°ç‰‡æ®µ: $snoreEventCount ä¸ª")
             .setSmallIcon(android.R.drawable.ic_btn_speak_now)
             .setOngoing(true)
             .build()

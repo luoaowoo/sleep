@@ -1,22 +1,38 @@
 package com.sleep.snore.ui.screen.result
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.*
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import com.sleep.snore.ui.components.SnoreScoreRing
-import com.sleep.snore.ui.theme.*
+import com.sleep.snore.ui.theme.HeroCardShape
+import com.sleep.snore.ui.theme.Spacing
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -34,9 +50,9 @@ fun ResultScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Ë¯Ãß±¨¸æ") },
+                title = { Text("ç¡çœ æŠ¥å‘Š") },
                 navigationIcon = {
-                    TextButton(onClick = { navController.popBackStack() }) { Text("¡û ·µ»Ø") }
+                    TextButton(onClick = { navController.popBackStack() }) { Text("è¿”å›") }
                 }
             )
         }
@@ -52,36 +68,29 @@ fun ResultScreen(
                 verticalArrangement = Arrangement.spacedBy(Spacing.md)
             ) {
                 Spacer(Modifier.height(Spacing.md))
-
-                // Hero SnoreScore ´óÔ²»·
                 SnoreScoreRing(score = r.snoreScore, size = 180.dp)
-
                 Spacer(Modifier.height(Spacing.md))
 
-                // ºËĞÄÖ¸±êÍø¸ñ
                 Card(shape = HeroCardShape) {
                     Column(modifier = Modifier.padding(Spacing.md)) {
                         MetricsRow(
-                            Metric("Ë¯ÃßÊ±³¤", "${r.sleepDurationMin / 60}h ${r.sleepDurationMin % 60}m"),
-                            Metric("AHI ¹ÀËã", String.format("%.1f", r.estAHI)),
-                            Metric("·åÖµÏì¶È", "${String.format("%.0f", r.maxDb)}dB")
+                            Metric("ç¡çœ æ—¶é•¿", "${r.sleepDurationMin / 60}h ${r.sleepDurationMin % 60}m"),
+                            Metric("AHI ä¼°ç®—", String.format("%.1f", r.estAHI)),
+                            Metric("å³°å€¼å“åº¦", "${String.format("%.0f", r.maxDb)}dB")
                         )
                         HorizontalDivider(modifier = Modifier.padding(vertical = Spacing.sm))
                         MetricsRow(
-                            Metric("´ò÷ıÊ±³¤", "${r.snoreDurationMin}min"),
-                            Metric("÷ıÉù´ÎÊı", "${r.snoreEventCount}´Î"),
-                            Metric("´ò÷ıÕ¼±È", "${(r.snoreRatio * 100).toInt()}%")
+                            Metric("æ‰“é¼¾æ—¶é•¿", "${r.snoreDurationMin}min"),
+                            Metric("é¼¾å£°æ¬¡æ•°", "${r.snoreEventCount}æ¬¡"),
+                            Metric("æ‰“é¼¾å æ¯”", "${(r.snoreRatio * 100).toInt()}%")
                         )
                         if (r.longestApneaSec >= 10) {
                             HorizontalDivider(modifier = Modifier.padding(vertical = Spacing.sm))
-                            MetricsRow(
-                                Metric("×î³¤ºôÎüÔİÍ£", "${r.longestApneaSec}Ãë")
-                            )
+                            MetricsRow(Metric("æœ€é•¿å‘¼å¸æš‚åœ", "${r.longestApneaSec}ç§’"))
                         }
                     }
                 }
 
-                // AI ÆÀ¼Û¿¨Æ¬
                 if (r.aiEvaluation.isNotBlank()) {
                     Card(
                         shape = HeroCardShape,
@@ -89,9 +98,9 @@ fun ResultScreen(
                     ) {
                         Column(modifier = Modifier.padding(Spacing.md)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("??", style = MaterialTheme.typography.headlineSmall)
+                                Text("AI", style = MaterialTheme.typography.titleMedium)
                                 Spacer(Modifier.width(Spacing.sm))
-                                Text("AI ÏêÏ¸ÆÀ¼Û", style = MaterialTheme.typography.titleMedium)
+                                Text("AI è¯¦ç»†è¯„ä»·", style = MaterialTheme.typography.titleMedium)
                             }
                             Spacer(Modifier.height(Spacing.sm))
                             Text(r.aiEvaluation, style = MaterialTheme.typography.bodyMedium)
@@ -99,7 +108,6 @@ fun ResultScreen(
                     }
                 }
 
-                // ÷ıÉù»Ø·ÅÈë¿Ú
                 Card(
                     shape = HeroCardShape,
                     modifier = Modifier.fillMaxWidth()
@@ -108,11 +116,11 @@ fun ResultScreen(
                         modifier = Modifier.padding(Spacing.md),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("??", style = MaterialTheme.typography.headlineSmall)
+                        Text("éŸ³é¢‘", style = MaterialTheme.typography.titleMedium)
                         Spacer(Modifier.width(Spacing.sm))
                         Column(Modifier.weight(1f)) {
-                            Text("÷ıÉù¼¯½õ", style = MaterialTheme.typography.titleMedium)
-                            Text("${r.snoreEventCount} ¸öÆ¬¶Î", style = MaterialTheme.typography.bodySmall)
+                            Text("é¼¾å£°é›†é”¦", style = MaterialTheme.typography.titleMedium)
+                            Text("${r.snoreEventCount} ä¸ªç‰‡æ®µ", style = MaterialTheme.typography.bodySmall)
                         }
                     }
                 }
