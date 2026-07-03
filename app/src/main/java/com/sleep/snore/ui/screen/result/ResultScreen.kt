@@ -25,14 +25,23 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
+import com.sleep.snore.data.db.entity.SnoreEventEntity
+import com.sleep.snore.data.model.SnoreType
+import com.sleep.snore.ui.components.PieSlice
 import com.sleep.snore.ui.components.SnoreScoreRing
+import com.sleep.snore.ui.components.SnoreTimeline
+import com.sleep.snore.ui.components.SnoreTypePieChart
 import com.sleep.snore.ui.theme.HeroCardShape
 import com.sleep.snore.ui.theme.Spacing
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -42,6 +51,7 @@ fun ResultScreen(
     viewModel: ResultViewModel = hiltViewModel()
 ) {
     val record by viewModel.record.collectAsStateWithLifecycle()
+    val events by viewModel.events.collectAsStateWithLifecycle()
 
     LaunchedEffect(recordId) {
         viewModel.loadRecord(recordId)
@@ -91,6 +101,25 @@ fun ResultScreen(
                     }
                 }
 
+                if (events.isNotEmpty()) {
+                    Card(shape = HeroCardShape, modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.padding(Spacing.md)) {
+                            SnoreTimeline(
+                                hourlyData = buildHourlyData(events),
+                                maxValue = events.groupingBy {
+                                    SimpleDateFormat("HH", Locale.getDefault()).format(Date(it.startTimestamp))
+                                }.eachCount().values.maxOrNull() ?: 1
+                            )
+                        }
+                    }
+
+                    Card(shape = HeroCardShape, modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.padding(Spacing.md)) {
+                            SnoreTypePieChart(slices = buildTypeSlices(events))
+                        }
+                    }
+                }
+
                 if (r.aiEvaluation.isNotBlank()) {
                     Card(
                         shape = HeroCardShape,
@@ -112,15 +141,26 @@ fun ResultScreen(
                     shape = HeroCardShape,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Row(
-                        modifier = Modifier.padding(Spacing.md),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("音频", style = MaterialTheme.typography.titleMedium)
-                        Spacer(Modifier.width(Spacing.sm))
-                        Column(Modifier.weight(1f)) {
-                            Text("鼾声集锦", style = MaterialTheme.typography.titleMedium)
-                            Text("${r.snoreEventCount} 个片段", style = MaterialTheme.typography.bodySmall)
+                    Column(modifier = Modifier.padding(Spacing.md)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("音频", style = MaterialTheme.typography.titleMedium)
+                            Spacer(Modifier.width(Spacing.sm))
+                            Column(Modifier.weight(1f)) {
+                                Text("鼾声集锦", style = MaterialTheme.typography.titleMedium)
+                                Text("${r.snoreEventCount} 个片段", style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                        if (events.isNotEmpty()) {
+                            HorizontalDivider(modifier = Modifier.padding(vertical = Spacing.sm))
+                            Text("片段技术信息", style = MaterialTheme.typography.titleSmall)
+                            Spacer(Modifier.height(Spacing.sm))
+                            events.sortedWith(
+                                compareByDescending<SnoreEventEntity> { it.peakDb }
+                                    .thenByDescending { it.durationMs }
+                            ).take(5).forEach { event ->
+                                EventTechRow(event)
+                                Spacer(Modifier.height(Spacing.xs))
+                            }
                         }
                     }
                 }
@@ -147,3 +187,40 @@ private fun MetricsRow(vararg metrics: Metric) {
 }
 
 data class Metric(val label: String, val value: String)
+
+@Composable
+private fun EventTechRow(event: SnoreEventEntity) {
+    val time = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date(event.startTimestamp))
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(time, style = MaterialTheme.typography.labelLarge)
+        Text(
+            "${event.aiTypeLabel} · 主频 ${String.format("%.0f", event.dominantFreq)}Hz · 峰值 ${String.format("%.0f", event.peakDb)}dB · ${String.format("%.1f", event.durationMs / 1000.0)}s",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+private fun buildHourlyData(events: List<SnoreEventEntity>): List<Pair<String, Int>> {
+    val counts = events.groupingBy {
+        SimpleDateFormat("HH", Locale.getDefault()).format(Date(it.startTimestamp))
+    }.eachCount()
+    return counts.keys.sorted().map { hour -> "${hour}时" to (counts[hour] ?: 0) }
+}
+
+private fun buildTypeSlices(events: List<SnoreEventEntity>): List<PieSlice> {
+    return events.groupingBy { it.snoreType }
+        .eachCount()
+        .map { (typeName, count) ->
+            val type = runCatching { SnoreType.valueOf(typeName) }.getOrDefault(SnoreType.UNKNOWN)
+            PieSlice(type.label, count.toFloat(), typeColor(type))
+        }
+}
+
+private fun typeColor(type: SnoreType): Color = when (type) {
+    SnoreType.SOFT_PALATE -> Color(0xFF6750A4)
+    SnoreType.TONGUE_ROOT -> Color(0xFF006D3B)
+    SnoreType.EPIGLOTTIS -> Color(0xFFB3261E)
+    SnoreType.MIXED -> Color(0xFF7D5260)
+    SnoreType.UNKNOWN -> Color(0xFF79747E)
+}

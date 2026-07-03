@@ -17,7 +17,7 @@ object SnoreEvaluator {
         val severity = severityFromScore(record.snoreScore)
         val summary = buildSummary(record, severity, history)
         val evaluation = buildFullEvaluation(record, severity, history)
-        val suggestions = buildSuggestions(record, history)
+        val suggestions = buildSuggestions(record)
         return SnoreEvaluation(severity, summary, evaluation, suggestions)
     }
 
@@ -41,12 +41,12 @@ object SnoreEvaluator {
         sb.appendLine()
 
         val ahiText = when {
-            record.estAHI < 5 -> "AHI 估算 ${String.format("%.1f", record.estAHI)}，在正常范围内 (< 5)"
-            record.estAHI < 15 -> "AHI 估算 ${String.format("%.1f", record.estAHI)}，轻度异常，建议关注"
-            record.estAHI < 30 -> "AHI 估算 ${String.format("%.1f", record.estAHI)}，中度异常，建议就医评估"
-            else -> "AHI 估算 ${String.format("%.1f", record.estAHI)}，重度异常，强烈建议就医"
+            record.estAHI < 5 -> "疑似 AHI ${String.format("%.1f", record.estAHI)}，未见明显长静音聚集"
+            record.estAHI < 15 -> "疑似 AHI ${String.format("%.1f", record.estAHI)}，有轻度长静音迹象，建议持续观察"
+            record.estAHI < 30 -> "疑似 AHI ${String.format("%.1f", record.estAHI)}，长静音偏多，建议就医评估"
+            else -> "疑似 AHI ${String.format("%.1f", record.estAHI)}，长静音明显偏多，强烈建议就医"
         }
-        sb.appendLine("【呼吸暂停】$ahiText")
+        sb.appendLine("【呼吸暂停】$ahiText；该值由鼾声片段间 ≥10 秒静音估算，不能替代 PSG")
         sb.appendLine()
 
         sb.appendLine("【鼾声统计】打鼾 ${record.snoreDurationMin} 分钟，占总睡眠 ${(record.snoreRatio * 100).toInt()}%，共 ${record.snoreEventCount} 次")
@@ -56,7 +56,7 @@ object SnoreEvaluator {
         sb.appendLine()
 
         if (record.longestApneaSec >= 10) {
-            sb.appendLine("【最长暂停】${record.longestApneaSec} 秒")
+            sb.appendLine("【最长长静音】${record.longestApneaSec} 秒，共 ${record.apneaEventCount} 次疑似事件")
         }
         sb.appendLine()
 
@@ -69,12 +69,12 @@ object SnoreEvaluator {
         return sb.toString().trimEnd()
     }
 
-    private fun buildSuggestions(record: SleepRecordEntity, history: List<SleepRecordEntity>): List<String> {
+    private fun buildSuggestions(record: SleepRecordEntity): List<String> {
         val list = mutableListOf<String>()
-        if (record.estAHI >= 15) list.add("AHI 偏高，建议尽快咨询睡眠科医生")
+        if (record.estAHI >= 15) list.add("疑似 AHI 偏高，建议尽快咨询睡眠科医生")
         if (record.snoreRatio > 0.3) list.add("打鼾时间占比较高，建议尝试侧卧睡眠")
         if (record.avgDb > 55) list.add("鼾声响度较大，避免睡前饮酒可减轻")
-        if (record.longestApneaSec >= 30) list.add("出现较长呼吸暂停，建议做多导睡眠监测 (PSG)")
+        if (record.longestApneaSec >= 30) list.add("出现较长静音间隔，建议做多导睡眠监测 (PSG)")
         if (list.isEmpty()) list.add("整体良好，保持健康作息即可")
         return list
     }

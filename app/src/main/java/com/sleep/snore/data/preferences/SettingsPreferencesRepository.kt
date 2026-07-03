@@ -15,7 +15,9 @@ import javax.inject.Singleton
 
 data class SettingsPreferences(
     val silenceThresholdDb: Float = SettingsPreferencesRepository.DEFAULT_SILENCE_THRESHOLD_DB,
-    val autoCleanEnabled: Boolean = SettingsPreferencesRepository.DEFAULT_AUTO_CLEAN_ENABLED
+    val autoCleanEnabled: Boolean = SettingsPreferencesRepository.DEFAULT_AUTO_CLEAN_ENABLED,
+    val dynamicColorEnabled: Boolean = SettingsPreferencesRepository.DEFAULT_DYNAMIC_COLOR_ENABLED,
+    val themeMode: String = SettingsPreferencesRepository.DEFAULT_THEME_MODE
 )
 
 @Singleton
@@ -37,7 +39,11 @@ class SettingsPreferencesRepository @Inject constructor(
                     ?.coerceIn(MIN_SILENCE_THRESHOLD_DB, MAX_SILENCE_THRESHOLD_DB)
                     ?: DEFAULT_SILENCE_THRESHOLD_DB,
                 autoCleanEnabled = preferences[Keys.AUTO_CLEAN_ENABLED]
-                    ?: DEFAULT_AUTO_CLEAN_ENABLED
+                    ?: DEFAULT_AUTO_CLEAN_ENABLED,
+                dynamicColorEnabled = preferences[Keys.DYNAMIC_COLOR_ENABLED]
+                    ?: DEFAULT_DYNAMIC_COLOR_ENABLED,
+                themeMode = preferences[Keys.THEME_MODE]
+                    ?: DEFAULT_THEME_MODE
             )
         }
 
@@ -56,9 +62,26 @@ class SettingsPreferencesRepository @Inject constructor(
         }
     }
 
+    suspend fun setDynamicColorEnabled(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[Keys.DYNAMIC_COLOR_ENABLED] = enabled
+        }
+    }
+
+    suspend fun setThemeMode(mode: String) {
+        dataStore.edit { preferences ->
+            preferences[Keys.THEME_MODE] = when (mode) {
+                THEME_MODE_LIGHT, THEME_MODE_DARK -> mode
+                else -> THEME_MODE_SYSTEM
+            }
+        }
+    }
+
     private object Keys {
         val SILENCE_THRESHOLD_DB = floatPreferencesKey("silence_threshold_db")
         val AUTO_CLEAN_ENABLED = booleanPreferencesKey("auto_clean_enabled")
+        val DYNAMIC_COLOR_ENABLED = booleanPreferencesKey("dynamic_color_enabled")
+        val THEME_MODE = androidx.datastore.preferences.core.stringPreferencesKey("theme_mode")
     }
 
     companion object {
@@ -66,5 +89,10 @@ class SettingsPreferencesRepository @Inject constructor(
         const val MAX_SILENCE_THRESHOLD_DB = -20f
         const val DEFAULT_SILENCE_THRESHOLD_DB = -40f
         const val DEFAULT_AUTO_CLEAN_ENABLED = true
+        const val DEFAULT_DYNAMIC_COLOR_ENABLED = true
+        const val THEME_MODE_SYSTEM = "system"
+        const val THEME_MODE_LIGHT = "light"
+        const val THEME_MODE_DARK = "dark"
+        const val DEFAULT_THEME_MODE = THEME_MODE_SYSTEM
     }
 }

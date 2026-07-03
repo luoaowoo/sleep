@@ -35,6 +35,36 @@ fun SettingsScreen(
                 .padding(horizontal = Spacing.md, vertical = Spacing.sm),
             verticalArrangement = Arrangement.spacedBy(Spacing.sm)
         ) {
+            Text("外观", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+            Card(shape = HeroCardShape) {
+                Column(modifier = Modifier.padding(Spacing.md)) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Material You 动态色")
+                        Switch(
+                            checked = uiState.dynamicColorEnabled,
+                            onCheckedChange = viewModel::onDynamicColorChange
+                        )
+                    }
+                    Spacer(Modifier.height(Spacing.sm))
+                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                        val options = listOf(
+                            SettingsPreferencesRepository.THEME_MODE_SYSTEM to "跟随",
+                            SettingsPreferencesRepository.THEME_MODE_LIGHT to "浅色",
+                            SettingsPreferencesRepository.THEME_MODE_DARK to "深色"
+                        )
+                        options.forEachIndexed { index, (mode, label) ->
+                            SegmentedButton(
+                                selected = uiState.themeMode == mode,
+                                onClick = { viewModel.onThemeModeChange(mode) },
+                                shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size)
+                            ) {
+                                Text(label)
+                            }
+                        }
+                    }
+                }
+            }
+
             // 录音设置
             Text("录音设置", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
             Card(shape = HeroCardShape) {

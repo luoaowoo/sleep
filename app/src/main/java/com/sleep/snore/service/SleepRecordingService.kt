@@ -15,12 +15,11 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.sleep.snore.MainActivity
 import com.sleep.snore.audio.AudioEncoder
-import com.sleep.snore.audio.EnergyDetector
+import com.sleep.snore.audio.SnoreFeatureAnalyzer
 import com.sleep.snore.audio.SnoreDetector
 import com.sleep.snore.data.db.entity.SleepRecordEntity
 import com.sleep.snore.data.db.entity.SnoreEventEntity
 import com.sleep.snore.data.model.Severity
-import com.sleep.snore.data.model.SnoreType
 import com.sleep.snore.data.model.severityFromScore
 import com.sleep.snore.data.preferences.SettingsPreferencesRepository
 import com.sleep.snore.data.repository.SleepRepository
@@ -214,19 +213,19 @@ class SleepRecordingService : Service() {
 
             override fun onSnoreEnded(startTimestamp: Long, durationMs: Long, pcmData: ByteArray, peakDb: Double) {
                 val job = serviceScope.launch {
+                    val features = SnoreFeatureAnalyzer.analyze(pcmData, peakDb, durationMs)
                     val audioFile = audioEncoder.encodeToOpus(pcmData, outputDir, "snore_$startTimestamp")
-                    val snoreType = SnoreType.UNKNOWN
                     val event = SnoreEventEntity(
                         recordId = recordId,
                         startTimestamp = startTimestamp,
                         durationMs = durationMs.toInt(),
-                        peakDb = peakDb.toFloat(),
-                        avgDb = EnergyDetector().calculateDb(pcmData).toFloat(),
-                        dominantFreq = 0f,
-                        snoreType = snoreType.name,
+                        peakDb = features.peakDb,
+                        avgDb = features.avgDb,
+                        dominantFreq = features.dominantFreq,
+                        snoreType = features.snoreType.name,
                         audioFilePath = audioFile?.absolutePath.orEmpty(),
                         audioFileSizeBytes = audioFile?.length() ?: 0L,
-                        aiTypeLabel = snoreType.label
+                        aiTypeLabel = features.aiTypeLabel
                     )
                     val savedId = repository.insertEvent(event)
                     synchronized(pendingEvents) { pendingEvents.add(event.copy(id = savedId)) }
@@ -286,6 +285,7 @@ class SleepRecordingService : Service() {
         val snoreRatio = (snoreDurationMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)
         val avgDb = if (events.isEmpty()) 0f else events.map { it.avgDb }.average().toFloat()
         val maxDb = events.maxOfOrNull { it.peakDb } ?: 0f
+        val apneaStats = estimateApneaStats(events, durationMs)
 
         val base = SleepRecordEntity(
             id = recordId,
@@ -294,14 +294,14 @@ class SleepRecordingService : Service() {
             sleepDurationMin = sleepDurationMin,
             snoreScore = 0,
             severity = Severity.GOOD.name,
-            estAHI = 0f,
+            estAHI = apneaStats.ahi,
             snoreDurationMin = snoreDurationMin,
             snoreRatio = snoreRatio,
             avgDb = avgDb,
             maxDb = maxDb,
             snoreEventCount = events.size,
-            apneaEventCount = 0,
-            longestApneaSec = 0,
+            apneaEventCount = apneaStats.eventCount,
+            longestApneaSec = apneaStats.longestSec,
             snoreTypeDistribution = buildTypeDistribution(events),
             hourlyDistribution = buildHourlyDistribution(events),
             aiSummary = "",
@@ -339,6 +339,23 @@ class SleepRecordingService : Service() {
         return buckets.joinToString(prefix = "[", postfix = "]")
     }
 
+    private fun estimateApneaStats(events: List<SnoreEventEntity>, durationMs: Long): ApneaStats {
+        val sortedEvents = events.sortedBy { it.startTimestamp }
+        if (sortedEvents.size < 2) return ApneaStats(eventCount = 0, longestSec = 0, ahi = 0f)
+
+        val gapsSec = sortedEvents.zipWithNext().mapNotNull { (previous, next) ->
+            val previousEnd = previous.startTimestamp + previous.durationMs
+            val gapMs = next.startTimestamp - previousEnd
+            if (gapMs >= APNEA_GAP_MS) (gapMs / 1000L).toInt() else null
+        }
+        val durationHours = (durationMs / 3_600_000f).coerceAtLeast(1f / 60f)
+        return ApneaStats(
+            eventCount = gapsSec.size,
+            longestSec = gapsSec.maxOrNull() ?: 0,
+            ahi = (gapsSec.size / durationHours).coerceAtMost(120f)
+        )
+    }
+
     private suspend fun cleanOldData() {
         val cutoff = System.currentTimeMillis() - AUTO_CLEAN_RETENTION_MS
         repository.getEventsBefore(cutoff).forEach { event ->
@@ -363,8 +380,15 @@ class SleepRecordingService : Service() {
         private const val TEXT_STOP = "\u7ed3\u675f"
         private const val TEXT_RECORDING_SUMMARY = "\u6b63\u5728\u8bb0\u5f55\u7761\u7720\u9f3e\u58f0"
         private const val AUTO_CLEAN_RETENTION_MS = 30L * 24L * 60L * 60L * 1000L
+        private const val APNEA_GAP_MS = 10_000L
 
         fun startIntent(context: Context): Intent = Intent(context, SleepRecordingService::class.java).setAction(ACTION_START)
         fun stopIntent(context: Context): Intent = Intent(context, SleepRecordingService::class.java).setAction(ACTION_STOP)
     }
 }
+
+private data class ApneaStats(
+    val eventCount: Int,
+    val longestSec: Int,
+    val ahi: Float
+)

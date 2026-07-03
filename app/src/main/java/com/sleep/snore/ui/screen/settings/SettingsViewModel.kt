@@ -20,6 +20,8 @@ import javax.inject.Inject
 data class SettingsUiState(
     val silenceThresholdDb: Float = SettingsPreferencesRepository.DEFAULT_SILENCE_THRESHOLD_DB,
     val autoCleanEnabled: Boolean = SettingsPreferencesRepository.DEFAULT_AUTO_CLEAN_ENABLED,
+    val dynamicColorEnabled: Boolean = SettingsPreferencesRepository.DEFAULT_DYNAMIC_COLOR_ENABLED,
+    val themeMode: String = SettingsPreferencesRepository.DEFAULT_THEME_MODE,
     val storageUsageText: String = "计算中..."
 )
 
@@ -38,7 +40,9 @@ class SettingsViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         silenceThresholdDb = settings.silenceThresholdDb,
-                        autoCleanEnabled = settings.autoCleanEnabled
+                        autoCleanEnabled = settings.autoCleanEnabled,
+                        dynamicColorEnabled = settings.dynamicColorEnabled,
+                        themeMode = settings.themeMode
                     )
                 }
             }
@@ -61,6 +65,20 @@ class SettingsViewModel @Inject constructor(
         _uiState.update { it.copy(autoCleanEnabled = enabled) }
         viewModelScope.launch {
             preferencesRepository.setAutoCleanEnabled(enabled)
+        }
+    }
+
+    fun onDynamicColorChange(enabled: Boolean) {
+        _uiState.update { it.copy(dynamicColorEnabled = enabled) }
+        viewModelScope.launch {
+            preferencesRepository.setDynamicColorEnabled(enabled)
+        }
+    }
+
+    fun onThemeModeChange(mode: String) {
+        _uiState.update { it.copy(themeMode = mode) }
+        viewModelScope.launch {
+            preferencesRepository.setThemeMode(mode)
         }
     }
 

@@ -10,10 +10,19 @@ object SnoreScoreCalculator {
     fun calculate(record: SleepRecordEntity, events: List<SnoreEventEntity>): Int {
         val snoreRatioScore = calculateSnoreRatioScore(record.snoreRatio)
         val loudnessScore = calculateLoudnessScore(record.avgDb)
+        val peakScore = calculateLoudnessScore(record.maxDb)
         val ahiScore = calculateAHIScore(record.estAHI)
         val densityScore = calculateEventDensityScore(events.size, record.sleepDurationMin)
+        val longestEventScore = calculateLongestEventScore(events)
 
-        val score = (0.30 * snoreRatioScore + 0.25 * loudnessScore + 0.25 * ahiScore + 0.20 * densityScore)
+        val score = (
+            0.25 * snoreRatioScore +
+                0.20 * loudnessScore +
+                0.15 * peakScore +
+                0.20 * ahiScore +
+                0.12 * densityScore +
+                0.08 * longestEventScore
+            )
             .toInt()
             .coerceIn(0, 100)
         return score
@@ -47,6 +56,15 @@ object SnoreScoreCalculator {
             eventsPerHour <= 10 -> 0f
             eventsPerHour >= 200 -> 100f
             else -> (eventsPerHour / 200) * 100
+        }
+    }
+
+    private fun calculateLongestEventScore(events: List<SnoreEventEntity>): Float {
+        val longestMs = events.maxOfOrNull { it.durationMs } ?: return 0f
+        return when {
+            longestMs <= 3_000 -> 0f
+            longestMs >= 30_000 -> 100f
+            else -> ((longestMs - 3_000) / 27_000f * 100f)
         }
     }
 }
