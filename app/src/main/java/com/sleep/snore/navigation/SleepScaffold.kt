@@ -3,6 +3,8 @@ package com.sleep.snore.navigation
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -80,6 +82,7 @@ fun SleepScaffold() {
         } else {
             Scaffold(
                 containerColor = MaterialTheme.colorScheme.background,
+                contentWindowInsets = WindowInsets(0, 0, 0, 0),
                 bottomBar = {
                     if (!hideCompactNavigation) {
                         NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
@@ -108,7 +111,12 @@ fun SleepScaffold() {
                     }
                 }
             ) { innerPadding ->
-                SleepNavGraph(navController = navController, modifier = Modifier.padding(innerPadding))
+                SleepNavGraph(
+                    navController = navController,
+                    modifier = Modifier
+                        .padding(innerPadding)
+                        .consumeWindowInsets(innerPadding)
+                )
             }
         }
     }

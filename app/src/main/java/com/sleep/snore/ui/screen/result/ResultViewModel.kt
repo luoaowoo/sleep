@@ -24,6 +24,9 @@ class ResultViewModel @Inject constructor(
     private val _events = MutableStateFlow<List<SnoreEventEntity>>(emptyList())
     val events: StateFlow<List<SnoreEventEntity>> = _events
 
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
     private val _deleteCompleted = MutableStateFlow(false)
     val deleteCompleted: StateFlow<Boolean> = _deleteCompleted.asStateFlow()
 
@@ -33,8 +36,18 @@ class ResultViewModel @Inject constructor(
     private var eventsJob: Job? = null
 
     fun loadRecord(recordId: Long) {
+        _record.value = null
+        _events.value = emptyList()
         viewModelScope.launch {
-            _record.value = repository.getRecordById(recordId)
+            _isLoading.value = true
+            runCatching {
+                repository.getRecordById(recordId)
+            }.onSuccess { record ->
+                _record.value = record
+            }.onFailure {
+                _record.value = null
+            }
+            _isLoading.value = false
         }
         eventsJob?.cancel()
         eventsJob = viewModelScope.launch {

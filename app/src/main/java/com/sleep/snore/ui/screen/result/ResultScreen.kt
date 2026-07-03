@@ -1,7 +1,9 @@
 package com.sleep.snore.ui.screen.result
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -13,6 +15,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -59,6 +62,7 @@ fun ResultScreen(
 ) {
     val record by viewModel.record.collectAsStateWithLifecycle()
     val events by viewModel.events.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val deleteCompleted by viewModel.deleteCompleted.collectAsStateWithLifecycle()
     val deleteError by viewModel.deleteError.collectAsStateWithLifecycle()
     val uiPreferences = LocalUiPreferences.current
@@ -82,7 +86,7 @@ fun ResultScreen(
         }
     }
 
-    if (showDeleteDialog) {
+    if (showDeleteDialog && record != null) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
             title = { Text("删除睡眠记录") },
@@ -113,19 +117,47 @@ fun ResultScreen(
                     TextButton(onClick = { navController.popBackStack() }) { Text("返回") }
                 },
                 actions = {
-                    TextButton(onClick = { showDeleteDialog = true }) {
-                        Text("删除", color = MaterialTheme.colorScheme.error)
+                    if (record != null) {
+                        TextButton(onClick = { showDeleteDialog = true }) {
+                            Text("删除", color = MaterialTheme.colorScheme.error)
+                        }
                     }
                 }
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
-        record?.let { r ->
+        when {
+            isLoading -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding)
+                        .consumeWindowInsets(padding),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            }
+
+            record == null -> {
+                MissingRecordState(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding)
+                        .consumeWindowInsets(padding)
+                        .padding(horizontal = uiPreferences.pageHorizontalPadding),
+                    onBack = { navController.popBackStack() }
+                )
+            }
+
+            else -> {
+                val r = record ?: return@Scaffold
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding)
+                    .consumeWindowInsets(padding)
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = uiPreferences.pageHorizontalPadding),
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -220,6 +252,36 @@ fun ResultScreen(
                 }
 
                 Spacer(Modifier.height(Spacing.lg))
+            }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MissingRecordState(modifier: Modifier = Modifier, onBack: () -> Unit) {
+    Box(
+        modifier = modifier,
+        contentAlignment = Alignment.Center
+    ) {
+        Card(
+            shape = HeroCardShape,
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            Column(
+                modifier = Modifier.padding(Spacing.xl),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(Spacing.md)
+            ) {
+                Text("未找到睡眠记录", style = MaterialTheme.typography.titleLarge)
+                Text(
+                    "这条记录可能已被删除，或链接已经失效。",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                TextButton(onClick = onBack) {
+                    Text("返回")
+                }
             }
         }
     }

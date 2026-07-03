@@ -56,6 +56,7 @@ fun RiskAssessmentScreen(navController: NavHostController) {
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding)
+                    .consumeWindowInsets(padding)
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = Spacing.lg),
                 verticalArrangement = Arrangement.spacedBy(Spacing.md)
@@ -137,6 +138,7 @@ private fun RiskResultContent(score: Int, padding: PaddingValues, navController:
         modifier = Modifier
             .fillMaxSize()
             .padding(padding)
+            .consumeWindowInsets(padding)
             .padding(Spacing.lg),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
