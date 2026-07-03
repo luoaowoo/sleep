@@ -21,9 +21,9 @@ import androidx.compose.ui.unit.dp
  */
 @Composable
 fun SnoreTimeline(
+    modifier: Modifier = Modifier,
     hourlyData: List<Pair<String, Int>>,
-    maxValue: Int = 20,
-    modifier: Modifier = Modifier
+    maxValue: Int = 20
 ) {
     Column(modifier = modifier) {
         Text(

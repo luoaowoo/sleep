@@ -1,0 +1,36 @@
+name: Android CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  verify:
+    runs-on: windows-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@v4
+
+      - name: Run lint, tests, and debug build
+        shell: pwsh
+        run: .\gradlew.bat :app:lintDebug :app:testDebugUnitTest :app:assembleDebug :app:compileDebugAndroidTestKotlin --no-daemon --console=plain
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: sleep-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk

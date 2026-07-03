@@ -84,7 +84,7 @@ fun PlaybackScreen(
                                         style = MaterialTheme.typography.titleMedium
                                     )
                                     Text(
-                                        "${String.format("%.0f", event.peakDb)}dB · ${String.format("%.0f", event.dominantFreq)}Hz · ${event.aiTypeLabel} · ${String.format("%.1f", event.durationMs / 1000.0)}s",
+                                        "${String.format(Locale.getDefault(), "%.0f", event.peakDb)}dB · ${String.format(Locale.getDefault(), "%.0f", event.dominantFreq)}Hz · ${event.aiTypeLabel} · ${String.format(Locale.getDefault(), "%.1f", event.durationMs / 1000.0)}s",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )

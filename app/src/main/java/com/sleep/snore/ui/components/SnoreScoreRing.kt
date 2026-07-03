@@ -26,8 +26,8 @@ import com.sleep.snore.ui.theme.snoreScoreColor
 @Composable
 fun SnoreScoreRing(
     score: Int,
-    size: Dp = 160.dp,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    size: Dp = 160.dp
 ) {
     val animatedScore by animateFloatAsState(
         targetValue = score / 100f,

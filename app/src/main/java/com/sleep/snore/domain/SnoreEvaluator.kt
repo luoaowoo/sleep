@@ -3,6 +3,7 @@
 import com.sleep.snore.data.db.entity.SleepRecordEntity
 import com.sleep.snore.data.model.Severity
 import com.sleep.snore.data.model.severityFromScore
+import java.util.Locale
 
 data class SnoreEvaluation(
     val severity: Severity,
@@ -41,10 +42,10 @@ object SnoreEvaluator {
         sb.appendLine()
 
         val ahiText = when {
-            record.estAHI < 5 -> "疑似 AHI ${String.format("%.1f", record.estAHI)}，未见明显长静音聚集"
-            record.estAHI < 15 -> "疑似 AHI ${String.format("%.1f", record.estAHI)}，有轻度长静音迹象，建议持续观察"
-            record.estAHI < 30 -> "疑似 AHI ${String.format("%.1f", record.estAHI)}，长静音偏多，建议就医评估"
-            else -> "疑似 AHI ${String.format("%.1f", record.estAHI)}，长静音明显偏多，强烈建议就医"
+            record.estAHI < 5 -> "疑似 AHI ${String.format(Locale.getDefault(), "%.1f", record.estAHI)}，未见明显长静音聚集"
+            record.estAHI < 15 -> "疑似 AHI ${String.format(Locale.getDefault(), "%.1f", record.estAHI)}，有轻度长静音迹象，建议持续观察"
+            record.estAHI < 30 -> "疑似 AHI ${String.format(Locale.getDefault(), "%.1f", record.estAHI)}，长静音偏多，建议就医评估"
+            else -> "疑似 AHI ${String.format(Locale.getDefault(), "%.1f", record.estAHI)}，长静音明显偏多，强烈建议就医"
         }
         sb.appendLine("【呼吸暂停】$ahiText；该值由鼾声片段间 ≥10 秒静音估算，不能替代 PSG")
         sb.appendLine()
@@ -52,7 +53,7 @@ object SnoreEvaluator {
         sb.appendLine("【鼾声统计】打鼾 ${record.snoreDurationMin} 分钟，占总睡眠 ${(record.snoreRatio * 100).toInt()}%，共 ${record.snoreEventCount} 次")
         sb.appendLine()
 
-        sb.appendLine("【响度分析】平均 ${String.format("%.0f", record.avgDb)}dB，峰值 ${String.format("%.0f", record.maxDb)}dB")
+        sb.appendLine("【响度分析】平均 ${String.format(Locale.getDefault(), "%.0f", record.avgDb)}dB，峰值 ${String.format(Locale.getDefault(), "%.0f", record.maxDb)}dB")
         sb.appendLine()
 
         if (record.longestApneaSec >= 10) {

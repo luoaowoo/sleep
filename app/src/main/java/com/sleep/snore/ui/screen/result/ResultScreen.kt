@@ -85,8 +85,8 @@ fun ResultScreen(
                     Column(modifier = Modifier.padding(Spacing.md)) {
                         MetricsRow(
                             Metric("睡眠时长", "${r.sleepDurationMin / 60}h ${r.sleepDurationMin % 60}m"),
-                            Metric("AHI 估算", String.format("%.1f", r.estAHI)),
-                            Metric("峰值响度", "${String.format("%.0f", r.maxDb)}dB")
+                            Metric("AHI 估算", String.format(Locale.getDefault(), "%.1f", r.estAHI)),
+                            Metric("峰值响度", "${String.format(Locale.getDefault(), "%.0f", r.maxDb)}dB")
                         )
                         HorizontalDivider(modifier = Modifier.padding(vertical = Spacing.sm))
                         MetricsRow(
@@ -194,7 +194,7 @@ private fun EventTechRow(event: SnoreEventEntity) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(time, style = MaterialTheme.typography.labelLarge)
         Text(
-            "${event.aiTypeLabel} · 主频 ${String.format("%.0f", event.dominantFreq)}Hz · 峰值 ${String.format("%.0f", event.peakDb)}dB · ${String.format("%.1f", event.durationMs / 1000.0)}s",
+            "${event.aiTypeLabel} · 主频 ${String.format(Locale.getDefault(), "%.0f", event.dominantFreq)}Hz · 峰值 ${String.format(Locale.getDefault(), "%.0f", event.peakDb)}dB · ${String.format(Locale.getDefault(), "%.1f", event.durationMs / 1000.0)}s",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )

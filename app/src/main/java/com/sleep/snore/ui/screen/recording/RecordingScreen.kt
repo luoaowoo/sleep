@@ -46,6 +46,7 @@ import androidx.navigation.NavHostController
 import com.sleep.snore.service.SleepRecordingService
 import com.sleep.snore.ui.theme.PillShape
 import com.sleep.snore.ui.theme.Spacing
+import java.util.Locale
 import kotlinx.coroutines.delay
 
 @Composable
@@ -127,7 +128,7 @@ fun RecordingScreen(navController: NavHostController) {
             val minutes = (elapsedSeconds % 3600) / 60
             val seconds = elapsedSeconds % 60
             Text(
-                text = String.format("%02d:%02d:%02d", hours, minutes, seconds),
+                text = String.format(Locale.getDefault(), "%02d:%02d:%02d", hours, minutes, seconds),
                 style = MaterialTheme.typography.displayLarge.copy(fontWeight = FontWeight.Light),
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
             )

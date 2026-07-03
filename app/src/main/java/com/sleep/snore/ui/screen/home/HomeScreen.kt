@@ -37,6 +37,7 @@ import com.sleep.snore.ui.theme.HeroCardShape
 import com.sleep.snore.ui.theme.PillShape
 import com.sleep.snore.ui.theme.Spacing
 import com.sleep.snore.ui.theme.snoreScoreColor
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -120,8 +121,8 @@ private fun SleepOverviewCard(record: SleepRecordEntity, onClick: () -> Unit) {
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 MetricItem("睡眠时长", "${record.sleepDurationMin / 60}h ${record.sleepDurationMin % 60}m")
-                MetricItem("AHI估算", String.format("%.1f", record.estAHI))
-                MetricItem("峰值响度", "${String.format("%.0f", record.maxDb)}dB")
+                MetricItem("AHI估算", String.format(Locale.getDefault(), "%.1f", record.estAHI))
+                MetricItem("峰值响度", "${String.format(Locale.getDefault(), "%.0f", record.maxDb)}dB")
             }
         }
     }

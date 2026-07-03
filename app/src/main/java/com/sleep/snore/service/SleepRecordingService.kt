@@ -32,6 +32,7 @@ import com.sleep.snore.domain.SnoreScoreCalculator
 import dagger.hilt.android.AndroidEntryPoint
 import java.io.File
 import java.util.Calendar
+import java.util.Locale
 import javax.inject.Inject
 import kotlin.math.max
 import kotlinx.coroutines.CoroutineScope
@@ -248,7 +249,7 @@ class SleepRecordingService : Service() {
         val outputDir = File(filesDir, "snore_audio").apply { mkdirs() }
         snoreDetector = SnoreDetector(object : SnoreDetector.SnoreCallback {
             override fun onSnoreStarted(timestamp: Long, db: Double) {
-                Log.d(TAG, "snore started: $timestamp, ${String.format("%.1f", db)}dB")
+                Log.d(TAG, "snore started: $timestamp, ${String.format(Locale.getDefault(), "%.1f", db)}dB")
             }
 
             override fun onSnoreEnded(startTimestamp: Long, durationMs: Long, pcmData: ByteArray, peakDb: Double) {

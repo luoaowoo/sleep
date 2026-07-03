@@ -22,9 +22,9 @@ import com.sleep.snore.ui.theme.snoreScoreColor
 
 @Composable
 fun TrendChart(
+    modifier: Modifier = Modifier,
     data: List<Int>,
-    labels: List<String> = emptyList(),
-    modifier: Modifier = Modifier
+    labels: List<String> = emptyList()
 ) {
     Column(modifier = modifier) {
         Text(
