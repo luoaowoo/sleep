@@ -10,7 +10,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.io.FileWriter
+import java.io.OutputStreamWriter
+import java.nio.charset.StandardCharsets
 import java.text.SimpleDateFormat
 import java.util.*
 import javax.inject.Inject
@@ -33,7 +34,7 @@ class DataExporter @Inject constructor(
             if (records.isEmpty()) return@withContext null
 
             val file = File(context.cacheDir, "sleep_records_${System.currentTimeMillis()}.csv")
-            FileWriter(file).use { writer ->
+            file.utf8Writer().use { writer ->
                 // BOM for Excel
                 writer.write("\uFEFF")
                 // Header
@@ -61,7 +62,7 @@ class DataExporter @Inject constructor(
             if (events.isEmpty()) return@withContext null
 
             val file = File(context.cacheDir, "snore_events_${recordId}.csv")
-            FileWriter(file).use { writer ->
+            file.utf8Writer().use { writer ->
                 writer.write("\uFEFF")
                 writer.write("时间,持续(ms),峰值dB,平均dB,主导频率Hz,类型,AI标签,文件大小(bytes)\n")
                 events.forEach { e ->
@@ -84,7 +85,7 @@ class DataExporter @Inject constructor(
             if (events.isEmpty()) return@withContext null
 
             val file = File(context.cacheDir, "snore_events_${System.currentTimeMillis()}.csv")
-            FileWriter(file).use { writer ->
+            file.utf8Writer().use { writer ->
                 writer.write("\uFEFF")
                 writer.write("记录ID,时间,持续(ms),峰值dB,平均dB,主导频率Hz,类型,AI标签,音频路径,文件大小(bytes)\n")
                 events.forEach { e ->
@@ -102,5 +103,9 @@ class DataExporter @Inject constructor(
 
     private fun csv(value: String): String {
         return "\"${value.replace("\"", "\"\"")}\""
+    }
+
+    private fun File.utf8Writer(): OutputStreamWriter {
+        return OutputStreamWriter(outputStream(), StandardCharsets.UTF_8)
     }
 }

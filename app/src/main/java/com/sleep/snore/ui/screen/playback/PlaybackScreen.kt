@@ -11,6 +11,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -77,7 +78,7 @@ fun PlaybackScreen(
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable { viewModel.togglePlayback(event) },
+                                .clickable(role = Role.Button) { viewModel.togglePlayback(event) },
                             shape = HeroCardShape
                         ) {
                             Row(

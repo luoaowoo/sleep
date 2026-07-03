@@ -25,6 +25,9 @@ interface SnoreEventDao {
     @Query("SELECT * FROM snore_events WHERE start_timestamp < :before ORDER BY start_timestamp ASC")
     suspend fun getBefore(before: Long): List<SnoreEventEntity>
 
+    @Query("SELECT audio_file_path FROM snore_events WHERE record_id IN (:recordIds) AND audio_file_path != ''")
+    suspend fun getAudioPathsByRecordIds(recordIds: List<Long>): List<String>
+
     @Query("SELECT COUNT(*) FROM snore_events WHERE record_id = :recordId")
     suspend fun countByRecordId(recordId: Long): Int
 

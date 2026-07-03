@@ -1,6 +1,8 @@
 package com.sleep.snore.ui.screen.settings
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -34,13 +36,24 @@ fun SettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .consumeWindowInsets(padding)
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = Spacing.md, vertical = Spacing.sm),
             verticalArrangement = Arrangement.spacedBy(Spacing.sm)
         ) {
             Text("外观", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
             Card(shape = HeroCardShape) {
                 Column(modifier = Modifier.padding(Spacing.md)) {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = Spacing.touchTargetMin)
+                            .clickable(role = Role.Switch) {
+                                viewModel.onDynamicColorChange(!uiState.dynamicColorEnabled)
+                            },
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Text("Material You 动态色")
                         Switch(
                             checked = uiState.dynamicColorEnabled,
@@ -115,7 +128,16 @@ fun SettingsScreen(
             Text("存储管理", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
             Card(shape = HeroCardShape) {
                 Column(modifier = Modifier.padding(Spacing.md)) {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = Spacing.touchTargetMin)
+                            .clickable(role = Role.Switch) {
+                                viewModel.onAutoCleanChange(!uiState.autoCleanEnabled)
+                            },
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Text("自动清理 30 天前的片段")
                         Switch(
                             checked = uiState.autoCleanEnabled,
@@ -172,7 +194,8 @@ private fun SettingSwitchRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = Spacing.touchTargetMin),
+            .heightIn(min = Spacing.touchTargetMin)
+            .clickable(role = Role.Switch) { onCheckedChange(!checked) },
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {

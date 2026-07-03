@@ -30,14 +30,20 @@ class SleepRepository @Inject constructor(
     fun getRecordsBetween(start: Long, end: Long): Flow<List<SleepRecordEntity>> = sleepRecordDao.getRecordsBetween(start, end)
     suspend fun deleteRecord(id: Long) = sleepRecordDao.deleteById(id)
     suspend fun deleteRecordWithAudio(id: Long) {
-        getEventsByRecordId(id).first().forEach { event ->
-            if (event.audioFilePath.isNotBlank()) {
-                runCatching { File(event.audioFilePath).delete() }
-            }
+        val audioPaths = getEventsByRecordId(id).first().mapNotNull { event ->
+            event.audioFilePath.takeIf { it.isNotBlank() }
         }
         sleepRecordDao.deleteById(id)
+        deleteAudioFiles(audioPaths)
     }
     suspend fun deleteOldRecords(before: Long) = sleepRecordDao.deleteOlderThan(before)
+    suspend fun deleteOldRecordsWithAudio(before: Long) {
+        val recordIds = sleepRecordDao.getIdsCreatedBefore(before)
+        if (recordIds.isEmpty()) return
+        val audioPaths = snoreEventDao.getAudioPathsByRecordIds(recordIds)
+        sleepRecordDao.deleteOlderThan(before)
+        deleteAudioFiles(audioPaths)
+    }
 
     // ===== SnoreEvent =====
     suspend fun insertEvent(event: SnoreEventEntity): Long = snoreEventDao.insert(event)
@@ -53,4 +59,10 @@ class SleepRepository @Inject constructor(
     suspend fun insertFactorLog(log: FactorLogEntity) = factorLogDao.insert(log)
     suspend fun getFactorLogByDate(date: String): FactorLogEntity? = factorLogDao.getByDate(date)
     fun getAllFactorLogs(): Flow<List<FactorLogEntity>> = factorLogDao.getAll()
+
+    private fun deleteAudioFiles(paths: List<String>) {
+        paths.forEach { path ->
+            runCatching { File(path).delete() }
+        }
+    }
 }

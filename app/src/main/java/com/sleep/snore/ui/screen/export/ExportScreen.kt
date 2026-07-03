@@ -1,10 +1,13 @@
 package com.sleep.snore.ui.screen.export
 
 import android.content.Intent
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -57,6 +60,7 @@ fun ExportScreen(
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
         context.startActivity(Intent.createChooser(sendIntent, "分享睡眠数据 CSV"))
+        viewModel.clearExportFile()
         snackbarHostState.showSnackbar("CSV 已生成")
     }
 
@@ -75,6 +79,8 @@ fun ExportScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .consumeWindowInsets(padding)
+                .verticalScroll(rememberScrollState())
                 .padding(Spacing.md),
             verticalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {

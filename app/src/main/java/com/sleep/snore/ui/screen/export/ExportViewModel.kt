@@ -53,4 +53,8 @@ class ExportViewModel @Inject constructor(
     fun clearExportMessage() {
         _exportMessage.value = null
     }
+
+    fun clearExportFile() {
+        _exportFile.value = null
+    }
 }

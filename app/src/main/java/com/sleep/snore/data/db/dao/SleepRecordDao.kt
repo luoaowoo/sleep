@@ -41,6 +41,9 @@ interface SleepRecordDao {
     @Query("DELETE FROM sleep_records WHERE id = :id")
     suspend fun deleteById(id: Long)
 
+    @Query("SELECT id FROM sleep_records WHERE created_at < :before")
+    suspend fun getIdsCreatedBefore(before: Long): List<Long>
+
     @Query("DELETE FROM sleep_records WHERE created_at < :before")
     suspend fun deleteOlderThan(before: Long)
 }

@@ -48,6 +48,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
 
 data class RecordingRuntimeState(
     val isActive: Boolean = false,
@@ -174,17 +175,25 @@ class SleepRecordingService : Service() {
     }
 
     private suspend fun finalizeCurrentSession() {
-        startJob?.join()
-        val jobs = synchronized(encodingJobs) { encodingJobs.toList() }
-        jobs.joinAll()
+        val completedPendingWork = withTimeoutOrNull(FINALIZE_TIMEOUT_MS) {
+            startJob?.join()
+            val jobs = synchronized(encodingJobs) { encodingJobs.toList() }
+            jobs.joinAll()
+            true
+        } ?: false
+        if (!completedPendingWork) {
+            Log.w(TAG, "finalize session timed out while waiting for pending audio work")
+        }
         val recordId = currentRecordId
         if (recordId != null) {
             val endTime = System.currentTimeMillis()
             val events = synchronized(pendingEvents) { pendingEvents.toList() }
             repository.updateRecord(buildFinalRecord(recordId, sessionStartTime, endTime, events))
         }
-        val settings = preferencesRepository.settings.first()
-        if (settings.autoCleanEnabled) cleanOldData()
+        val settings = withTimeoutOrNull(SETTINGS_READ_TIMEOUT_MS) {
+            preferencesRepository.settings.first()
+        }
+        if (settings?.autoCleanEnabled == true) cleanOldData()
     }
 
     private fun ensureServiceScope() {
@@ -428,12 +437,7 @@ class SleepRecordingService : Service() {
 
     private suspend fun cleanOldData() {
         val cutoff = System.currentTimeMillis() - AUTO_CLEAN_RETENTION_MS
-        repository.getEventsBefore(cutoff).forEach { event ->
-            if (event.audioFilePath.isNotBlank()) {
-                runCatching { File(event.audioFilePath).delete() }
-            }
-        }
-        repository.deleteOldRecords(cutoff)
+        repository.deleteOldRecordsWithAudio(cutoff)
     }
 
     companion object {
@@ -454,6 +458,8 @@ class SleepRecordingService : Service() {
         private const val TEXT_RECORDING_SUMMARY = "\u6b63\u5728\u8bb0\u5f55\u7761\u7720\u9f3e\u58f0"
         private const val AUTO_CLEAN_RETENTION_MS = 30L * 24L * 60L * 60L * 1000L
         private const val APNEA_GAP_MS = 10_000L
+        private const val FINALIZE_TIMEOUT_MS = 20_000L
+        private const val SETTINGS_READ_TIMEOUT_MS = 2_000L
 
         fun startIntent(context: Context): Intent = Intent(context, SleepRecordingService::class.java).setAction(ACTION_START)
         fun stopIntent(context: Context): Intent = Intent(context, SleepRecordingService::class.java).setAction(ACTION_STOP)
