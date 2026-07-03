@@ -1,10 +1,11 @@
-ï»¿package com.sleep.snore.ui.screen.result
+package com.sleep.snore.ui.screen.result
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,9 +34,9 @@ fun ResultScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("ç¡çœ æŠ¥å‘Š") },
+                title = { Text("Ë¯Ãß±¨¸æ") },
                 navigationIcon = {
-                    TextButton(onClick = { navController.popBackStack() }) { Text("â† è¿”å›") }
+                    TextButton(onClick = { navController.popBackStack() }) { Text("¡û ·µ»Ø") }
                 }
             )
         }
@@ -52,35 +53,35 @@ fun ResultScreen(
             ) {
                 Spacer(Modifier.height(Spacing.md))
 
-                // Hero SnoreScore å¤§åœ†ç¯
+                // Hero SnoreScore ´óÔ²»·
                 SnoreScoreRing(score = r.snoreScore, size = 180.dp)
 
                 Spacer(Modifier.height(Spacing.md))
 
-                // æ ¸å¿ƒæŒ‡æ ‡ç½‘æ ¼
+                // ºËĞÄÖ¸±êÍø¸ñ
                 Card(shape = HeroCardShape) {
                     Column(modifier = Modifier.padding(Spacing.md)) {
                         MetricsRow(
-                            Metric("ç¡çœ æ—¶é•¿", "${r.sleepDurationMin / 60}h ${r.sleepDurationMin % 60}m"),
-                            Metric("AHI ä¼°ç®—", String.format("%.1f", r.estAHI)),
-                            Metric("å³°å€¼å“åº¦", "${String.format("%.0f", r.maxDb)}dB")
+                            Metric("Ë¯ÃßÊ±³¤", "${r.sleepDurationMin / 60}h ${r.sleepDurationMin % 60}m"),
+                            Metric("AHI ¹ÀËã", String.format("%.1f", r.estAHI)),
+                            Metric("·åÖµÏì¶È", "${String.format("%.0f", r.maxDb)}dB")
                         )
                         HorizontalDivider(modifier = Modifier.padding(vertical = Spacing.sm))
                         MetricsRow(
-                            Metric("æ‰“é¼¾æ—¶é•¿", "${r.snoreDurationMin}min"),
-                            Metric("é¼¾å£°æ¬¡æ•°", "${r.snoreEventCount}æ¬¡"),
-                            Metric("æ‰“é¼¾å æ¯”", "${(r.snoreRatio * 100).toInt()}%")
+                            Metric("´ò÷ıÊ±³¤", "${r.snoreDurationMin}min"),
+                            Metric("÷ıÉù´ÎÊı", "${r.snoreEventCount}´Î"),
+                            Metric("´ò÷ıÕ¼±È", "${(r.snoreRatio * 100).toInt()}%")
                         )
                         if (r.longestApneaSec >= 10) {
                             HorizontalDivider(modifier = Modifier.padding(vertical = Spacing.sm))
                             MetricsRow(
-                                Metric("æœ€é•¿å‘¼å¸æš‚åœ", "${r.longestApneaSec}ç§’")
+                                Metric("×î³¤ºôÎüÔİÍ£", "${r.longestApneaSec}Ãë")
                             )
                         }
                     }
                 }
 
-                // AI è¯„ä»·å¡ç‰‡
+                // AI ÆÀ¼Û¿¨Æ¬
                 if (r.aiEvaluation.isNotBlank()) {
                     Card(
                         shape = HeroCardShape,
@@ -88,9 +89,9 @@ fun ResultScreen(
                     ) {
                         Column(modifier = Modifier.padding(Spacing.md)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("ğŸ¤–", style = MaterialTheme.typography.headlineSmall)
+                                Text("??", style = MaterialTheme.typography.headlineSmall)
                                 Spacer(Modifier.width(Spacing.sm))
-                                Text("AI è¯¦ç»†è¯„ä»·", style = MaterialTheme.typography.titleMedium)
+                                Text("AI ÏêÏ¸ÆÀ¼Û", style = MaterialTheme.typography.titleMedium)
                             }
                             Spacer(Modifier.height(Spacing.sm))
                             Text(r.aiEvaluation, style = MaterialTheme.typography.bodyMedium)
@@ -98,7 +99,7 @@ fun ResultScreen(
                     }
                 }
 
-                // é¼¾å£°å›æ”¾å…¥å£
+                // ÷ıÉù»Ø·ÅÈë¿Ú
                 Card(
                     shape = HeroCardShape,
                     modifier = Modifier.fillMaxWidth()
@@ -107,11 +108,11 @@ fun ResultScreen(
                         modifier = Modifier.padding(Spacing.md),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("ğŸµ", style = MaterialTheme.typography.headlineSmall)
+                        Text("??", style = MaterialTheme.typography.headlineSmall)
                         Spacer(Modifier.width(Spacing.sm))
                         Column(Modifier.weight(1f)) {
-                            Text("é¼¾å£°é›†é”¦", style = MaterialTheme.typography.titleMedium)
-                            Text("${r.snoreEventCount} ä¸ªç‰‡æ®µ", style = MaterialTheme.typography.bodySmall)
+                            Text("÷ıÉù¼¯½õ", style = MaterialTheme.typography.titleMedium)
+                            Text("${r.snoreEventCount} ¸öÆ¬¶Î", style = MaterialTheme.typography.bodySmall)
                         }
                     }
                 }

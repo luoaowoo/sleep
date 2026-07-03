@@ -1,10 +1,9 @@
-﻿package com.sleep.snore.domain
+package com.sleep.snore.domain
 
 import com.sleep.snore.data.db.entity.SleepRecordEntity
 import com.sleep.snore.data.db.entity.SnoreEventEntity
 import com.sleep.snore.data.model.Severity
 import com.sleep.snore.data.model.severityFromScore
-import kotlin.math.min
 
 object SnoreScoreCalculator {
 

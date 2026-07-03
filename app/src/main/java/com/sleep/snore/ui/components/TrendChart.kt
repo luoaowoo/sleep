@@ -1,4 +1,4 @@
-ï»¿package com.sleep.snore.ui.components
+package com.sleep.snore.ui.components
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
@@ -16,10 +16,10 @@ import androidx.compose.ui.unit.dp
 import com.sleep.snore.ui.theme.snoreScoreColor
 
 /**
- * SnoreScore è¶‹åŠ¿æŠ˜çº¿å›¾
+ * SnoreScore Ç÷ÊÆÕÛÏßÍ¼
  *
- * @param data åˆ†æ•°åˆ—è¡¨ (è¶Šå¾€åè¶Šæ–°)
- * @param labels Xè½´æ ‡ç­¾
+ * @param data ·ÖÊıÁĞ±í (Ô½ÍùºóÔ½ĞÂ)
+ * @param labels XÖá±êÇ©
  */
 @Composable
 fun TrendChart(
@@ -29,7 +29,7 @@ fun TrendChart(
 ) {
     Column(modifier = modifier) {
         Text(
-            "SnoreScore è¶‹åŠ¿",
+            "SnoreScore Ç÷ÊÆ",
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.padding(bottom = 8.dp)
         )
@@ -73,7 +73,7 @@ fun TrendChart(
                 val x = padding + index * stepX
                 val y = padding + h * (1 - score / 100f)
                 drawCircle(
-                    color = snoreScoreColor(score).toArgb().let { Color(it) },
+                    color = snoreScoreColor(score),
                     radius = 5f,
                     center = Offset(x, y)
                 )
@@ -97,9 +97,3 @@ fun TrendChart(
     }
 }
 
-fun androidx.compose.ui.graphics.Color.toArgb(): Int {
-    return (this.alpha * 255).toInt() shl 24 or
-            (this.red * 255).toInt() shl 16 or
-            (this.green * 255).toInt() shl 8 or
-            (this.blue * 255).toInt()
-}

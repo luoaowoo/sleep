@@ -1,9 +1,7 @@
-ï»¿package com.sleep.snore.ui.screen.home
+package com.sleep.snore.ui.screen.home
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -31,7 +29,7 @@ fun HomeScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("ç¡çœ æ¦‚è§ˆ") },
+                title = { Text("Ë¯Ãß¸ÅÀÀ") },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
                 )
@@ -40,8 +38,8 @@ fun HomeScreen(
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = { navController.navigate(Route.Recording.route) },
-                icon = { Text("ğŸŒ™") },
-                text = { Text("å¼€å§‹ç¡çœ ") },
+                icon = { Text("??") },
+                text = { Text("¿ªÊ¼Ë¯Ãß") },
                 shape = PillShape,
                 containerColor = MaterialTheme.colorScheme.primaryContainer,
                 contentColor = MaterialTheme.colorScheme.onPrimaryContainer
@@ -56,7 +54,7 @@ fun HomeScreen(
                 .padding(top = Spacing.md),
             verticalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
-            // æ˜¨æ™šç¡çœ æ¦‚è§ˆå¡ç‰‡
+            // ×òÍíË¯Ãß¸ÅÀÀ¿¨Æ¬
             if (latestRecord != null) {
                 SleepOverviewCard(record = latestRecord!!) {
                     navController.navigate(Route.Result.createRoute(latestRecord!!.id))
@@ -65,12 +63,12 @@ fun HomeScreen(
                 EmptyStateCard()
             }
 
-            // æœ€è¿‘ä¸ƒå¤©è¶‹åŠ¿è¿·ä½ å›¾
+            // ×î½üÆßÌìÇ÷ÊÆÃÔÄãÍ¼
             if (recentRecords.isNotEmpty()) {
                 WeeklyTrendCard(records = recentRecords)
             }
 
-            // AI å¿«é€Ÿè¯„ä»· (å¦‚æœæœ‰)
+            // AI ¿ìËÙÆÀ¼Û (Èç¹ûÓĞ)
             latestRecord?.let { record ->
                 if (record.aiSummary.isNotBlank()) {
                     AIQuickCard(summary = record.aiSummary) {
@@ -97,7 +95,7 @@ private fun SleepOverviewCard(record: com.sleep.snore.data.db.entity.SleepRecord
             modifier = Modifier.padding(Spacing.lg),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text("æ˜¨æ™šç¡çœ ", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
+            Text("×òÍíË¯Ãß", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
 
             Spacer(Modifier.height(Spacing.sm))
 
@@ -105,14 +103,14 @@ private fun SleepOverviewCard(record: com.sleep.snore.data.db.entity.SleepRecord
 
             Spacer(Modifier.height(Spacing.md))
 
-            // æŒ‡æ ‡è¡Œ
+            // Ö¸±êĞĞ
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                MetricItem("ç¡çœ æ—¶é•¿", "${record.sleepDurationMin / 60}h ${record.sleepDurationMin % 60}m")
-                MetricItem("AHIä¼°ç®—", String.format("%.1f", record.estAHI))
-                MetricItem("å³°å€¼å“åº¦", "${String.format("%.0f", record.maxDb)}dB")
+                MetricItem("Ë¯ÃßÊ±³¤", "${record.sleepDurationMin / 60}h ${record.sleepDurationMin % 60}m")
+                MetricItem("AHI¹ÀËã", String.format("%.1f", record.estAHI))
+                MetricItem("·åÖµÏì¶È", "${String.format("%.0f", record.maxDb)}dB")
             }
         }
     }
@@ -139,10 +137,10 @@ private fun EmptyStateCard() {
                 .padding(Spacing.xxl),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text("ğŸŒ™", style = MaterialTheme.typography.displayLarge)
+            Text("??", style = MaterialTheme.typography.displayLarge)
             Spacer(Modifier.height(Spacing.md))
-            Text("è¿˜æ²¡æœ‰ç¡çœ è®°å½•", style = MaterialTheme.typography.titleLarge)
-            Text("ç‚¹å‡»ä¸‹æ–¹æŒ‰é’®å¼€å§‹ç¬¬ä¸€æ¬¡å½•éŸ³", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("»¹Ã»ÓĞË¯Ãß¼ÇÂ¼", style = MaterialTheme.typography.titleLarge)
+            Text("µã»÷ÏÂ·½°´Å¥¿ªÊ¼µÚÒ»´ÎÂ¼Òô", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -155,9 +153,9 @@ private fun WeeklyTrendCard(records: List<com.sleep.snore.data.db.entity.SleepRe
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(modifier = Modifier.padding(Spacing.md)) {
-            Text("ğŸ“ˆ æœ¬å‘¨è¶‹åŠ¿", style = MaterialTheme.typography.titleMedium)
+            Text("?? ±¾ÖÜÇ÷ÊÆ", style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(Spacing.sm))
-            // ç®€åŒ–ç‰ˆï¼šæ¨ªæ¡å›¾
+            // ¼ò»¯°æ£ººáÌõÍ¼
             Row(
                 modifier = Modifier.fillMaxWidth().height(80.dp),
                 horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
@@ -191,10 +189,10 @@ private fun AIQuickCard(summary: String, onClick: () -> Unit) {
             modifier = Modifier.padding(Spacing.md),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("ğŸ¤–", style = MaterialTheme.typography.headlineSmall)
+            Text("??", style = MaterialTheme.typography.headlineSmall)
             Spacer(Modifier.width(Spacing.sm))
             Column(modifier = Modifier.weight(1f)) {
-                Text("AI è¯„ä»·", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onTertiaryContainer)
+                Text("AI ÆÀ¼Û", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onTertiaryContainer)
                 Text(summary, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onTertiaryContainer)
             }
             Text(">", color = MaterialTheme.colorScheme.onTertiaryContainer)
