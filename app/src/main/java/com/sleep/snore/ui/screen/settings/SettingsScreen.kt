@@ -11,6 +11,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import com.sleep.snore.data.preferences.SettingsPreferencesRepository
+import com.sleep.snore.navigation.Route
 import com.sleep.snore.ui.theme.HeroCardShape
 import com.sleep.snore.ui.theme.Spacing
 
@@ -61,7 +62,7 @@ fun SettingsScreen(
                             onCheckedChange = viewModel::onAutoCleanChange
                         )
                     }
-                    Text("当前已用: -- MB", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("当前已用: ${uiState.storageUsageText}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
 
@@ -69,10 +70,12 @@ fun SettingsScreen(
             Text("数据", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
             Card(shape = HeroCardShape) {
                 Column {
-                    ListItem(headlineContent = { Text("导出数据 (CSV)") }, modifier = Modifier.clickable {})
+                    ListItem(headlineContent = { Text("导出数据 (CSV)") }, modifier = Modifier.clickable {
+                        navController.navigate(Route.Export.route)
+                    })
                     HorizontalDivider()
                     ListItem(headlineContent = { Text("OSA 风险评估") }, modifier = Modifier.clickable {
-                        navController.navigate("risk_assessment")
+                        navController.navigate(Route.RiskAssessment.route)
                     })
                 }
             }

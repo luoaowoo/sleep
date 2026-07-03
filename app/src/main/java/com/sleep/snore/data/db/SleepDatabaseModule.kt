@@ -2,6 +2,8 @@
 
 import android.content.Context
 import androidx.room.Room
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.sleep.snore.data.db.dao.FactorLogDao
 import com.sleep.snore.data.db.dao.SleepRecordDao
 import com.sleep.snore.data.db.dao.SnoreEventDao
@@ -23,7 +25,9 @@ object SleepDatabaseModule {
             context,
             SleepDatabase::class.java,
             "sleep_snore.db"
-        ).build()
+        )
+            .addMigrations(MIGRATION_1_2)
+            .build()
     }
 
     @Provides
@@ -34,4 +38,13 @@ object SleepDatabaseModule {
 
     @Provides
     fun provideFactorLogDao(db: SleepDatabase): FactorLogDao = db.factorLogDao()
+
+    private val MIGRATION_1_2 = object : Migration(1, 2) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_sleep_records_start_time` ON `sleep_records` (`start_time`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_sleep_records_created_at` ON `sleep_records` (`created_at`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_snore_events_record_id_start_timestamp` ON `snore_events` (`record_id`, `start_timestamp`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_snore_events_start_timestamp` ON `snore_events` (`start_timestamp`)")
+        }
+    }
 }

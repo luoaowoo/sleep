@@ -17,6 +17,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.sleep.snore.ui.screen.home.HomeScreen
+import com.sleep.snore.ui.screen.export.ExportScreen
 import com.sleep.snore.ui.screen.playback.PlaybackScreen
 import com.sleep.snore.ui.screen.recording.RecordingScreen
 import com.sleep.snore.ui.screen.result.ResultScreen
@@ -46,6 +47,7 @@ fun SleepNavGraph(navController: NavHostController, modifier: Modifier = Modifie
         composable(Route.Playback.route) { PlaybackScreen(navController = navController) }
         composable(Route.Settings.route) { SettingsScreen(navController = navController) }
         composable(Route.Recording.route) { RecordingScreen(navController = navController) }
+        composable(Route.Export.route) { ExportScreen(navController = navController) }
         composable(
             route = Route.Result.TEMPLATE,
             arguments = listOf(navArgument("recordId") { type = NavType.LongType })

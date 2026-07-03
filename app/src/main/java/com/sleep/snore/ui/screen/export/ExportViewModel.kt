@@ -21,11 +21,23 @@ class ExportViewModel @Inject constructor(
     private val _isExporting = MutableStateFlow(false)
     val isExporting: StateFlow<Boolean> = _isExporting
 
+    private val _exportMessage = MutableStateFlow<String?>(null)
+    val exportMessage: StateFlow<String?> = _exportMessage
+
     fun exportRecords() {
         viewModelScope.launch {
             _isExporting.value = true
-            _exportFile.value = exporter.exportRecordsCsv()
+            val file = exporter.exportRecordsCsv()
+            if (file == null) {
+                _exportMessage.value = "暂无可导出的睡眠记录"
+            } else {
+                _exportFile.value = file
+            }
             _isExporting.value = false
         }
+    }
+
+    fun clearExportMessage() {
+        _exportMessage.value = null
     }
 }

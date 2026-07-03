@@ -15,11 +15,12 @@ import java.io.Closeable
  * - 静音超过阈值时通知结束
  */
 class SnoreDetector(
-    private val callback: SnoreCallback
+    private val callback: SnoreCallback,
+    silenceThresholdDb: Double = -40.0
 ) : Closeable {
 
     private val audioRecorder: AudioRecorder
-    private val energyDetector = EnergyDetector()
+    private val energyDetector = EnergyDetector(silenceThresholdDb)
     private val zcrDetector = ZeroCrossingDetector()
 
     /** 当前是否处于鼾声片段中 */
@@ -43,6 +44,9 @@ class SnoreDetector(
 
     /** 结束鼾声片段所需连续静音帧数 (约 1秒 = 20帧) */
     private val endSilenceFrames = 20
+
+    /** 单个片段最大帧数 (约 2分钟)，避免长噪声导致内存持续增长 */
+    private val maxSegmentFrames = 2 * 60 * 20
 
     init {
         audioRecorder = AudioRecorder(object : AudioRecorder.FrameCallback {
@@ -77,7 +81,7 @@ class SnoreDetector(
             // 静音
             if (inSnoreSegment) {
                 silenceFrameCount++
-                segmentBuffer.add(pcmFrame) // 保留缓冲
+                addSegmentFrame(pcmFrame) // 保留缓冲
                 if (silenceFrameCount >= endSilenceFrames) {
                     flushCurrentSegment()
                 }
@@ -99,7 +103,7 @@ class SnoreDetector(
                 inSnoreSegment = true
                 segmentBuffer.clear()
             }
-            segmentBuffer.add(pcmFrame)
+            addSegmentFrame(pcmFrame)
 
             // 触发达标通知
             if (snoreFrameCount == triggerFrameCount) {
@@ -112,13 +116,20 @@ class SnoreDetector(
             // 有声音但非鼾声(语音/环境音)
             if (inSnoreSegment) {
                 silenceFrameCount++
-                segmentBuffer.add(pcmFrame)
+                addSegmentFrame(pcmFrame)
                 if (silenceFrameCount >= endSilenceFrames) {
                     flushCurrentSegment()
                 }
             } else {
                 // 非鼾声且不在片段中，丢弃
             }
+        }
+    }
+
+    private fun addSegmentFrame(pcmFrame: ByteArray) {
+        segmentBuffer.add(pcmFrame)
+        if (segmentBuffer.size >= maxSegmentFrames) {
+            flushCurrentSegment()
         }
     }
 

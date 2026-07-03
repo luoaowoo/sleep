@@ -26,6 +26,12 @@ interface SleepRecordDao {
     @Query("SELECT * FROM sleep_records ORDER BY start_time DESC LIMIT 1")
     suspend fun getLatest(): SleepRecordEntity?
 
+    @Query("SELECT * FROM sleep_records ORDER BY start_time DESC LIMIT 1")
+    fun getLatestFlow(): Flow<SleepRecordEntity?>
+
+    @Query("SELECT * FROM sleep_records ORDER BY start_time DESC LIMIT :limit")
+    fun getRecent(limit: Int): Flow<List<SleepRecordEntity>>
+
     @Query("SELECT * FROM sleep_records WHERE start_time >= :since ORDER BY start_time DESC")
     fun getRecordsSince(since: Long): Flow<List<SleepRecordEntity>>
 

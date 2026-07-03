@@ -6,14 +6,10 @@ import androidx.lifecycle.viewModelScope
 import com.sleep.snore.data.db.entity.SnoreEventEntity
 import com.sleep.snore.data.repository.SleepRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import java.io.File
 import javax.inject.Inject
@@ -31,18 +27,7 @@ class PlaybackViewModel @Inject constructor(
     private val _playbackError = MutableStateFlow<String?>(null)
     val playbackError: StateFlow<String?> = _playbackError.asStateFlow()
 
-    @OptIn(ExperimentalCoroutinesApi::class)
-    val events: StateFlow<List<SnoreEventEntity>> = repository.getAllRecords()
-        .flatMapLatest { records ->
-            if (records.isEmpty()) {
-                flowOf(emptyList())
-            } else {
-                combine(records.map { repository.getEventsByRecordId(it.id) }) { eventLists ->
-                    eventLists.flatMap { it.asIterable() }
-                        .sortedByDescending { it.startTimestamp }
-                }
-            }
-        }
+    val events: StateFlow<List<SnoreEventEntity>> = repository.getAllEvents()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun togglePlayback(event: SnoreEventEntity) {

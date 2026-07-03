@@ -22,6 +22,7 @@ import com.sleep.snore.data.db.entity.SnoreEventEntity
 import com.sleep.snore.data.model.Severity
 import com.sleep.snore.data.model.SnoreType
 import com.sleep.snore.data.model.severityFromScore
+import com.sleep.snore.data.preferences.SettingsPreferencesRepository
 import com.sleep.snore.data.repository.SleepRepository
 import com.sleep.snore.domain.SnoreEvaluator
 import com.sleep.snore.domain.SnoreScoreCalculator
@@ -43,6 +44,7 @@ import kotlinx.coroutines.launch
 class SleepRecordingService : Service() {
 
     @Inject lateinit var repository: SleepRepository
+    @Inject lateinit var preferencesRepository: SettingsPreferencesRepository
 
     private var serviceJob = SupervisorJob()
     private var serviceScope = CoroutineScope(Dispatchers.IO + serviceJob)
@@ -66,16 +68,23 @@ class SleepRecordingService : Service() {
             ACTION_STOP -> finishSessionAndStop()
             else -> startSessionIfNeeded()
         }
-        return START_STICKY
+        return START_NOT_STICKY
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        finishSessionAndStop()
+        super.onTaskRemoved(rootIntent)
+    }
+
     override fun onDestroy() {
-        if (!isSessionActive) {
-            releaseWakeLock()
-            serviceScope.cancel()
+        if (isSessionActive) {
+            isSessionActive = false
+            stopSnoreDetection()
         }
+        releaseWakeLock()
+        serviceScope.cancel()
         super.onDestroy()
     }
 
@@ -90,8 +99,13 @@ class SleepRecordingService : Service() {
         acquireWakeLock()
 
         serviceScope.launch {
+            val settings = preferencesRepository.settings.first()
+            if (settings.autoCleanEnabled) cleanOldData()
             currentRecordId = repository.insertRecord(createEmptyRecord(sessionStartTime))
-            startSnoreDetection(currentRecordId ?: return@launch)
+            startSnoreDetection(
+                recordId = currentRecordId ?: return@launch,
+                silenceThresholdDb = settings.silenceThresholdDb.toDouble()
+            )
         }
     }
 
@@ -113,6 +127,8 @@ class SleepRecordingService : Service() {
                     val events = synchronized(pendingEvents) { pendingEvents.toList() }
                     repository.updateRecord(buildFinalRecord(recordId, sessionStartTime, endTime, events))
                 }
+                val settings = preferencesRepository.settings.first()
+                if (settings.autoCleanEnabled) cleanOldData()
             } catch (e: Exception) {
                 Log.e(TAG, "failed to finish recording session", e)
             } finally {
@@ -189,7 +205,7 @@ class SleepRecordingService : Service() {
         wakeLock = null
     }
 
-    private fun startSnoreDetection(recordId: Long) {
+    private fun startSnoreDetection(recordId: Long, silenceThresholdDb: Double) {
         val outputDir = File(filesDir, "snore_audio").apply { mkdirs() }
         snoreDetector = SnoreDetector(object : SnoreDetector.SnoreCallback {
             override fun onSnoreStarted(timestamp: Long, db: Double) {
@@ -218,7 +234,7 @@ class SleepRecordingService : Service() {
                 }
                 synchronized(encodingJobs) { encodingJobs.add(job) }
             }
-        })
+        }, silenceThresholdDb = silenceThresholdDb)
 
         try {
             snoreDetector?.startListening()
@@ -323,6 +339,16 @@ class SleepRecordingService : Service() {
         return buckets.joinToString(prefix = "[", postfix = "]")
     }
 
+    private suspend fun cleanOldData() {
+        val cutoff = System.currentTimeMillis() - AUTO_CLEAN_RETENTION_MS
+        repository.getEventsBefore(cutoff).forEach { event ->
+            if (event.audioFilePath.isNotBlank()) {
+                runCatching { File(event.audioFilePath).delete() }
+            }
+        }
+        repository.deleteOldRecords(cutoff)
+    }
+
     companion object {
         const val ACTION_START = "com.sleep.snore.action.START_RECORDING"
         const val ACTION_STOP = "com.sleep.snore.action.STOP_RECORDING"
@@ -336,6 +362,7 @@ class SleepRecordingService : Service() {
         private const val TEXT_SNORE_SEGMENTS = "\u5df2\u4fdd\u5b58\u9f3e\u58f0\u7247\u6bb5\uff1a%d \u4e2a"
         private const val TEXT_STOP = "\u7ed3\u675f"
         private const val TEXT_RECORDING_SUMMARY = "\u6b63\u5728\u8bb0\u5f55\u7761\u7720\u9f3e\u58f0"
+        private const val AUTO_CLEAN_RETENTION_MS = 30L * 24L * 60L * 60L * 1000L
 
         fun startIntent(context: Context): Intent = Intent(context, SleepRecordingService::class.java).setAction(ACTION_START)
         fun stopIntent(context: Context): Intent = Intent(context, SleepRecordingService::class.java).setAction(ACTION_STOP)

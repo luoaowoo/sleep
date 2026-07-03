@@ -15,7 +15,7 @@ import com.sleep.snore.data.db.entity.SnoreEventEntity
         SnoreEventEntity::class,
         FactorLogEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class SleepDatabase : RoomDatabase() {

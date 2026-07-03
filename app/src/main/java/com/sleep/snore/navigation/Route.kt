@@ -14,6 +14,7 @@ sealed class Route(val route: String) {
     data object Playback : Route("playback")
     data object Settings : Route("settings")
     data object Recording : Route("recording")
+    data object Export : Route("export")
     data class Result(val recordId: Long = -1) : Route("result/{recordId}") {
         companion object {
             const val TEMPLATE = "result/{recordId}"

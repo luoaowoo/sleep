@@ -2,9 +2,16 @@
 
 import androidx.room.ColumnInfo
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "sleep_records")
+@Entity(
+    tableName = "sleep_records",
+    indices = [
+        Index("start_time"),
+        Index("created_at")
+    ]
+)
 data class SleepRecordEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,

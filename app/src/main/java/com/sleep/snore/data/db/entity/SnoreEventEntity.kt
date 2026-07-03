@@ -16,7 +16,11 @@ import androidx.room.PrimaryKey
             onDelete = ForeignKey.CASCADE
         )
     ],
-    indices = [Index("record_id")]
+    indices = [
+        Index("record_id"),
+        Index(value = ["record_id", "start_timestamp"]),
+        Index("start_timestamp")
+    ]
 )
 data class SnoreEventEntity(
     @PrimaryKey(autoGenerate = true)
@@ -44,7 +48,7 @@ data class SnoreEventEntity(
     val snoreType: String,          // SnoreType.name
 
     @ColumnInfo(name = "audio_file_path")
-    val audioFilePath: String,      // .ogg 文件绝对路径
+    val audioFilePath: String,      // 音频文件绝对路径
 
     @ColumnInfo(name = "audio_file_size_bytes")
     val audioFileSizeBytes: Long,
