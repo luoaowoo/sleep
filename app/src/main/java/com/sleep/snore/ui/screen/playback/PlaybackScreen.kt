@@ -6,7 +6,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -26,14 +28,25 @@ fun PlaybackScreen(
     viewModel: PlaybackViewModel = hiltViewModel()
 ) {
     val events by viewModel.events.collectAsStateWithLifecycle()
+    val currentlyPlayingEventId by viewModel.currentlyPlayingEventId.collectAsStateWithLifecycle()
+    val playbackError by viewModel.playbackError.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
     val grouped = events.groupBy {
         SimpleDateFormat("M月d日", Locale.CHINESE).format(Date(it.startTimestamp))
+    }
+
+    LaunchedEffect(playbackError) {
+        playbackError?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearPlaybackError()
+        }
     }
 
     Scaffold(
         topBar = {
             TopAppBar(title = { Text("鼾声回放") })
-        }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
         if (events.isEmpty()) {
             Box(
@@ -53,8 +66,11 @@ fun PlaybackScreen(
                         Text(date, style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(vertical = Spacing.sm))
                     }
                     items(dayEvents) { event ->
+                        val isPlaying = currentlyPlayingEventId == event.id
                         Card(
-                            modifier = Modifier.fillMaxWidth().clickable { },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { viewModel.togglePlayback(event) },
                             shape = HeroCardShape
                         ) {
                             Row(
@@ -72,7 +88,12 @@ fun PlaybackScreen(
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
-                                Text("▶", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
+                                Text(
+                                    if (isPlaying) "停止" else "播放",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.SemiBold
+                                )
                             }
                         }
                     }

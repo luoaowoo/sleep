@@ -3,18 +3,24 @@
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
+import com.sleep.snore.data.preferences.SettingsPreferencesRepository
 import com.sleep.snore.ui.theme.HeroCardShape
 import com.sleep.snore.ui.theme.Spacing
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(navController: NavHostController) {
-    var silenceThreshold by remember { mutableFloatStateOf(-40f) }
-    var autoClean by remember { mutableStateOf(true) }
+fun SettingsScreen(
+    navController: NavHostController,
+    viewModel: SettingsViewModel = hiltViewModel()
+) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -32,12 +38,12 @@ fun SettingsScreen(navController: NavHostController) {
             Text("录音设置", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
             Card(shape = HeroCardShape) {
                 Column(modifier = Modifier.padding(Spacing.md)) {
-                    Text("静音阈值: ${silenceThreshold.toInt()}dB", style = MaterialTheme.typography.bodyMedium)
+                    Text("静音阈值: ${uiState.silenceThresholdDb.toInt()}dB", style = MaterialTheme.typography.bodyMedium)
                     Spacer(Modifier.height(Spacing.xs))
                     Slider(
-                        value = silenceThreshold,
-                        onValueChange = { silenceThreshold = it },
-                        valueRange = -60f..-20f,
+                        value = uiState.silenceThresholdDb,
+                        onValueChange = viewModel::onSilenceThresholdChange,
+                        valueRange = SettingsPreferencesRepository.MIN_SILENCE_THRESHOLD_DB..SettingsPreferencesRepository.MAX_SILENCE_THRESHOLD_DB,
                         steps = 7
                     )
                     Text("低于此音量的声音不会被录制", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -50,7 +56,10 @@ fun SettingsScreen(navController: NavHostController) {
                 Column(modifier = Modifier.padding(Spacing.md)) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text("自动清理 30 天前的片段")
-                        Switch(checked = autoClean, onCheckedChange = { autoClean = it })
+                        Switch(
+                            checked = uiState.autoCleanEnabled,
+                            onCheckedChange = viewModel::onAutoCleanChange
+                        )
                     }
                     Text("当前已用: -- MB", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }

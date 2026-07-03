@@ -43,14 +43,17 @@ class EnergyDetector(
         if (pcmFrame.size < 2) return Double.NEGATIVE_INFINITY
 
         var sumSquares = 0.0
-        for (i in pcmFrame.indices step 2) {
+        var sampleCount = 0
+        for (i in 0 until pcmFrame.size - 1 step 2) {
             val sample = ((pcmFrame[i + 1].toInt() shl 8) or (pcmFrame[i].toInt() and 0xFF))
                 .toShort()
                 .toDouble()
             sumSquares += sample * sample
+            sampleCount++
         }
+        if (sampleCount == 0) return Double.NEGATIVE_INFINITY
 
-        val rms = sqrt(sumSquares / (pcmFrame.size / 2))
+        val rms = sqrt(sumSquares / sampleCount)
         if (rms <= 0.0) return Double.NEGATIVE_INFINITY
 
         return 20.0 * log10(rms / 32768.0)

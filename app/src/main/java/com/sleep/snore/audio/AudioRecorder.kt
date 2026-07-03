@@ -41,17 +41,7 @@ class AudioRecorder(
 
         val bufferSize = maxOf(minBuf * 2, AudioConfig.FRAME_BYTES * 4)
 
-        recorder = AudioRecord.Builder()
-            .setAudioSource(MediaRecorder.AudioSource.UNPROCESSED)
-            .setAudioFormat(
-                AudioFormat.Builder()
-                    .setSampleRate(AudioConfig.SAMPLE_RATE)
-                    .setEncoding(AudioConfig.BITS_PER_SAMPLE)
-                    .setChannelMask(AudioConfig.CHANNELS)
-                    .build()
-            )
-            .setBufferSizeInBytes(bufferSize)
-            .build()
+        recorder = createRecorder(bufferSize)
 
         if (recorder?.state != AudioRecord.STATE_INITIALIZED) {
             throw IllegalStateException("AudioRecord 初始化失败")
@@ -74,6 +64,42 @@ class AudioRecorder(
         }, "AudioRecorder-Thread").apply { start() }
 
         Log.i(TAG, "录音已启动 (${AudioConfig.SAMPLE_RATE}Hz, ${AudioConfig.BITS_PER_SAMPLE}bit, Mono)")
+    }
+
+    private fun createRecorder(bufferSize: Int): AudioRecord {
+        val sources = listOf(
+            MediaRecorder.AudioSource.UNPROCESSED,
+            MediaRecorder.AudioSource.VOICE_RECOGNITION,
+            MediaRecorder.AudioSource.MIC
+        )
+
+        var lastError: Throwable? = null
+        for (source in sources) {
+            try {
+                val candidate = AudioRecord.Builder()
+                    .setAudioSource(source)
+                    .setAudioFormat(
+                        AudioFormat.Builder()
+                            .setSampleRate(AudioConfig.SAMPLE_RATE)
+                            .setEncoding(AudioConfig.BITS_PER_SAMPLE)
+                            .setChannelMask(AudioConfig.CHANNELS)
+                            .build()
+                    )
+                    .setBufferSizeInBytes(bufferSize)
+                    .build()
+
+                if (candidate.state == AudioRecord.STATE_INITIALIZED) {
+                    Log.i(TAG, "AudioRecord source selected: $source")
+                    return candidate
+                }
+                candidate.release()
+            } catch (error: Throwable) {
+                lastError = error
+                Log.w(TAG, "AudioRecord source failed: $source", error)
+            }
+        }
+
+        throw IllegalStateException("AudioRecord 初始化失败", lastError)
     }
 
     /**

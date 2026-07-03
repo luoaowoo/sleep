@@ -2,6 +2,8 @@ package com.sleep.snore.ui.screen.recording
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.RepeatMode
@@ -40,6 +42,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.navigation.NavHostController
+import com.sleep.snore.service.SleepRecordingService
 import com.sleep.snore.ui.theme.PillShape
 import com.sleep.snore.ui.theme.Spacing
 import kotlinx.coroutines.delay
@@ -49,17 +52,42 @@ fun RecordingScreen(navController: NavHostController) {
     val context = LocalContext.current
     var elapsedSeconds by remember { mutableIntStateOf(0) }
     var isRecording by remember { mutableStateOf(false) }
-    var hasPermission by remember {
+    var hasAudioPermission by remember {
+        mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED)
+    }
+    var hasNotificationPermission by remember {
         mutableStateOf(
-            ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+            Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
         )
     }
 
-    val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        hasPermission = granted
-        if (granted) isRecording = true
+    fun startRecording() {
+        if (!isRecording && hasAudioPermission && hasNotificationPermission) {
+            ContextCompat.startForegroundService(context, SleepRecordingService.startIntent(context))
+            isRecording = true
+        }
+    }
+
+    fun stopRecording() {
+        if (isRecording) {
+            context.startService(SleepRecordingService.stopIntent(context))
+            isRecording = false
+        }
+        navController.popBackStack()
+    }
+
+    val audioPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        hasAudioPermission = granted
+        if (granted && hasNotificationPermission) startRecording()
+    }
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        hasNotificationPermission = granted
+        if (granted && hasAudioPermission) startRecording()
+    }
+
+    LaunchedEffect(hasAudioPermission, hasNotificationPermission) {
+        if (hasAudioPermission && hasNotificationPermission) startRecording()
     }
 
     LaunchedEffect(isRecording) {
@@ -69,6 +97,8 @@ fun RecordingScreen(navController: NavHostController) {
         }
     }
 
+    BackHandler(enabled = isRecording) { stopRecording() }
+
     val pulseAlpha by rememberInfiniteTransition(label = "pulse").animateFloat(
         initialValue = 0.4f,
         targetValue = 1f,
@@ -76,25 +106,16 @@ fun RecordingScreen(navController: NavHostController) {
         label = "pulseAlpha"
     )
 
-    if (!hasPermission && !isRecording) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(Spacing.xxl),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text("录", style = MaterialTheme.typography.displayLarge)
-            Spacer(Modifier.height(Spacing.lg))
-            Text("需要录音权限", style = MaterialTheme.typography.headlineSmall)
-            Spacer(Modifier.height(Spacing.md))
-            Text("请授权录音权限以开始鼾声监测", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Spacer(Modifier.height(Spacing.xl))
-            Button(
-                onClick = { permissionLauncher.launch(Manifest.permission.RECORD_AUDIO) },
-                shape = PillShape
-            ) { Text("授权") }
-        }
+    if (!hasAudioPermission || !hasNotificationPermission) {
+        PermissionContent(
+            missingNotificationPermission = !hasNotificationPermission,
+            onGrantAudio = { audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO) },
+            onGrantNotification = {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
+            }
+        )
         return
     }
 
@@ -113,13 +134,9 @@ fun RecordingScreen(navController: NavHostController) {
                 style = MaterialTheme.typography.displayLarge.copy(fontWeight = FontWeight.Light),
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
             )
-
             Spacer(Modifier.height(Spacing.xxl))
-
             Surface(
-                modifier = Modifier
-                    .size(120.dp)
-                    .alpha(pulseAlpha),
+                modifier = Modifier.size(120.dp).alpha(pulseAlpha),
                 shape = CircleShape,
                 color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
             ) {
@@ -131,17 +148,49 @@ fun RecordingScreen(navController: NavHostController) {
                     ) {}
                 }
             }
-
             Spacer(Modifier.height(Spacing.xl))
-            Text("正在监测鼾声", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+            Text(TEXT_MONITORING, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
             Spacer(Modifier.height(Spacing.xxl))
             OutlinedButton(
-                onClick = { isRecording = false; navController.popBackStack() },
+                onClick = { stopRecording() },
                 shape = PillShape,
                 modifier = Modifier.widthIn(min = 200.dp)
             ) {
-                Text("结束睡眠", style = MaterialTheme.typography.labelLarge)
+                Text(TEXT_STOP_SLEEP, style = MaterialTheme.typography.labelLarge)
             }
         }
     }
 }
+
+@Composable
+private fun PermissionContent(
+    missingNotificationPermission: Boolean,
+    onGrantAudio: () -> Unit,
+    onGrantNotification: () -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxSize().padding(Spacing.xxl),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(TEXT_RECORD, style = MaterialTheme.typography.displayLarge)
+        Spacer(Modifier.height(Spacing.lg))
+        Text(TEXT_NEED_AUDIO_PERMISSION, style = MaterialTheme.typography.headlineSmall)
+        Spacer(Modifier.height(Spacing.md))
+        Text(TEXT_PERMISSION_HINT, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.height(Spacing.xl))
+        Button(onClick = onGrantAudio, shape = PillShape) { Text(TEXT_GRANT_AUDIO) }
+        if (missingNotificationPermission) {
+            Spacer(Modifier.height(Spacing.sm))
+            OutlinedButton(onClick = onGrantNotification, shape = PillShape) { Text(TEXT_GRANT_NOTIFICATION) }
+        }
+    }
+}
+
+private const val TEXT_RECORD = "\u5f55"
+private const val TEXT_MONITORING = "\u6b63\u5728\u76d1\u6d4b\u9f3e\u58f0"
+private const val TEXT_STOP_SLEEP = "\u7ed3\u675f\u7761\u7720"
+private const val TEXT_NEED_AUDIO_PERMISSION = "\u9700\u8981\u5f55\u97f3\u6743\u9650"
+private const val TEXT_PERMISSION_HINT = "\u6388\u6743\u540e\u5373\u53ef\u5f00\u59cb\u9f3e\u58f0\u76d1\u6d4b"
+private const val TEXT_GRANT_AUDIO = "\u6388\u6743\u5f55\u97f3"
+private const val TEXT_GRANT_NOTIFICATION = "\u6388\u6743\u901a\u77e5"
