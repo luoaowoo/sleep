@@ -1,0 +1,42 @@
+﻿package com.sleep.snore.data.repository
+
+import com.sleep.snore.data.db.dao.FactorLogDao
+import com.sleep.snore.data.db.dao.SleepRecordDao
+import com.sleep.snore.data.db.dao.SnoreEventDao
+import com.sleep.snore.data.db.entity.FactorLogEntity
+import com.sleep.snore.data.db.entity.SleepRecordEntity
+import com.sleep.snore.data.db.entity.SnoreEventEntity
+import kotlinx.coroutines.flow.Flow
+import javax.inject.Inject
+import javax.inject.Singleton
+
+@Singleton
+class SleepRepository @Inject constructor(
+    private val sleepRecordDao: SleepRecordDao,
+    private val snoreEventDao: SnoreEventDao,
+    private val factorLogDao: FactorLogDao
+) {
+    // ===== SleepRecord =====
+    suspend fun insertRecord(record: SleepRecordEntity): Long = sleepRecordDao.insert(record)
+    suspend fun updateRecord(record: SleepRecordEntity) = sleepRecordDao.update(record)
+    fun getAllRecords(): Flow<List<SleepRecordEntity>> = sleepRecordDao.getAllRecords()
+    suspend fun getRecordById(id: Long): SleepRecordEntity? = sleepRecordDao.getById(id)
+    suspend fun getLatestRecord(): SleepRecordEntity? = sleepRecordDao.getLatest()
+    fun getRecordsSince(since: Long): Flow<List<SleepRecordEntity>> = sleepRecordDao.getRecordsSince(since)
+    fun getRecordsBetween(start: Long, end: Long): Flow<List<SleepRecordEntity>> = sleepRecordDao.getRecordsBetween(start, end)
+    suspend fun deleteRecord(id: Long) = sleepRecordDao.deleteById(id)
+    suspend fun deleteOldRecords(before: Long) = sleepRecordDao.deleteOlderThan(before)
+
+    // ===== SnoreEvent =====
+    suspend fun insertEvent(event: SnoreEventEntity): Long = snoreEventDao.insert(event)
+    suspend fun insertEvents(events: List<SnoreEventEntity>) = snoreEventDao.insertAll(events)
+    fun getEventsByRecordId(recordId: Long): Flow<List<SnoreEventEntity>> = snoreEventDao.getByRecordId(recordId)
+    suspend fun countEvents(recordId: Long): Int = snoreEventDao.countByRecordId(recordId)
+    fun getFavoriteEvents(): Flow<List<SnoreEventEntity>> = snoreEventDao.getFavorites()
+    suspend fun setEventFavorited(id: Long, favorited: Boolean) = snoreEventDao.setFavorited(id, favorited)
+
+    // ===== FactorLog =====
+    suspend fun insertFactorLog(log: FactorLogEntity) = factorLogDao.insert(log)
+    suspend fun getFactorLogByDate(date: String): FactorLogEntity? = factorLogDao.getByDate(date)
+    fun getAllFactorLogs(): Flow<List<FactorLogEntity>> = factorLogDao.getAll()
+}
