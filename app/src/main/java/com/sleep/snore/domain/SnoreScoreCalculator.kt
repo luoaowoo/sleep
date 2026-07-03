@@ -1,0 +1,53 @@
+﻿package com.sleep.snore.domain
+
+import com.sleep.snore.data.db.entity.SleepRecordEntity
+import com.sleep.snore.data.db.entity.SnoreEventEntity
+import com.sleep.snore.data.model.Severity
+import com.sleep.snore.data.model.severityFromScore
+import kotlin.math.min
+
+object SnoreScoreCalculator {
+
+    fun calculate(record: SleepRecordEntity, events: List<SnoreEventEntity>): Int {
+        val snoreRatioScore = calculateSnoreRatioScore(record.snoreRatio)
+        val loudnessScore = calculateLoudnessScore(record.avgDb)
+        val ahiScore = calculateAHIScore(record.estAHI)
+        val densityScore = calculateEventDensityScore(events.size, record.sleepDurationMin)
+
+        val score = (0.30 * snoreRatioScore + 0.25 * loudnessScore + 0.25 * ahiScore + 0.20 * densityScore)
+            .toInt()
+            .coerceIn(0, 100)
+        return score
+    }
+
+    private fun calculateSnoreRatioScore(ratio: Float): Float {
+        return (ratio * 100).coerceAtMost(100f)
+    }
+
+    private fun calculateLoudnessScore(avgDb: Float): Float {
+        return when {
+            avgDb <= 35 -> 0f
+            avgDb >= 70 -> 100f
+            else -> ((avgDb - 35) / 35f * 100)
+        }
+    }
+
+    private fun calculateAHIScore(ahi: Float): Float {
+        return when {
+            ahi <= 5 -> ahi / 5 * 30
+            ahi <= 15 -> 30 + (ahi - 5) / 10 * 30
+            ahi <= 30 -> 60 + (ahi - 15) / 15 * 30
+            else -> 100f
+        }
+    }
+
+    private fun calculateEventDensityScore(eventCount: Int, durationMin: Int): Float {
+        if (durationMin <= 0) return 0f
+        val eventsPerHour = eventCount.toFloat() / (durationMin / 60f)
+        return when {
+            eventsPerHour <= 10 -> 0f
+            eventsPerHour >= 200 -> 100f
+            else -> (eventsPerHour / 200) * 100
+        }
+    }
+}
