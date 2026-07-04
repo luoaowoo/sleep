@@ -27,7 +27,11 @@ data class SettingsPreferences(
     val compactModeEnabled: Boolean = SettingsPreferencesRepository.DEFAULT_COMPACT_MODE_ENABLED,
     val showTechnicalDetails: Boolean = SettingsPreferencesRepository.DEFAULT_SHOW_TECHNICAL_DETAILS,
     val maxSegmentDurationSec: Int = SettingsPreferencesRepository.DEFAULT_MAX_SEGMENT_DURATION_SEC,
-    val customAccentColorArgb: Int = SettingsPreferencesRepository.DEFAULT_CUSTOM_ACCENT_COLOR_ARGB
+    val customAccentColorArgb: Int = SettingsPreferencesRepository.DEFAULT_CUSTOM_ACCENT_COLOR_ARGB,
+    val deepSeekApiKey: String = "",
+    val deepSeekBaseUrl: String = SettingsPreferencesRepository.DEFAULT_DEEPSEEK_BASE_URL,
+    val deepSeekModelName: String = SettingsPreferencesRepository.DEFAULT_DEEPSEEK_MODEL_NAME,
+    val aiCustomInfo: String = ""
 )
 
 @Singleton
@@ -64,7 +68,15 @@ class SettingsPreferencesRepository @Inject constructor(
                     ?.coerceIn(MIN_MAX_SEGMENT_DURATION_SEC, MAX_MAX_SEGMENT_DURATION_SEC)
                     ?: DEFAULT_MAX_SEGMENT_DURATION_SEC,
                 customAccentColorArgb = preferences[Keys.CUSTOM_ACCENT_COLOR_ARGB]
-                    ?: DEFAULT_CUSTOM_ACCENT_COLOR_ARGB
+                    ?: DEFAULT_CUSTOM_ACCENT_COLOR_ARGB,
+                deepSeekApiKey = preferences[Keys.DEEPSEEK_API_KEY].orEmpty(),
+                deepSeekBaseUrl = preferences[Keys.DEEPSEEK_BASE_URL]
+                    ?.takeIf { it.isNotBlank() }
+                    ?: DEFAULT_DEEPSEEK_BASE_URL,
+                deepSeekModelName = preferences[Keys.DEEPSEEK_MODEL_NAME]
+                    ?.takeIf { it.isNotBlank() }
+                    ?: DEFAULT_DEEPSEEK_MODEL_NAME,
+                aiCustomInfo = preferences[Keys.AI_CUSTOM_INFO].orEmpty()
             )
         }
 
@@ -165,6 +177,30 @@ class SettingsPreferencesRepository @Inject constructor(
         }
     }
 
+    suspend fun setDeepSeekApiKey(value: String) {
+        dataStore.edit { preferences ->
+            preferences[Keys.DEEPSEEK_API_KEY] = value.trim()
+        }
+    }
+
+    suspend fun setDeepSeekBaseUrl(value: String) {
+        dataStore.edit { preferences ->
+            preferences[Keys.DEEPSEEK_BASE_URL] = value.trim().ifBlank { DEFAULT_DEEPSEEK_BASE_URL }
+        }
+    }
+
+    suspend fun setDeepSeekModelName(value: String) {
+        dataStore.edit { preferences ->
+            preferences[Keys.DEEPSEEK_MODEL_NAME] = value.trim().ifBlank { DEFAULT_DEEPSEEK_MODEL_NAME }
+        }
+    }
+
+    suspend fun setAiCustomInfo(value: String) {
+        dataStore.edit { preferences ->
+            preferences[Keys.AI_CUSTOM_INFO] = value
+        }
+    }
+
     suspend fun setFontScale(value: FontScale) {
         dataStore.edit { preferences ->
             preferences[Keys.FONT_SCALE] = value.name
@@ -193,6 +229,10 @@ class SettingsPreferencesRepository @Inject constructor(
         val MAX_SEGMENT_DURATION_SEC = intPreferencesKey("max_segment_duration_sec")
         val ACCENT_COLOR = stringPreferencesKey("accent_color")
         val CUSTOM_ACCENT_COLOR_ARGB = intPreferencesKey("custom_accent_color_argb")
+        val DEEPSEEK_API_KEY = stringPreferencesKey("deepseek_api_key")
+        val DEEPSEEK_BASE_URL = stringPreferencesKey("deepseek_base_url")
+        val DEEPSEEK_MODEL_NAME = stringPreferencesKey("deepseek_model_name")
+        val AI_CUSTOM_INFO = stringPreferencesKey("ai_custom_info")
         val FONT_SCALE = stringPreferencesKey("font_scale")
         val CARD_CORNER_STYLE = stringPreferencesKey("card_corner_style")
         val SENSITIVITY = stringPreferencesKey("sensitivity")
@@ -214,6 +254,8 @@ class SettingsPreferencesRepository @Inject constructor(
         const val THEME_MODE_DARK = "dark"
         const val DEFAULT_THEME_MODE = THEME_MODE_SYSTEM
         const val DEFAULT_CUSTOM_ACCENT_COLOR_ARGB = -10071900
+        const val DEFAULT_DEEPSEEK_BASE_URL = "https://api.deepseek.com/v1/chat/completions"
+        const val DEFAULT_DEEPSEEK_MODEL_NAME = "deepseek-chat"
         private const val ALPHA_MASK = -0x1000000
     }
 }

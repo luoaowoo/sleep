@@ -31,6 +31,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -55,6 +56,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -238,6 +240,51 @@ fun SettingsScreen(
                             .clickable(role = Role.Button) {
                                 navController.navigate(Route.RiskAssessment.route)
                             }
+                    )
+                }
+            }
+
+            Text("AI 分析", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+            Card(shape = MaterialTheme.shapes.extraLarge) {
+                Column(
+                    modifier = Modifier.padding(uiPreferences.cardPadding),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.sm)
+                ) {
+                    Text(
+                        "接入自己的 DeepSeek API 后，首页可生成一周总结。API Key 只保存在本机。",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    OutlinedTextField(
+                        value = uiState.deepSeekApiKey,
+                        onValueChange = viewModel::onDeepSeekApiKeyChange,
+                        label = { Text("DeepSeek API Key") },
+                        placeholder = { Text("sk-...") },
+                        singleLine = true,
+                        visualTransformation = PasswordVisualTransformation(),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = uiState.deepSeekBaseUrl,
+                        onValueChange = viewModel::onDeepSeekBaseUrlChange,
+                        label = { Text("Base URL") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = uiState.deepSeekModelName,
+                        onValueChange = viewModel::onDeepSeekModelNameChange,
+                        label = { Text("模型名") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = uiState.aiCustomInfo,
+                        onValueChange = viewModel::onAiCustomInfoChange,
+                        label = { Text("自定义分析信息") },
+                        placeholder = { Text("例如：年龄、身高体重、是否饮酒、侧卧习惯等") },
+                        minLines = 3,
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
             }

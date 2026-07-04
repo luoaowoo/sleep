@@ -3,23 +3,27 @@ package com.sleep.snore.ui.screen.home
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -49,6 +53,7 @@ fun HomeScreen(
 ) {
     val latestRecord by viewModel.latestRecord.collectAsStateWithLifecycle()
     val recentRecords by viewModel.recentRecords.collectAsStateWithLifecycle()
+    val weeklyReportState by viewModel.weeklyReportState.collectAsStateWithLifecycle()
     val uiPreferences = LocalUiPreferences.current
 
     Scaffold(
@@ -89,6 +94,12 @@ fun HomeScreen(
             if (recentRecords.isNotEmpty()) {
                 WeeklyTrendCard(records = recentRecords)
             }
+
+            WeeklySummaryCard(
+                state = weeklyReportState,
+                onGenerateAi = viewModel::generateDeepSeekWeeklyReport,
+                onOpenSettings = { navController.navigate(Route.Settings.route) }
+            )
 
             latestRecord?.let { record ->
                 if (record.aiSummary.isNotBlank()) {
@@ -190,6 +201,58 @@ private fun WeeklyTrendCard(records: List<SleepRecordEntity>) {
                         shape = PillShape,
                         color = snoreScoreColor(record.snoreScore)
                     ) {}
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun WeeklySummaryCard(
+    state: WeeklyReportUiState,
+    onGenerateAi: () -> Unit,
+    onOpenSettings: () -> Unit
+) {
+    val uiPreferences = LocalUiPreferences.current
+    val report = state.report
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.extraLarge,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+    ) {
+        Column(
+            modifier = Modifier.padding(uiPreferences.cardPadding),
+            verticalArrangement = Arrangement.spacedBy(Spacing.sm)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("本周总结", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                if (state.usesRemoteAi) {
+                    Text("DeepSeek", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                }
+            }
+            if (report != null) {
+                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
+                    MetricItem("记录", "${report.recordCount}晚")
+                    MetricItem("均分", "${report.averageScore}")
+                    MetricItem("鼾声", "${report.totalSnoreMinutes}m")
+                }
+                Text(report.aiSummary, style = MaterialTheme.typography.bodyMedium)
+            } else {
+                Text("完成几晚录音后，这里会生成一周睡眠鼾声总结。", style = MaterialTheme.typography.bodyMedium)
+            }
+            state.errorMessage?.let {
+                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                Button(onClick = onGenerateAi, enabled = !state.isGenerating) {
+                    if (state.isGenerating) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                        Spacer(Modifier.width(Spacing.xs))
+                    }
+                    Text("DeepSeek 分析")
+                }
+                TextButton(onClick = onOpenSettings) {
+                    Text("配置 API")
                 }
             }
         }

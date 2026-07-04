@@ -32,6 +32,10 @@ data class SettingsUiState(
     val showTechnicalDetails: Boolean = SettingsPreferencesRepository.DEFAULT_SHOW_TECHNICAL_DETAILS,
     val maxSegmentDurationSec: Int = SettingsPreferencesRepository.DEFAULT_MAX_SEGMENT_DURATION_SEC,
     val customAccentColorArgb: Int = SettingsPreferencesRepository.DEFAULT_CUSTOM_ACCENT_COLOR_ARGB,
+    val deepSeekApiKey: String = "",
+    val deepSeekBaseUrl: String = SettingsPreferencesRepository.DEFAULT_DEEPSEEK_BASE_URL,
+    val deepSeekModelName: String = SettingsPreferencesRepository.DEFAULT_DEEPSEEK_MODEL_NAME,
+    val aiCustomInfo: String = "",
     val storageUsageText: String = "计算中..."
 )
 
@@ -75,7 +79,11 @@ class SettingsViewModel @Inject constructor(
                         compactModeEnabled = settings.compactModeEnabled,
                         showTechnicalDetails = settings.showTechnicalDetails,
                         maxSegmentDurationSec = settings.maxSegmentDurationSec,
-                        customAccentColorArgb = settings.customAccentColorArgb
+                        customAccentColorArgb = settings.customAccentColorArgb,
+                        deepSeekApiKey = settings.deepSeekApiKey,
+                        deepSeekBaseUrl = settings.deepSeekBaseUrl,
+                        deepSeekModelName = settings.deepSeekModelName,
+                        aiCustomInfo = settings.aiCustomInfo
                     )
                 }
             }
@@ -150,6 +158,34 @@ class SettingsViewModel @Inject constructor(
         _uiState.update { it.copy(customAccentColorArgb = value or ALPHA_MASK) }
         viewModelScope.launch {
             preferencesRepository.setCustomAccentColorArgb(value)
+        }
+    }
+
+    fun onDeepSeekApiKeyChange(value: String) {
+        _uiState.update { it.copy(deepSeekApiKey = value) }
+        viewModelScope.launch {
+            preferencesRepository.setDeepSeekApiKey(value)
+        }
+    }
+
+    fun onDeepSeekBaseUrlChange(value: String) {
+        _uiState.update { it.copy(deepSeekBaseUrl = value) }
+        viewModelScope.launch {
+            preferencesRepository.setDeepSeekBaseUrl(value)
+        }
+    }
+
+    fun onDeepSeekModelNameChange(value: String) {
+        _uiState.update { it.copy(deepSeekModelName = value) }
+        viewModelScope.launch {
+            preferencesRepository.setDeepSeekModelName(value)
+        }
+    }
+
+    fun onAiCustomInfoChange(value: String) {
+        _uiState.update { it.copy(aiCustomInfo = value) }
+        viewModelScope.launch {
+            preferencesRepository.setAiCustomInfo(value)
         }
     }
 

@@ -2,7 +2,11 @@ package com.sleep.snore.ui.screen.home
 
 import com.google.common.truth.Truth.assertThat
 import com.sleep.snore.data.db.entity.SleepRecordEntity
+import com.sleep.snore.data.preferences.SettingsPreferences
+import com.sleep.snore.data.preferences.SettingsPreferencesRepository
+import com.sleep.snore.data.remote.DeepSeekClient
 import com.sleep.snore.data.repository.SleepRepository
+import com.sleep.snore.domain.WeeklyReportGenerator
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
@@ -21,6 +25,7 @@ import org.junit.Test
 class HomeViewModelTest {
 
     private lateinit var repository: SleepRepository
+    private lateinit var settingsRepository: SettingsPreferencesRepository
     private lateinit var viewModel: HomeViewModel
 
     private val sampleRecords = listOf(
@@ -51,9 +56,16 @@ class HomeViewModelTest {
     fun setup() {
         Dispatchers.setMain(UnconfinedTestDispatcher())
         repository = mockk()
+        settingsRepository = mockk()
         every { repository.getRecentRecords(any()) } returns flowOf(sampleRecords)
         every { repository.getLatestRecordFlow() } returns flowOf(null)
-        viewModel = HomeViewModel(repository)
+        every { settingsRepository.settings } returns flowOf(SettingsPreferences())
+        viewModel = HomeViewModel(
+            repository = repository,
+            settingsRepository = settingsRepository,
+            weeklyReportGenerator = WeeklyReportGenerator(),
+            deepSeekClient = mockk<DeepSeekClient>()
+        )
     }
 
     @After
@@ -67,5 +79,14 @@ class HomeViewModelTest {
 
         assertThat(result).hasSize(1)
         assertThat(result[0].id).isEqualTo(1L)
+    }
+
+    @Test
+    fun `builds weekly report from recent records`() = runTest {
+        val report = viewModel.weeklyReportState.first { it.report != null }.report
+
+        assertThat(report).isNotNull()
+        assertThat(report?.recordCount).isEqualTo(1)
+        assertThat(report?.totalSnoreMinutes).isEqualTo(1)
     }
 }
