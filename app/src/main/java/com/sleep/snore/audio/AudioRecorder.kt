@@ -48,19 +48,40 @@ class AudioRecorder(
             throw IllegalStateException("AudioRecord 初始化失败")
         }
 
-        recorder?.startRecording()
+        runCatching { recorder?.startRecording() }
+            .onFailure { error ->
+                releaseRecorderQuietly()
+                throw IllegalStateException("AudioRecord 启动失败", error)
+            }
+        if (recorder?.recordingState != AudioRecord.RECORDSTATE_RECORDING) {
+            releaseRecorderQuietly()
+            throw IllegalStateException("AudioRecord 未进入录音状态")
+        }
         isRecording = true
 
         recordingThread = Thread({
             android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_URGENT_AUDIO)
             val buffer = ByteArray(AudioConfig.FRAME_BYTES)
-            while (isRecording) {
-                val bytesRead = recorder?.read(buffer, 0, buffer.size) ?: -1
-                if (bytesRead > 0) {
-                    callback.onFrame(buffer.copyOf(bytesRead))
-                } else if (bytesRead < 0) {
-                    Log.w(TAG, "AudioRecord read error: $bytesRead")
+            var consecutiveReadErrors = 0
+            try {
+                while (isRecording) {
+                    val bytesRead = recorder?.read(buffer, 0, buffer.size) ?: -1
+                    if (bytesRead > 0) {
+                        consecutiveReadErrors = 0
+                        callback.onFrame(buffer.copyOf(bytesRead))
+                    } else if (bytesRead < 0) {
+                        consecutiveReadErrors++
+                        Log.w(TAG, "AudioRecord read error: $bytesRead")
+                        if (consecutiveReadErrors >= MAX_CONSECUTIVE_READ_ERRORS) {
+                            isRecording = false
+                            callback.onReadError(bytesRead, consecutiveReadErrors)
+                        }
+                    }
                 }
+            } catch (error: Throwable) {
+                isRecording = false
+                Log.e(TAG, "AudioRecord read loop failed", error)
+                callback.onReadError(AudioRecord.ERROR_INVALID_OPERATION, consecutiveReadErrors)
             }
         }, "AudioRecorder-Thread").apply { start() }
 
@@ -111,17 +132,13 @@ class AudioRecorder(
         isRecording = false
         recordingThread?.let {
             it.interrupt()
-            it.join(2000)
+            if (Thread.currentThread() != it) {
+                it.join(2000)
+            }
         }
         recordingThread = null
 
-        recorder?.apply {
-            if (recordingState == AudioRecord.RECORDSTATE_RECORDING) {
-                stop()
-            }
-            release()
-        }
-        recorder = null
+        releaseRecorderQuietly()
 
         Log.i(TAG, "录音已停止")
     }
@@ -133,9 +150,24 @@ class AudioRecorder(
     interface FrameCallback {
         /** 每 50ms 触发一次，携带 1600 字节原始 PCM 帧 */
         fun onFrame(pcmFrame: ByteArray)
+        fun onReadError(errorCode: Int, consecutiveErrors: Int) = Unit
     }
 
     companion object {
         private const val TAG = "AudioRecorder"
+        private const val MAX_CONSECUTIVE_READ_ERRORS = 20
+    }
+
+    private fun releaseRecorderQuietly() {
+        recorder?.let { audioRecord ->
+            runCatching {
+                if (audioRecord.recordingState == AudioRecord.RECORDSTATE_RECORDING) {
+                    audioRecord.stop()
+                }
+            }.onFailure { Log.w(TAG, "AudioRecord stop failed", it) }
+            runCatching { audioRecord.release() }
+                .onFailure { Log.w(TAG, "AudioRecord release failed", it) }
+        }
+        recorder = null
     }
 }

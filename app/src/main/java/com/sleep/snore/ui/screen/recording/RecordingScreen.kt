@@ -67,6 +67,7 @@ fun RecordingScreen(navController: NavHostController) {
         )
     }
     var startError by remember { mutableStateOf<String?>(null) }
+    var allowStartWithoutNotification by remember { mutableStateOf(false) }
 
     fun startRecording() {
         if (!recordingState.isActive && hasAudioPermission) {
@@ -95,8 +96,13 @@ fun RecordingScreen(navController: NavHostController) {
         }
     }
 
-    LaunchedEffect(hasAudioPermission) {
-        if (hasAudioPermission) startRecording()
+    LaunchedEffect(hasAudioPermission, hasNotificationPermission, allowStartWithoutNotification) {
+        if (
+            hasAudioPermission &&
+            (hasNotificationPermission || allowStartWithoutNotification)
+        ) {
+            startRecording()
+        }
     }
 
     LaunchedEffect(recordingState.isActive, recordingState.startTime) {
@@ -118,6 +124,19 @@ fun RecordingScreen(navController: NavHostController) {
     if (!hasAudioPermission) {
         PermissionContent(
             onGrantAudio = { audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO) },
+        )
+        return
+    }
+
+    if (
+        !recordingState.isActive &&
+        !hasNotificationPermission &&
+        !allowStartWithoutNotification &&
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+    ) {
+        NotificationPrepContent(
+            onGrantNotification = { notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS) },
+            onContinue = { allowStartWithoutNotification = true }
         )
         return
     }
@@ -204,6 +223,26 @@ private fun PermissionContent(
     }
 }
 
+@Composable
+private fun NotificationPrepContent(
+    onGrantNotification: () -> Unit,
+    onContinue: () -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxSize().padding(Spacing.xxl),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(TEXT_READY, style = MaterialTheme.typography.headlineSmall)
+        Spacer(Modifier.height(Spacing.md))
+        Text(TEXT_NOTIFICATION_PREP_HINT, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.height(Spacing.xl))
+        Button(onClick = onGrantNotification, shape = PillShape) { Text(TEXT_GRANT_NOTIFICATION) }
+        Spacer(Modifier.height(Spacing.sm))
+        OutlinedButton(onClick = onContinue, shape = PillShape) { Text(TEXT_CONTINUE_WITHOUT_NOTIFICATION) }
+    }
+}
+
 private const val TEXT_RECORD = "\u5f55"
 private const val TEXT_MONITORING = "\u6b63\u5728\u76d1\u6d4b\u9f3e\u58f0"
 private const val TEXT_STOP_SLEEP = "\u7ed3\u675f\u7761\u7720"
@@ -211,5 +250,8 @@ private const val TEXT_NEED_AUDIO_PERMISSION = "\u9700\u8981\u5f55\u97f3\u6743\u
 private const val TEXT_PERMISSION_HINT = "\u6388\u6743\u540e\u5373\u53ef\u5f00\u59cb\u9f3e\u58f0\u76d1\u6d4b"
 private const val TEXT_GRANT_AUDIO = "\u6388\u6743\u5f55\u97f3"
 private const val TEXT_GRANT_NOTIFICATION = "\u6388\u6743\u901a\u77e5"
+private const val TEXT_READY = "\u7761\u524d\u68c0\u67e5"
+private const val TEXT_NOTIFICATION_PREP_HINT = "\u5efa\u8bae\u5148\u6388\u6743\u901a\u77e5\uff0c\u8fd9\u6837\u6574\u665a\u5f55\u97f3\u65f6\u53ef\u5728\u901a\u77e5\u680f\u5feb\u901f\u7ed3\u675f\uff0c\u4e5f\u66f4\u5bb9\u6613\u88ab\u7cfb\u7edf\u8bc6\u522b\u4e3a\u6b63\u5728\u8fd0\u884c\u7684\u524d\u53f0\u670d\u52a1\u3002"
+private const val TEXT_CONTINUE_WITHOUT_NOTIFICATION = "\u4ecd\u7136\u5f00\u59cb"
 private const val TEXT_NOTIFICATION_HINT = "\u5df2\u5f00\u59cb\u76d1\u6d4b\uff0c\u6388\u6743\u901a\u77e5\u540e\u53ef\u5728\u901a\u77e5\u680f\u5feb\u901f\u7ed3\u675f"
 private const val TEXT_START_FAILED = "\u542f\u52a8\u5f55\u97f3\u5931\u8d25\uff0c\u8bf7\u68c0\u67e5\u6743\u9650\u6216\u9ea6\u514b\u98ce\u662f\u5426\u88ab\u5360\u7528"

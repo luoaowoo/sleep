@@ -86,6 +86,10 @@ class SnoreDetector(
             override fun onFrame(pcmFrame: ByteArray) {
                 processFrame(pcmFrame)
             }
+
+            override fun onReadError(errorCode: Int, consecutiveErrors: Int) {
+                callback.onRecorderError(errorCode, consecutiveErrors)
+            }
         })
     }
 
@@ -214,6 +218,8 @@ class SnoreDetector(
 
         /** 鼾声片段结束，包含完整 PCM 数据 */
         fun onSnoreEnded(startTimestamp: Long, durationMs: Long, pcmData: ByteArray, peakDb: Double)
+
+        fun onRecorderError(errorCode: Int, consecutiveErrors: Int) = Unit
     }
 
     companion object {

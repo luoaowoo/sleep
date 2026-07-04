@@ -46,6 +46,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
@@ -75,6 +76,10 @@ class SleepRecordingService : Service() {
     private var sessionStartTime: Long = 0L
     private var isSessionActive = false
     private var isFinishingSession = false
+    private var detectorRestartAttempts = 0
+    private var lastSilenceThresholdDb: Double = -40.0
+    private var lastMaxSegmentDurationSec: Int = 60
+    private var lastSensitivity: Sensitivity = Sensitivity.MEDIUM
 
     override fun onCreate() {
         super.onCreate()
@@ -106,22 +111,26 @@ class SleepRecordingService : Service() {
     }
 
     override fun onDestroy() {
-        if (isSessionActive && !isFinishingSession) {
+        val shouldFinalize = isSessionActive && !isFinishingSession
+        if (shouldFinalize) {
             isSessionActive = false
             stopSnoreDetection()
-            // 启动非阻塞收尾协程，主线程不等待，避免 ANR
-            // 已通过 insertEvent 入库的事件会保留在数据库，未编码完成的 PCM 片段允许丢弃
+            _recordingState.value = RecordingRuntimeState()
             CoroutineScope(Dispatchers.IO).launch {
                 try {
                     finalizeCurrentSession()
                 } catch (e: Exception) {
                     Log.e(TAG, "failed to finalize session on destroy", e)
+                } finally {
+                    releaseWakeLock()
+                    serviceScope.cancel()
                 }
             }
+        } else {
+            _recordingState.value = RecordingRuntimeState()
+            releaseWakeLock()
+            serviceScope.cancel()
         }
-        _recordingState.value = RecordingRuntimeState()
-        releaseWakeLock()
-        serviceScope.cancel()
         super.onDestroy()
     }
 
@@ -130,6 +139,7 @@ class SleepRecordingService : Service() {
         ensureServiceScope()
         isFinishingSession = false
         isSessionActive = true
+        detectorRestartAttempts = 0
         sessionStartTime = System.currentTimeMillis()
         _recordingState.value = RecordingRuntimeState(isActive = true, startTime = sessionStartTime)
         synchronized(pendingEvents) { pendingEvents.clear() }
@@ -315,9 +325,11 @@ class SleepRecordingService : Service() {
     }
 
     private fun acquireWakeLock() {
+        if (wakeLock?.isHeld == true) return
         val powerManager = getSystemService(POWER_SERVICE) as PowerManager
         wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "SleepSnore:RecordingWakeLock").apply {
-            acquire(10 * 60 * 60 * 1000L)
+            setReferenceCounted(false)
+            acquire(MAX_WAKE_LOCK_MS)
         }
     }
 
@@ -332,6 +344,9 @@ class SleepRecordingService : Service() {
         maxSegmentDurationSec: Int,
         sensitivity: Sensitivity
     ) {
+        lastSilenceThresholdDb = silenceThresholdDb
+        lastMaxSegmentDurationSec = maxSegmentDurationSec
+        lastSensitivity = sensitivity
         val outputDir = File(filesDir, "snore_audio").apply { mkdirs() }
         snoreDetector = SnoreDetector(
             callback = object : SnoreDetector.SnoreCallback {
@@ -340,6 +355,11 @@ class SleepRecordingService : Service() {
                 }
 
                 override fun onSnoreEnded(startTimestamp: Long, durationMs: Long, pcmData: ByteArray, peakDb: Double) {
+                    val pendingJobCount = synchronized(encodingJobs) { encodingJobs.size }
+                    if (pendingJobCount >= MAX_PENDING_ENCODING_JOBS) {
+                        Log.w(TAG, "drop snore event because encoding queue is full: $pendingJobCount")
+                        return
+                    }
                     val job = serviceScope.launch {
                         val features = SnoreFeatureAnalyzer.analyze(pcmData, peakDb, durationMs)
                         val audioFile = audioEncoder.encodeToOpus(pcmData, outputDir, "snore_$startTimestamp")
@@ -363,7 +383,15 @@ class SleepRecordingService : Service() {
                         synchronized(pendingEvents) { pendingEvents.add(event.copy(id = savedId)) }
                         updateNotification()
                     }
+                    job.invokeOnCompletion {
+                        synchronized(encodingJobs) { encodingJobs.remove(job) }
+                    }
                     synchronized(encodingJobs) { encodingJobs.add(job) }
+                }
+
+                override fun onRecorderError(errorCode: Int, consecutiveErrors: Int) {
+                    Log.w(TAG, "AudioRecord read failed repeatedly: code=$errorCode count=$consecutiveErrors")
+                    restartSnoreDetectionAfterRecorderError()
                 }
             },
             silenceThresholdDb = silenceThresholdDb,
@@ -380,8 +408,31 @@ class SleepRecordingService : Service() {
     }
 
     private fun stopSnoreDetection() {
-        snoreDetector?.stopListening()
+        runCatching { snoreDetector?.stopListening() }
+            .onFailure { Log.w(TAG, "failed to stop snore detection cleanly", it) }
         snoreDetector = null
+    }
+
+    private fun restartSnoreDetectionAfterRecorderError() {
+        if (!isSessionActive) return
+        val recordId = currentRecordId ?: return
+        if (detectorRestartAttempts >= MAX_DETECTOR_RESTART_ATTEMPTS) {
+            Log.e(TAG, "max detector restart attempts reached; finishing session")
+            finishSessionAndStop()
+            return
+        }
+        detectorRestartAttempts++
+        serviceScope.launch {
+            stopSnoreDetection()
+            delay(DETECTOR_RESTART_DELAY_MS)
+            if (!isSessionActive) return@launch
+            startSnoreDetection(
+                recordId = recordId,
+                silenceThresholdDb = lastSilenceThresholdDb,
+                maxSegmentDurationSec = lastMaxSegmentDurationSec,
+                sensitivity = lastSensitivity
+            )
+        }
     }
 
     private fun createEmptyRecord(startTime: Long): SleepRecordEntity {
@@ -549,10 +600,14 @@ class SleepRecordingService : Service() {
         private const val APNEA_GAP_MS = 10_000L
         private const val APNEA_RECOVERY_WINDOW_MS = 2_000L
         private const val APNEA_RECOVERY_DB_DELTA = 10f
-        private const val FINALIZE_TIMEOUT_MS = 2_000L
-        private const val SETTINGS_READ_TIMEOUT_MS = 2_000L
+        private const val FINALIZE_TIMEOUT_MS = 30_000L
+        private const val SETTINGS_READ_TIMEOUT_MS = 5_000L
         private const val MAX_SESSION_RECOVERY_MS = 16L * 60L * 60L * 1000L
+        private const val MAX_WAKE_LOCK_MS = 16L * 60L * 60L * 1000L
         private const val STALE_EMPTY_RECORD_DURATION_MS = 60_000L
+        private const val MAX_DETECTOR_RESTART_ATTEMPTS = 3
+        private const val DETECTOR_RESTART_DELAY_MS = 1_000L
+        private const val MAX_PENDING_ENCODING_JOBS = 32
 
         fun startIntent(context: Context): Intent = Intent(context, SleepRecordingService::class.java).setAction(ACTION_START)
         fun stopIntent(context: Context): Intent = Intent(context, SleepRecordingService::class.java).setAction(ACTION_STOP)

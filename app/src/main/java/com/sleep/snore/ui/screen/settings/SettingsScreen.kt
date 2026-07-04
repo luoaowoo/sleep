@@ -2,6 +2,8 @@ package com.sleep.snore.ui.screen.settings
 
 import android.content.Intent
 import android.graphics.Color as AndroidColor
+import android.net.Uri
+import android.os.PowerManager
 import android.provider.Settings
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -84,6 +86,10 @@ fun SettingsScreen(
     val fontScale by viewModel.fontScale.collectAsStateWithLifecycle()
     val cardCornerStyle by viewModel.cardCornerStyle.collectAsStateWithLifecycle()
     val uiPreferences = LocalUiPreferences.current
+    val powerManager = remember(context) { context.getSystemService(PowerManager::class.java) }
+    val isIgnoringBatteryOptimizations = remember(context) {
+        powerManager?.isIgnoringBatteryOptimizations(context.packageName) == true
+    }
 
     Scaffold(
         topBar = {
@@ -207,15 +213,33 @@ fun SettingsScreen(
             Text("后台录音", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
             Card(shape = MaterialTheme.shapes.extraLarge) {
                 ListItem(
-                    headlineContent = { Text("省电策略提示") },
-                    supportingContent = { Text("如果夜间录音被系统中断，可在系统设置里允许本应用后台运行。") },
+                    headlineContent = {
+                        Text(if (isIgnoringBatteryOptimizations) "电池优化已放行" else "建议允许后台整晚运行")
+                    },
+                    supportingContent = {
+                        Text(
+                            if (isIgnoringBatteryOptimizations) {
+                                "系统已允许本应用忽略电池优化，夜间录音更不容易被中断。"
+                            } else {
+                                "若夜间录音被系统中断，请将本应用设为不受限制/允许后台运行。"
+                            }
+                        )
+                    },
                     modifier = Modifier
                         .heightIn(min = Spacing.touchTargetMin)
                         .clickable(role = Role.Button) {
                             runCatching {
-                                context.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+                                context.startActivity(
+                                    Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                                        data = Uri.parse("package:${context.packageName}")
+                                    }
+                                )
                             }.onFailure {
-                                context.startActivity(Intent(Settings.ACTION_SETTINGS))
+                                runCatching {
+                                    context.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+                                }.onFailure {
+                                    context.startActivity(Intent(Settings.ACTION_SETTINGS))
+                                }
                             }
                         }
                 )
