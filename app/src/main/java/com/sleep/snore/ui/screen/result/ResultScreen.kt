@@ -46,7 +46,6 @@ import com.sleep.snore.ui.components.PieSlice
 import com.sleep.snore.ui.components.SnoreScoreRing
 import com.sleep.snore.ui.components.SnoreTimeline
 import com.sleep.snore.ui.components.SnoreTypePieChart
-import com.sleep.snore.ui.theme.HeroCardShape
 import com.sleep.snore.ui.theme.LocalUiPreferences
 import com.sleep.snore.ui.theme.Spacing
 import java.text.SimpleDateFormat
@@ -153,106 +152,106 @@ fun ResultScreen(
 
             else -> {
                 val r = record ?: return@Scaffold
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .consumeWindowInsets(padding)
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = uiPreferences.pageHorizontalPadding),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(uiPreferences.sectionSpacing)
-            ) {
-                Spacer(Modifier.height(Spacing.md))
-                SnoreScoreRing(score = r.snoreScore, size = if (uiPreferences.compactModeEnabled) 152.dp else 180.dp)
-                Spacer(Modifier.height(Spacing.md))
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding)
+                        .consumeWindowInsets(padding)
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = uiPreferences.pageHorizontalPadding),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(uiPreferences.sectionSpacing)
+                ) {
+                    Spacer(Modifier.height(Spacing.md))
+                    SnoreScoreRing(score = r.snoreScore, size = if (uiPreferences.compactModeEnabled) 152.dp else 180.dp)
+                    Spacer(Modifier.height(Spacing.md))
 
-                Card(shape = HeroCardShape) {
-                    Column(modifier = Modifier.padding(uiPreferences.cardPadding)) {
-                        MetricsRow(
-                            Metric("睡眠时长", "${r.sleepDurationMin / 60}h ${r.sleepDurationMin % 60}m"),
-                            Metric("AHI 估算", String.format(Locale.getDefault(), "%.1f", r.estAHI)),
-                            Metric("峰值响度", "${String.format(Locale.getDefault(), "%.0f", r.maxDb)}dB")
-                        )
-                        HorizontalDivider(modifier = Modifier.padding(vertical = Spacing.sm))
-                        MetricsRow(
-                            Metric("打鼾时长", "${r.snoreDurationMin}min"),
-                            Metric("鼾声次数", "${r.snoreEventCount}次"),
-                            Metric("打鼾占比", "${(r.snoreRatio * 100).toInt()}%")
-                        )
-                        if (r.longestApneaSec >= 10) {
-                            HorizontalDivider(modifier = Modifier.padding(vertical = Spacing.sm))
-                            MetricsRow(Metric("最长呼吸暂停", "${r.longestApneaSec}秒"))
-                        }
-                    }
-                }
-
-                if (events.isNotEmpty()) {
-                    Card(shape = HeroCardShape, modifier = Modifier.fillMaxWidth()) {
+                    Card(shape = MaterialTheme.shapes.extraLarge) {
                         Column(modifier = Modifier.padding(uiPreferences.cardPadding)) {
-                            SnoreTimeline(
-                                hourlyData = buildHourlyData(events),
-                                maxValue = events.groupingBy {
-                                    SimpleDateFormat("HH", Locale.getDefault()).format(Date(it.startTimestamp))
-                                }.eachCount().values.maxOrNull() ?: 1
+                            MetricsRow(
+                                Metric("睡眠时长", "${r.sleepDurationMin / 60}h ${r.sleepDurationMin % 60}m"),
+                                Metric("AHI 估算", String.format(Locale.getDefault(), "%.1f", r.estAHI)),
+                                Metric("峰值响度", "${String.format(Locale.getDefault(), "%.0f", r.maxDb)}dB")
                             )
+                            HorizontalDivider(modifier = Modifier.padding(vertical = Spacing.sm))
+                            MetricsRow(
+                                Metric("打鼾时长", "${r.snoreDurationMin}min"),
+                                Metric("鼾声次数", "${r.snoreEventCount}次"),
+                                Metric("打鼾占比", "${(r.snoreRatio * 100).toInt()}%")
+                            )
+                            if (r.longestApneaSec >= 10) {
+                                HorizontalDivider(modifier = Modifier.padding(vertical = Spacing.sm))
+                                MetricsRow(Metric("最长呼吸暂停", "${r.longestApneaSec}秒"))
+                            }
                         }
                     }
 
-                    Card(shape = HeroCardShape, modifier = Modifier.fillMaxWidth()) {
-                        Column(modifier = Modifier.padding(uiPreferences.cardPadding)) {
-                            SnoreTypePieChart(slices = buildTypeSlices(events))
+                    if (events.isNotEmpty()) {
+                        Card(shape = MaterialTheme.shapes.extraLarge, modifier = Modifier.fillMaxWidth()) {
+                            Column(modifier = Modifier.padding(uiPreferences.cardPadding)) {
+                                SnoreTimeline(
+                                    hourlyData = buildHourlyData(events),
+                                    maxValue = events.groupingBy {
+                                        SimpleDateFormat("HH", Locale.getDefault()).format(Date(it.startTimestamp))
+                                    }.eachCount().values.maxOrNull() ?: 1
+                                )
+                            }
+                        }
+
+                        Card(shape = MaterialTheme.shapes.extraLarge, modifier = Modifier.fillMaxWidth()) {
+                            Column(modifier = Modifier.padding(uiPreferences.cardPadding)) {
+                                SnoreTypePieChart(slices = buildTypeSlices(events))
+                            }
                         }
                     }
-                }
 
-                if (r.aiEvaluation.isNotBlank()) {
+                    if (r.aiEvaluation.isNotBlank()) {
+                        Card(
+                            shape = MaterialTheme.shapes.extraLarge,
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)
+                        ) {
+                            Column(modifier = Modifier.padding(uiPreferences.cardPadding)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text("AI", style = MaterialTheme.typography.titleMedium)
+                                    Spacer(Modifier.width(Spacing.sm))
+                                    Text("AI 详细评价", style = MaterialTheme.typography.titleMedium)
+                                }
+                                Spacer(Modifier.height(Spacing.sm))
+                                Text(r.aiEvaluation, style = MaterialTheme.typography.bodyMedium)
+                            }
+                        }
+                    }
+
                     Card(
-                        shape = HeroCardShape,
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)
+                        shape = MaterialTheme.shapes.extraLarge,
+                        modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(modifier = Modifier.padding(uiPreferences.cardPadding)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("AI", style = MaterialTheme.typography.titleMedium)
+                                Text("音频", style = MaterialTheme.typography.titleMedium)
                                 Spacer(Modifier.width(Spacing.sm))
-                                Text("AI 详细评价", style = MaterialTheme.typography.titleMedium)
+                                Column(Modifier.weight(1f)) {
+                                    Text("鼾声集锦", style = MaterialTheme.typography.titleMedium)
+                                    Text("${r.snoreEventCount} 个片段", style = MaterialTheme.typography.bodySmall)
+                                }
                             }
-                            Spacer(Modifier.height(Spacing.sm))
-                            Text(r.aiEvaluation, style = MaterialTheme.typography.bodyMedium)
-                        }
-                    }
-                }
-
-                Card(
-                    shape = HeroCardShape,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(modifier = Modifier.padding(uiPreferences.cardPadding)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("音频", style = MaterialTheme.typography.titleMedium)
-                            Spacer(Modifier.width(Spacing.sm))
-                            Column(Modifier.weight(1f)) {
-                                Text("鼾声集锦", style = MaterialTheme.typography.titleMedium)
-                                Text("${r.snoreEventCount} 个片段", style = MaterialTheme.typography.bodySmall)
-                            }
-                        }
-                        if (uiPreferences.showTechnicalDetails && events.isNotEmpty()) {
-                            HorizontalDivider(modifier = Modifier.padding(vertical = Spacing.sm))
-                            Text("片段技术信息", style = MaterialTheme.typography.titleSmall)
-                            Spacer(Modifier.height(Spacing.sm))
-                            events.sortedWith(
-                                compareByDescending<SnoreEventEntity> { it.peakDb }
-                                    .thenByDescending { it.durationMs }
-                            ).take(5).forEach { event ->
-                                EventTechRow(event)
-                                Spacer(Modifier.height(Spacing.xs))
+                            if (uiPreferences.showTechnicalDetails && events.isNotEmpty()) {
+                                HorizontalDivider(modifier = Modifier.padding(vertical = Spacing.sm))
+                                Text("片段技术信息", style = MaterialTheme.typography.titleSmall)
+                                Spacer(Modifier.height(Spacing.sm))
+                                events.sortedWith(
+                                    compareByDescending<SnoreEventEntity> { it.peakDb }
+                                        .thenByDescending { it.durationMs }
+                                ).take(5).forEach { event ->
+                                    EventTechRow(event)
+                                    Spacer(Modifier.height(Spacing.xs))
+                                }
                             }
                         }
                     }
-                }
 
-                Spacer(Modifier.height(Spacing.lg))
-            }
+                    Spacer(Modifier.height(Spacing.lg))
+                }
             }
         }
     }
@@ -265,7 +264,7 @@ private fun MissingRecordState(modifier: Modifier = Modifier, onBack: () -> Unit
         contentAlignment = Alignment.Center
     ) {
         Card(
-            shape = HeroCardShape,
+            shape = MaterialTheme.shapes.extraLarge,
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
         ) {
             Column(

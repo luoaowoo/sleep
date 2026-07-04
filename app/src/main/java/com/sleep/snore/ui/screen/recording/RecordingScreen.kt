@@ -45,6 +45,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import com.sleep.snore.service.SleepRecordingService
 import com.sleep.snore.ui.theme.PillShape
+import com.sleep.snore.ui.theme.RecordingOnSurface
+import com.sleep.snore.ui.theme.RecordingPrimary
+import com.sleep.snore.ui.theme.RecordingSurfaceDim
 import com.sleep.snore.ui.theme.Spacing
 import java.util.Locale
 import kotlinx.coroutines.delay
@@ -122,7 +125,7 @@ fun RecordingScreen(navController: NavHostController) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surfaceDim),
+            .background(RecordingSurfaceDim),
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -132,24 +135,24 @@ fun RecordingScreen(navController: NavHostController) {
             Text(
                 text = String.format(Locale.getDefault(), "%02d:%02d:%02d", hours, minutes, seconds),
                 style = MaterialTheme.typography.displayLarge.copy(fontWeight = FontWeight.Light),
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+                color = RecordingOnSurface.copy(alpha = 0.8f)
             )
             Spacer(Modifier.height(Spacing.xxl))
             Surface(
                 modifier = Modifier.size(120.dp).alpha(pulseAlpha),
                 shape = CircleShape,
-                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+                color = RecordingPrimary.copy(alpha = 0.2f)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Surface(
                         modifier = Modifier.size(80.dp),
                         shape = CircleShape,
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
+                        color = RecordingPrimary.copy(alpha = 0.4f)
                     ) {}
                 }
             }
             Spacer(Modifier.height(Spacing.xl))
-            Text(TEXT_MONITORING, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+            Text(TEXT_MONITORING, style = MaterialTheme.typography.titleMedium, color = RecordingOnSurface.copy(alpha = 0.6f))
             startError?.let { error ->
                 Spacer(Modifier.height(Spacing.sm))
                 Text(

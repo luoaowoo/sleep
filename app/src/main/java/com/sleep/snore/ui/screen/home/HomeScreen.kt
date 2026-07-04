@@ -35,7 +35,6 @@ import androidx.navigation.NavHostController
 import com.sleep.snore.data.db.entity.SleepRecordEntity
 import com.sleep.snore.navigation.Route
 import com.sleep.snore.ui.components.SnoreScoreRing
-import com.sleep.snore.ui.theme.HeroCardShape
 import com.sleep.snore.ui.theme.LocalUiPreferences
 import com.sleep.snore.ui.theme.PillShape
 import com.sleep.snore.ui.theme.Spacing
@@ -111,7 +110,7 @@ private fun SleepOverviewCard(record: SleepRecordEntity, onClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .clickable(role = Role.Button, onClick = onClick),
-        shape = HeroCardShape,
+        shape = MaterialTheme.shapes.extraLarge,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
     ) {
         Column(
@@ -147,7 +146,7 @@ private fun EmptyStateCard() {
     val uiPreferences = LocalUiPreferences.current
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = HeroCardShape,
+        shape = MaterialTheme.shapes.extraLarge,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
         Column(
@@ -169,7 +168,7 @@ private fun WeeklyTrendCard(records: List<SleepRecordEntity>) {
     val uiPreferences = LocalUiPreferences.current
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = HeroCardShape,
+        shape = MaterialTheme.shapes.extraLarge,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(modifier = Modifier.padding(uiPreferences.cardPadding)) {
@@ -204,7 +203,7 @@ private fun AIQuickCard(summary: String, onClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .clickable(role = Role.Button, onClick = onClick),
-        shape = HeroCardShape,
+        shape = MaterialTheme.shapes.extraLarge,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)
     ) {
         Row(

@@ -1,6 +1,7 @@
-﻿package com.sleep.snore.audio
+package com.sleep.snore.audio
 
 import android.util.Log
+import com.sleep.snore.data.model.Sensitivity
 import java.io.Closeable
 
 /**
@@ -8,7 +9,7 @@ import java.io.Closeable
  *
  * 第1层: RMS 能量检测 → 过滤静音
  * 第2层: ZCR (过零率) → 快速区分鼾声 vs 语音/环境音
- * 第3层: (预留) MFCC + TFLite → 精确二分类
+ * 第3层: 基于能量+ZCR+Goertzel 主频的规则型单层分类
  *
  * 同时管理录音触发器:
  * - 检测到疑似鼾声时通过 [SnoreCallback] 通知
@@ -17,12 +18,39 @@ import java.io.Closeable
 class SnoreDetector(
     private val callback: SnoreCallback,
     silenceThresholdDb: Double = -40.0,
-    maxSegmentDurationSec: Int = DEFAULT_MAX_SEGMENT_DURATION_SEC
+    maxSegmentDurationSec: Int = DEFAULT_MAX_SEGMENT_DURATION_SEC,
+    sensitivity: Sensitivity = Sensitivity.MEDIUM
 ) : Closeable {
 
     private val audioRecorder: AudioRecorder
     private val energyDetector = EnergyDetector(silenceThresholdDb)
-    private val zcrDetector = ZeroCrossingDetector()
+
+    /** 灵敏度预设：ZCR 区间 / 触发帧数 / 结束静音帧数 */
+    private val preset = when (sensitivity) {
+        Sensitivity.LOW -> DetectorPreset(
+            zcrMin = 0.008,
+            zcrMax = 0.032,
+            triggerFrameCount = 6,
+            endSilenceFrames = 60
+        )
+        Sensitivity.MEDIUM -> DetectorPreset(
+            zcrMin = 0.006,
+            zcrMax = 0.038,
+            triggerFrameCount = 4,
+            endSilenceFrames = 48
+        )
+        Sensitivity.HIGH -> DetectorPreset(
+            zcrMin = 0.005,
+            zcrMax = 0.045,
+            triggerFrameCount = 3,
+            endSilenceFrames = 30
+        )
+    }
+
+    private val zcrDetector = ZeroCrossingDetector(
+        snoreZcrMin = preset.zcrMin,
+        snoreZcrMax = preset.zcrMax
+    )
 
     /** 当前是否处于鼾声片段中 */
     @Volatile
@@ -43,11 +71,11 @@ class SnoreDetector(
     /** 是否已经达到触发阈值，只有触发后才保存片段 */
     private var hasTriggeredSegment = false
 
-    /** 触发鼾声录音所需连续帧数 (约 200ms = 4帧) */
-    private val triggerFrameCount = 4
+    /** 触发鼾声录音所需连续帧数 */
+    private val triggerFrameCount = preset.triggerFrameCount
 
-    /** 结束鼾声片段所需连续静音帧数 (约 1秒 = 20帧) */
-    private val endSilenceFrames = 20
+    /** 结束鼾声片段所需连续静音帧数 */
+    private val endSilenceFrames = preset.endSilenceFrames
 
     /** 单个片段最大帧数，避免长噪声导致内存持续增长 */
     private val maxSegmentFrames = ((maxSegmentDurationSec.coerceIn(15, 120) * 1000) / AudioConfig.FRAME_DURATION_MS)
@@ -78,7 +106,7 @@ class SnoreDetector(
         stopListening()
     }
 
-    private fun processFrame(pcmFrame: ByteArray) {
+    internal fun processFrame(pcmFrame: ByteArray) {
         // 第1层: 能量检测
         energyDetector.process(pcmFrame)
 
@@ -192,4 +220,11 @@ class SnoreDetector(
         private const val TAG = "SnoreDetector"
         private const val DEFAULT_MAX_SEGMENT_DURATION_SEC = 60
     }
+
+    private data class DetectorPreset(
+        val zcrMin: Double,
+        val zcrMax: Double,
+        val triggerFrameCount: Int,
+        val endSilenceFrames: Int
+    )
 }

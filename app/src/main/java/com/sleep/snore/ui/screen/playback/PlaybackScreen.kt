@@ -1,4 +1,4 @@
-﻿package com.sleep.snore.ui.screen.playback
+package com.sleep.snore.ui.screen.playback
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -16,17 +16,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigation.NavHostController
-import com.sleep.snore.ui.theme.HeroCardShape
 import com.sleep.snore.ui.theme.Spacing
 import java.text.SimpleDateFormat
 import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
-@Suppress("UNUSED_PARAMETER")
 @Composable
 fun PlaybackScreen(
-    navController: NavHostController,
     viewModel: PlaybackViewModel = hiltViewModel()
 ) {
     val events by viewModel.events.collectAsStateWithLifecycle()
@@ -79,7 +75,7 @@ fun PlaybackScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable(role = Role.Button) { viewModel.togglePlayback(event) },
-                            shape = HeroCardShape
+                            shape = MaterialTheme.shapes.extraLarge
                         ) {
                             Row(
                                 modifier = Modifier

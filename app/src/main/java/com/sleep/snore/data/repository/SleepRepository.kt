@@ -34,6 +34,7 @@ class SleepRepository @Inject constructor(
         val audioPaths = getEventsByRecordId(id).first().mapNotNull { event ->
             event.audioFilePath.takeIf { it.isNotBlank() }
         }
+        factorLogDao.deleteByRecordId(id)
         sleepRecordDao.deleteById(id)
         deleteAudioFiles(audioPaths)
     }
@@ -42,6 +43,7 @@ class SleepRepository @Inject constructor(
         val recordIds = sleepRecordDao.getIdsCreatedBefore(before)
         if (recordIds.isEmpty()) return
         val audioPaths = snoreEventDao.getAudioPathsByRecordIds(recordIds)
+        factorLogDao.deleteByRecordIds(recordIds)
         sleepRecordDao.deleteOlderThan(before)
         deleteAudioFiles(audioPaths)
     }

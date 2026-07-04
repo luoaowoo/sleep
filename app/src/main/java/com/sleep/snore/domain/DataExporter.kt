@@ -1,7 +1,6 @@
-﻿package com.sleep.snore.domain
+package com.sleep.snore.domain
 
 import android.content.Context
-import android.net.Uri
 import com.sleep.snore.data.db.entity.SleepRecordEntity
 import com.sleep.snore.data.db.entity.SnoreEventEntity
 import com.sleep.snore.data.repository.SleepRepository
@@ -16,6 +15,14 @@ import java.text.SimpleDateFormat
 import java.util.*
 import javax.inject.Inject
 import javax.inject.Singleton
+
+internal fun csv(value: Any?): String {
+    val text = value?.toString().orEmpty()
+    val sanitized = if (text.firstOrNull() in CSV_FORMULA_PREFIXES) "'$text" else text
+    return "\"${sanitized.replace("\"", "\"\"")}\""
+}
+
+private val CSV_FORMULA_PREFIXES = setOf('=', '+', '-', '@')
 
 @Singleton
 class DataExporter @Inject constructor(
@@ -41,33 +48,21 @@ class DataExporter @Inject constructor(
                 writer.write("日期,开始时间,结束时间,睡眠时长(分),SnoreScore,严重程度,AHI估算,打鼾时长(分),打鼾占比,平均dB,峰值dB,鼾声次数,最长呼吸暂停(秒)\n")
 
                 records.forEach { r ->
-                    writer.write("${formatDate(r.startTime)},${formatDate(r.startTime)},${formatDate(r.endTime)},")
-                    writer.write("${r.sleepDurationMin},${r.snoreScore},${r.severity},${r.estAHI},")
-                    writer.write("${r.snoreDurationMin},${r.snoreRatio},${r.avgDb},${r.maxDb},")
-                    writer.write("${r.snoreEventCount},${r.longestApneaSec}\n")
-                }
-            }
-            file
-        } catch (e: Exception) {
-            null
-        }
-    }
-
-    /**
-     * 导出鼾声事件详情 CSV
-     */
-    suspend fun exportEventsCsv(recordId: Long): File? = withContext(Dispatchers.IO) {
-        try {
-            val events = repository.getEventsByRecordId(recordId).first()
-            if (events.isEmpty()) return@withContext null
-
-            val file = File(context.cacheDir, "snore_events_${recordId}.csv")
-            file.utf8Writer().use { writer ->
-                writer.write("\uFEFF")
-                writer.write("时间,持续(ms),峰值dB,平均dB,主导频率Hz,类型,AI标签,文件大小(bytes)\n")
-                events.forEach { e ->
-                    writer.write("${formatDate(e.startTimestamp)},${e.durationMs},${e.peakDb},${e.avgDb},")
-                    writer.write("${e.dominantFreq},${e.snoreType},${e.aiTypeLabel},${e.audioFileSizeBytes}\n")
+                    writer.writeCsvRow(
+                        formatDate(r.startTime),
+                        formatDate(r.startTime),
+                        formatDate(r.endTime),
+                        r.sleepDurationMin,
+                        r.snoreScore,
+                        r.severity,
+                        r.estAHI,
+                        r.snoreDurationMin,
+                        r.snoreRatio,
+                        r.avgDb,
+                        r.maxDb,
+                        r.snoreEventCount,
+                        r.longestApneaSec
+                    )
                 }
             }
             file
@@ -89,8 +84,18 @@ class DataExporter @Inject constructor(
                 writer.write("\uFEFF")
                 writer.write("记录ID,时间,持续(ms),峰值dB,平均dB,主导频率Hz,类型,AI标签,音频路径,文件大小(bytes)\n")
                 events.forEach { e ->
-                    writer.write("${e.recordId},${formatDate(e.startTimestamp)},${e.durationMs},${e.peakDb},${e.avgDb},")
-                    writer.write("${e.dominantFreq},${e.snoreType},${e.aiTypeLabel},${csv(e.audioFilePath)},${e.audioFileSizeBytes}\n")
+                    writer.writeCsvRow(
+                        e.recordId,
+                        formatDate(e.startTimestamp),
+                        e.durationMs,
+                        e.peakDb,
+                        e.avgDb,
+                        e.dominantFreq,
+                        e.snoreType,
+                        e.aiTypeLabel,
+                        e.audioFilePath,
+                        e.audioFileSizeBytes
+                    )
                 }
             }
             file
@@ -101,11 +106,22 @@ class DataExporter @Inject constructor(
 
     private fun formatDate(timestamp: Long): String = dateFormat.format(Date(timestamp))
 
-    private fun csv(value: String): String {
-        return "\"${value.replace("\"", "\"\"")}\""
+    private fun OutputStreamWriter.writeCsvRow(vararg values: Any?) {
+        write(values.joinToString(",") { csv(it) })
+        write("\n")
+    }
+
+    private fun csv(value: Any?): String {
+        val text = value?.toString().orEmpty()
+        val sanitized = if (text.firstOrNull() in CSV_FORMULA_PREFIXES) "'$text" else text
+        return "\"${sanitized.replace("\"", "\"\"")}\""
     }
 
     private fun File.utf8Writer(): OutputStreamWriter {
         return OutputStreamWriter(outputStream(), StandardCharsets.UTF_8)
+    }
+
+    private companion object {
+        val CSV_FORMULA_PREFIXES = setOf('=', '+', '-', '@')
     }
 }

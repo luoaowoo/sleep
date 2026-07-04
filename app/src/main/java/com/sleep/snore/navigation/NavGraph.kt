@@ -1,4 +1,4 @@
-﻿package com.sleep.snore.navigation
+package com.sleep.snore.navigation
 
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.core.tween
@@ -44,7 +44,7 @@ fun SleepNavGraph(navController: NavHostController, modifier: Modifier = Modifie
         }
     ) {
         composable(Route.Home.route) { HomeScreen(navController = navController) }
-        composable(Route.Playback.route) { PlaybackScreen(navController = navController) }
+        composable(Route.Playback.route) { PlaybackScreen() }
         composable(Route.Settings.route) { SettingsScreen(navController = navController) }
         composable(Route.Recording.route) { RecordingScreen(navController = navController) }
         composable(Route.Export.route) { ExportScreen(navController = navController) }

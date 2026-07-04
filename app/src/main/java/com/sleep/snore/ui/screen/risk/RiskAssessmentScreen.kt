@@ -1,4 +1,4 @@
-﻿package com.sleep.snore.ui.screen.risk
+package com.sleep.snore.ui.screen.risk
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -10,7 +10,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
-import com.sleep.snore.ui.theme.HeroCardShape
 import com.sleep.snore.ui.theme.PillShape
 import com.sleep.snore.ui.theme.Spacing
 import com.sleep.snore.ui.theme.snoreScoreColor
@@ -74,7 +73,7 @@ fun RiskAssessmentScreen(navController: NavHostController) {
                 HorizontalDivider()
 
                 stopBangQuestions.forEach { q ->
-                    Card(shape = HeroCardShape) {
+                    Card(shape = MaterialTheme.shapes.extraLarge) {
                         Column(modifier = Modifier.padding(Spacing.md)) {
                             Text("${q.id}) ${q.question}", style = MaterialTheme.typography.titleMedium)
                             Spacer(Modifier.height(Spacing.xs))
@@ -154,7 +153,7 @@ private fun RiskResultContent(score: Int, padding: PaddingValues, navController:
         Spacer(Modifier.height(Spacing.xl))
 
         Card(
-            shape = HeroCardShape,
+            shape = MaterialTheme.shapes.extraLarge,
             colors = CardDefaults.cardColors(containerColor = riskColor.copy(alpha = 0.1f))
         ) {
             Text(

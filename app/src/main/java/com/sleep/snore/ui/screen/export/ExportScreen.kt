@@ -35,7 +35,6 @@ import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
-import com.sleep.snore.ui.theme.HeroCardShape
 import com.sleep.snore.ui.theme.PillShape
 import com.sleep.snore.ui.theme.Spacing
 
@@ -121,7 +120,7 @@ private fun ExportCard(
     isExporting: Boolean,
     onClick: () -> Unit
 ) {
-    Card(shape = HeroCardShape) {
+    Card(shape = MaterialTheme.shapes.extraLarge) {
         Column(
             modifier = Modifier.padding(Spacing.md),
             verticalArrangement = Arrangement.spacedBy(Spacing.sm)

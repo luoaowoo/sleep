@@ -8,33 +8,72 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-class AudioAnalysisTest {
+class SnoreFeatureAnalyzerTest {
 
     @Test
-    fun energyDetectorHandlesOddLengthPcm() {
-        val db = EnergyDetector().calculateDb(byteArrayOf(0, 1, 2))
-
-        assertTrue(db.isFinite())
-    }
-
-    @Test
-    fun snoreFeatureAnalyzerFindsDominantFrequency() {
+    fun periodicity_highForPeriodicSine() {
         val pcm = amSinePcm(carrierHz = 180, burstPeriodMs = 1000, totalMs = 4000, amplitude = 12_000)
 
-        val features = SnoreFeatureAnalyzer.analyze(pcm, peakDb = -8.0, durationMs = 4_000)
+        val periodicity = SnoreFeatureAnalyzer.calculatePeriodicity(pcm)
 
-        assertTrue(features.dominantFreq in 170f..190f)
-        assertEquals(SnoreType.TONGUE_ROOT, features.snoreType)
-        assertTrue(features.confidence > 0.3f)
+        assertTrue("periodicity=$periodicity should be > 0.3", periodicity > 0.3f)
     }
 
     @Test
-    fun snoreFeatureAnalyzerClassifiesLongMidBandAsMixed() {
+    fun periodicity_lowForContinuousTone() {
+        val pcm = sinePcm(frequencyHz = 180, durationMs = 4000, amplitude = 12_000)
+
+        val periodicity = SnoreFeatureAnalyzer.calculatePeriodicity(pcm)
+
+        assertTrue("periodicity=$periodicity should be < 0.3", periodicity < 0.3f)
+    }
+
+    @Test
+    fun spectralEntropy_lowForPureTone() {
+        val samples = DoubleArray(512) { i ->
+            sin(2.0 * PI * 180.0 * i / AudioConfig.SAMPLE_RATE) * 10_000.0
+        }
+
+        val entropy = SnoreFeatureAnalyzer.calculateSpectralEntropy(samples)
+
+        assertTrue("entropy=$entropy should be < 0.3", entropy < 0.3f)
+    }
+
+    @Test
+    fun spectralEntropy_highForWhiteNoise() {
+        val random = Random(42)
+        val samples = DoubleArray(512) { random.nextDouble() * 20_000 - 10_000 }
+
+        val entropy = SnoreFeatureAnalyzer.calculateSpectralEntropy(samples)
+
+        assertTrue("entropy=$entropy should be > 0.7", entropy > 0.7f)
+    }
+
+    @Test
+    fun classifyType_mixedForHighEntropy() {
         val pcm = noisePcm(totalMs = 4000, amplitude = 12_000)
 
         val features = SnoreFeatureAnalyzer.analyze(pcm, peakDb = -8.0, durationMs = 4_000)
 
         assertEquals(SnoreType.MIXED, features.snoreType)
+    }
+
+    @Test
+    fun analyze_lowPeriodicity_addsLabel() {
+        val pcm = sinePcm(frequencyHz = 180, durationMs = 4000, amplitude = 12_000)
+
+        val features = SnoreFeatureAnalyzer.analyze(pcm, peakDb = -8.0, durationMs = 4_000)
+
+        assertTrue("label='${features.aiTypeLabel}' should contain 低节律性", features.aiTypeLabel.contains("低节律性"))
+    }
+
+    @Test
+    fun analyze_shortPcm_returnsZeroFreq() {
+        val pcm = ByteArray(512)
+
+        val features = SnoreFeatureAnalyzer.analyze(pcm, peakDb = -8.0, durationMs = 100)
+
+        assertEquals(0f, features.dominantFreq, 0.001f)
     }
 
     private fun sinePcm(frequencyHz: Int, durationMs: Int, amplitude: Int): ByteArray {

@@ -4,6 +4,7 @@ import com.sleep.snore.data.model.SnoreType
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.cos
+import kotlin.math.log2
 import kotlin.math.roundToInt
 import kotlin.math.sin
 import kotlin.math.sqrt
@@ -21,10 +22,15 @@ object SnoreFeatureAnalyzer {
 
     fun analyze(pcmData: ByteArray, peakDb: Double, durationMs: Long): SnoreAudioFeatures {
         val avgDb = EnergyDetector().calculateDb(pcmData).toFloat()
-        val dominantFreq = estimateDominantFrequency(pcmData)
-        val snoreType = classifyType(dominantFreq, avgDb, durationMs)
-        val confidence = confidenceFor(dominantFreq, avgDb, durationMs)
-        val label = "${snoreType.label} · 置信度 ${(confidence * 100).roundToInt()}%"
+        val samples = readAnalysisWindow(pcmData)
+        val dominantFreq = estimateDominantFrequency(samples)
+        val periodicityScore = calculatePeriodicity(pcmData)
+        val snoreType = classifyType(dominantFreq, avgDb, samples)
+        val confidence = confidenceFor(dominantFreq, avgDb, durationMs, periodicityScore)
+        var label = "${snoreType.label} · 置信度 ${(confidence * 100).roundToInt()}%"
+        if (periodicityScore < 0.3f && !label.contains("低节律性")) {
+            label = "$label · 低节律性"
+        }
         return SnoreAudioFeatures(
             avgDb = avgDb,
             peakDb = peakDb.toFloat(),
@@ -35,8 +41,98 @@ object SnoreFeatureAnalyzer {
         )
     }
 
-    private fun estimateDominantFrequency(pcmData: ByteArray): Float {
-        val samples = readAnalysisWindow(pcmData)
+    fun calculatePeriodicity(pcmData: ByteArray): Float {
+        val totalSamples = pcmData.size / 2
+        val frameSize = AudioConfig.FRAME_SIZE
+        val frameCount = totalSamples / frameSize
+        if (frameCount < 10) return 0f
+
+        val energy = FloatArray(frameCount)
+        for (frame in 0 until frameCount) {
+            var sumSquares = 0.0
+            val start = frame * frameSize
+            for (i in 0 until frameSize) {
+                val offset = (start + i) * 2
+                val sample = ((pcmData[offset + 1].toInt() shl 8) or (pcmData[offset].toInt() and 0xFF))
+                    .toShort()
+                    .toDouble()
+                sumSquares += sample * sample
+            }
+            energy[frame] = sqrt(sumSquares / frameSize).toFloat()
+        }
+
+        val minLag = 10
+        val maxLag = minOf(40, frameCount - 1)
+        if (maxLag < minLag) return 0f
+
+        val r = FloatArray(maxLag + 1)
+        for (k in 0..maxLag) {
+            var sum = 0.0
+            for (i in 0 until frameCount - k) {
+                sum += energy[i] * energy[i + k]
+            }
+            r[k] = sum.toFloat()
+        }
+
+        if (r[0] <= 0f) return 0f
+
+        var peakValue = r[minLag]
+        for (k in minLag..maxLag) {
+            if (r[k] > peakValue) {
+                peakValue = r[k]
+            }
+        }
+
+        val baseline = r[minLag - 1]
+        val periodicity = (peakValue - baseline) / r[0]
+        return periodicity.coerceIn(0f, 1f)
+    }
+
+    fun calculateSpectralEntropy(samples: DoubleArray): Float {
+        val targetN = 512
+        if (samples.size < 2) return 0f
+        val n = minOf(samples.size, targetN)
+        val start = if (samples.size > targetN) (samples.size - targetN) / 2 else 0
+        val input = DoubleArray(n)
+        for (i in 0 until n) {
+            val w = 0.5 - 0.5 * cos(2.0 * PI * i / (n - 1).coerceAtLeast(1))
+            input[i] = samples[start + i] * w
+        }
+        val mag = dft(input)
+        val half = mag.size
+        var sum = 0.0
+        for (v in mag) sum += v
+        if (sum <= 0.0) return 0f
+        var entropy = 0.0
+        for (v in mag) {
+            val p = v / sum
+            if (p > 0.0) {
+                entropy -= p * log2(p)
+            }
+        }
+        val maxEntropy = log2(half.toDouble())
+        if (maxEntropy <= 0.0) return 0f
+        return (entropy / maxEntropy).toFloat().coerceIn(0f, 1f)
+    }
+
+    private fun dft(samples: DoubleArray): DoubleArray {
+        val n = samples.size
+        val half = n / 2
+        val mag = DoubleArray(half)
+        for (k in 0 until half) {
+            var real = 0.0
+            var imag = 0.0
+            for (t in 0 until n) {
+                val angle = -2.0 * PI * k * t / n
+                real += samples[t] * cos(angle)
+                imag += samples[t] * sin(angle)
+            }
+            mag[k] = sqrt(real * real + imag * imag)
+        }
+        return mag
+    }
+
+    private fun estimateDominantFrequency(samples: DoubleArray): Float {
         if (samples.size < MIN_WINDOW_SAMPLES) return 0f
 
         var bestFrequency = 0
@@ -107,10 +203,11 @@ object SnoreFeatureAnalyzer {
         return real * real + imaginary * imaginary
     }
 
-    private fun classifyType(dominantFreq: Float, avgDb: Float, durationMs: Long): SnoreType {
+    private fun classifyType(dominantFreq: Float, avgDb: Float, samples: DoubleArray): SnoreType {
         if (dominantFreq <= 0f || avgDb < -65f) return SnoreType.UNKNOWN
+        val entropy = calculateSpectralEntropy(samples)
         return when {
-            durationMs >= 8_000 && dominantFreq in 90f..260f -> SnoreType.MIXED
+            entropy > 0.7f -> SnoreType.MIXED
             dominantFreq < 130f -> SnoreType.SOFT_PALATE
             dominantFreq < 260f -> SnoreType.TONGUE_ROOT
             dominantFreq <= 500f -> SnoreType.EPIGLOTTIS
@@ -118,12 +215,12 @@ object SnoreFeatureAnalyzer {
         }
     }
 
-    private fun confidenceFor(dominantFreq: Float, avgDb: Float, durationMs: Long): Float {
+    private fun confidenceFor(dominantFreq: Float, avgDb: Float, durationMs: Long, periodicityScore: Float): Float {
         if (dominantFreq <= 0f) return 0f
         val loudnessConfidence = ((avgDb + 60f) / 35f).coerceIn(0f, 1f)
         val durationConfidence = (durationMs / 3_000f).coerceIn(0f, 1f)
         val frequencyConfidence = (1f - abs(dominantFreq - 180f) / 420f).coerceIn(0.35f, 1f)
-        return sqrt(loudnessConfidence * durationConfidence * frequencyConfidence).coerceIn(0.1f, 0.95f)
+        return sqrt(loudnessConfidence * durationConfidence * frequencyConfidence * periodicityScore).coerceIn(0.1f, 0.95f)
     }
 
     private const val MIN_WINDOW_SAMPLES = 512

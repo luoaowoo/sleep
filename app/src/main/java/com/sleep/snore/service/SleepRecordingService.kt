@@ -25,6 +25,7 @@ import com.sleep.snore.audio.SnoreDetector
 import com.sleep.snore.data.db.entity.SleepRecordEntity
 import com.sleep.snore.data.db.entity.SnoreEventEntity
 import com.sleep.snore.data.model.Severity
+import com.sleep.snore.data.model.Sensitivity
 import com.sleep.snore.data.model.severityFromScore
 import com.sleep.snore.data.preferences.SettingsPreferencesRepository
 import com.sleep.snore.data.repository.SleepRepository
@@ -47,7 +48,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
 
 data class RecordingRuntimeState(
@@ -109,8 +109,14 @@ class SleepRecordingService : Service() {
         if (isSessionActive && !isFinishingSession) {
             isSessionActive = false
             stopSnoreDetection()
-            runBlocking(Dispatchers.IO) {
-                finalizeCurrentSession()
+            // 启动非阻塞收尾协程，主线程不等待，避免 ANR
+            // 已通过 insertEvent 入库的事件会保留在数据库，未编码完成的 PCM 片段允许丢弃
+            CoroutineScope(Dispatchers.IO).launch {
+                try {
+                    finalizeCurrentSession()
+                } catch (e: Exception) {
+                    Log.e(TAG, "failed to finalize session on destroy", e)
+                }
             }
         }
         _recordingState.value = RecordingRuntimeState()
@@ -134,6 +140,7 @@ class SleepRecordingService : Service() {
         startJob = serviceScope.launch {
             try {
                 val settings = preferencesRepository.settings.first()
+                val sensitivity = preferencesRepository.sensitivity.first()
                 if (settings.autoCleanEnabled) cleanOldData()
                 val activeRecord = recoverActiveRecordingIfAvailable()
                 val recordId = if (activeRecord == null) {
@@ -146,7 +153,8 @@ class SleepRecordingService : Service() {
                 startSnoreDetection(
                     recordId = recordId,
                     silenceThresholdDb = settings.silenceThresholdDb.toDouble(),
-                    maxSegmentDurationSec = settings.maxSegmentDurationSec
+                    maxSegmentDurationSec = settings.maxSegmentDurationSec,
+                    sensitivity = sensitivity
                 )
             } catch (e: Exception) {
                 Log.e(TAG, "failed to start recording session", e)
@@ -188,6 +196,8 @@ class SleepRecordingService : Service() {
             startJob?.join()
             val jobs = synchronized(encodingJobs) { encodingJobs.toList() }
             jobs.joinAll()
+            // 清空已完成任务，避免列表无限膨胀
+            synchronized(encodingJobs) { encodingJobs.clear() }
             true
         } ?: false
         if (!completedPendingWork) {
@@ -319,7 +329,8 @@ class SleepRecordingService : Service() {
     private fun startSnoreDetection(
         recordId: Long,
         silenceThresholdDb: Double,
-        maxSegmentDurationSec: Int
+        maxSegmentDurationSec: Int,
+        sensitivity: Sensitivity
     ) {
         val outputDir = File(filesDir, "snore_audio").apply { mkdirs() }
         snoreDetector = SnoreDetector(
@@ -356,7 +367,8 @@ class SleepRecordingService : Service() {
                 }
             },
             silenceThresholdDb = silenceThresholdDb,
-            maxSegmentDurationSec = maxSegmentDurationSec
+            maxSegmentDurationSec = maxSegmentDurationSec,
+            sensitivity = sensitivity
         )
 
         try {
@@ -465,18 +477,49 @@ class SleepRecordingService : Service() {
 
     private fun estimateApneaStats(events: List<SnoreEventEntity>, durationMs: Long): ApneaStats {
         val sortedEvents = events.sortedBy { it.startTimestamp }
-        if (sortedEvents.size < 2) return ApneaStats(eventCount = 0, longestSec = 0, ahi = 0f)
+        if (sortedEvents.size < 2) return ApneaStats(
+            eventCount = 0,
+            longestSec = 0,
+            ahi = 0f,
+            centralApneaCount = 0
+        )
 
-        val gapsSec = sortedEvents.zipWithNext().mapNotNull { (previous, next) ->
+        var obstructiveCount = 0
+        var centralApneaCount = 0
+        var longestSec = 0
+
+        sortedEvents.forEachIndexed { index, current ->
+            if (index == 0) return@forEachIndexed
+            val previous = sortedEvents[index - 1]
             val previousEnd = previous.startTimestamp + previous.durationMs
-            val gapMs = next.startTimestamp - previousEnd
-            if (gapMs >= APNEA_GAP_MS) (gapMs / 1000L).toInt() else null
+            val gapMs = current.startTimestamp - previousEnd
+            if (gapMs < APNEA_GAP_MS) return@forEachIndexed
+
+            val gapSec = (gapMs / 1000L).toInt()
+            if (gapSec > longestSec) longestSec = gapSec
+
+            val preEvents = sortedEvents.subList(0, index)
+            val preAvgDb = if (preEvents.isEmpty()) 0f else preEvents.map { it.avgDb }.average().toFloat()
+            val recoveryThreshold = preAvgDb + APNEA_RECOVERY_DB_DELTA
+            val gapEnd = current.startTimestamp
+            val recoveryWindowEnd = gapEnd + APNEA_RECOVERY_WINDOW_MS
+            val hasRecoverySnore = sortedEvents.drop(index).any {
+                it.startTimestamp in gapEnd..recoveryWindowEnd && it.avgDb >= recoveryThreshold
+            }
+            if (hasRecoverySnore) {
+                obstructiveCount++
+            } else {
+                centralApneaCount++
+            }
         }
+
         val durationHours = (durationMs / 3_600_000f).coerceAtLeast(1f / 60f)
+        val ahi = (obstructiveCount / durationHours).coerceAtMost(120f)
         return ApneaStats(
-            eventCount = gapsSec.size,
-            longestSec = gapsSec.maxOrNull() ?: 0,
-            ahi = (gapsSec.size / durationHours).coerceAtMost(120f)
+            eventCount = obstructiveCount + centralApneaCount,
+            longestSec = longestSec,
+            ahi = ahi,
+            centralApneaCount = centralApneaCount
         )
     }
 
@@ -504,7 +547,9 @@ class SleepRecordingService : Service() {
         private const val TEXT_RECORDING_SUMMARY = "\u6b63\u5728\u8bb0\u5f55\u7761\u7720\u9f3e\u58f0"
         private const val AUTO_CLEAN_RETENTION_MS = 30L * 24L * 60L * 60L * 1000L
         private const val APNEA_GAP_MS = 10_000L
-        private const val FINALIZE_TIMEOUT_MS = 20_000L
+        private const val APNEA_RECOVERY_WINDOW_MS = 2_000L
+        private const val APNEA_RECOVERY_DB_DELTA = 10f
+        private const val FINALIZE_TIMEOUT_MS = 2_000L
         private const val SETTINGS_READ_TIMEOUT_MS = 2_000L
         private const val MAX_SESSION_RECOVERY_MS = 16L * 60L * 60L * 1000L
         private const val STALE_EMPTY_RECORD_DURATION_MS = 60_000L
@@ -519,5 +564,6 @@ class SleepRecordingService : Service() {
 private data class ApneaStats(
     val eventCount: Int,
     val longestSec: Int,
-    val ahi: Float
+    val ahi: Float,
+    val centralApneaCount: Int
 )

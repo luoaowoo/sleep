@@ -6,12 +6,18 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.floatPreferencesKey
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.map
+import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
+import com.sleep.snore.data.model.AccentColor
+import com.sleep.snore.data.model.CardCornerStyle
+import com.sleep.snore.data.model.FontScale
+import com.sleep.snore.data.model.Sensitivity
 import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.map
 
 data class SettingsPreferences(
     val silenceThresholdDb: Float = SettingsPreferencesRepository.DEFAULT_SILENCE_THRESHOLD_DB,
@@ -20,7 +26,8 @@ data class SettingsPreferences(
     val themeMode: String = SettingsPreferencesRepository.DEFAULT_THEME_MODE,
     val compactModeEnabled: Boolean = SettingsPreferencesRepository.DEFAULT_COMPACT_MODE_ENABLED,
     val showTechnicalDetails: Boolean = SettingsPreferencesRepository.DEFAULT_SHOW_TECHNICAL_DETAILS,
-    val maxSegmentDurationSec: Int = SettingsPreferencesRepository.DEFAULT_MAX_SEGMENT_DURATION_SEC
+    val maxSegmentDurationSec: Int = SettingsPreferencesRepository.DEFAULT_MAX_SEGMENT_DURATION_SEC,
+    val customAccentColorArgb: Int = SettingsPreferencesRepository.DEFAULT_CUSTOM_ACCENT_COLOR_ARGB
 )
 
 @Singleton
@@ -28,7 +35,7 @@ class SettingsPreferencesRepository @Inject constructor(
     private val dataStore: DataStore<Preferences>
 ) {
 
-    val settings: Flow<SettingsPreferences> = dataStore.data
+    private val safePreferences: Flow<Preferences> = dataStore.data
         .catch { exception ->
             if (exception is IOException) {
                 emit(emptyPreferences())
@@ -36,6 +43,8 @@ class SettingsPreferencesRepository @Inject constructor(
                 throw exception
             }
         }
+
+    val settings: Flow<SettingsPreferences> = safePreferences
         .map { preferences ->
             SettingsPreferences(
                 silenceThresholdDb = preferences[Keys.SILENCE_THRESHOLD_DB]
@@ -53,8 +62,43 @@ class SettingsPreferencesRepository @Inject constructor(
                     ?: DEFAULT_SHOW_TECHNICAL_DETAILS,
                 maxSegmentDurationSec = preferences[Keys.MAX_SEGMENT_DURATION_SEC]
                     ?.coerceIn(MIN_MAX_SEGMENT_DURATION_SEC, MAX_MAX_SEGMENT_DURATION_SEC)
-                    ?: DEFAULT_MAX_SEGMENT_DURATION_SEC
+                    ?: DEFAULT_MAX_SEGMENT_DURATION_SEC,
+                customAccentColorArgb = preferences[Keys.CUSTOM_ACCENT_COLOR_ARGB]
+                    ?: DEFAULT_CUSTOM_ACCENT_COLOR_ARGB
             )
+        }
+
+    val accentColor: Flow<AccentColor> = safePreferences
+        .map { preferences ->
+            preferences[Keys.ACCENT_COLOR]
+                ?.let { runCatching { AccentColor.valueOf(it) }.getOrDefault(AccentColor.INDIGO) }
+                ?: AccentColor.INDIGO
+        }
+
+    val customAccentColorArgb: Flow<Int> = safePreferences
+        .map { preferences ->
+            preferences[Keys.CUSTOM_ACCENT_COLOR_ARGB] ?: DEFAULT_CUSTOM_ACCENT_COLOR_ARGB
+        }
+
+    val fontScale: Flow<FontScale> = safePreferences
+        .map { preferences ->
+            preferences[Keys.FONT_SCALE]
+                ?.let { runCatching { FontScale.valueOf(it) }.getOrDefault(FontScale.STANDARD) }
+                ?: FontScale.STANDARD
+        }
+
+    val cardCornerStyle: Flow<CardCornerStyle> = safePreferences
+        .map { preferences ->
+            preferences[Keys.CARD_CORNER_STYLE]
+                ?.let { runCatching { CardCornerStyle.valueOf(it) }.getOrDefault(CardCornerStyle.STANDARD) }
+                ?: CardCornerStyle.STANDARD
+        }
+
+    val sensitivity: Flow<Sensitivity> = safePreferences
+        .map { preferences ->
+            preferences[Keys.SENSITIVITY]
+                ?.let { runCatching { Sensitivity.valueOf(it) }.getOrDefault(Sensitivity.MEDIUM) }
+                ?: Sensitivity.MEDIUM
         }
 
     suspend fun setSilenceThresholdDb(value: Float) {
@@ -108,14 +152,50 @@ class SettingsPreferencesRepository @Inject constructor(
         }
     }
 
+    suspend fun setAccentColor(value: AccentColor) {
+        dataStore.edit { preferences ->
+            preferences[Keys.ACCENT_COLOR] = value.name
+            preferences[Keys.CUSTOM_ACCENT_COLOR_ARGB] = value.defaultArgb
+        }
+    }
+
+    suspend fun setCustomAccentColorArgb(value: Int) {
+        dataStore.edit { preferences ->
+            preferences[Keys.CUSTOM_ACCENT_COLOR_ARGB] = value or ALPHA_MASK
+        }
+    }
+
+    suspend fun setFontScale(value: FontScale) {
+        dataStore.edit { preferences ->
+            preferences[Keys.FONT_SCALE] = value.name
+        }
+    }
+
+    suspend fun setCardCornerStyle(value: CardCornerStyle) {
+        dataStore.edit { preferences ->
+            preferences[Keys.CARD_CORNER_STYLE] = value.name
+        }
+    }
+
+    suspend fun setSensitivity(value: Sensitivity) {
+        dataStore.edit { preferences ->
+            preferences[Keys.SENSITIVITY] = value.name
+        }
+    }
+
     private object Keys {
         val SILENCE_THRESHOLD_DB = floatPreferencesKey("silence_threshold_db")
         val AUTO_CLEAN_ENABLED = booleanPreferencesKey("auto_clean_enabled")
         val DYNAMIC_COLOR_ENABLED = booleanPreferencesKey("dynamic_color_enabled")
-        val THEME_MODE = androidx.datastore.preferences.core.stringPreferencesKey("theme_mode")
+        val THEME_MODE = stringPreferencesKey("theme_mode")
         val COMPACT_MODE_ENABLED = booleanPreferencesKey("compact_mode_enabled")
         val SHOW_TECHNICAL_DETAILS = booleanPreferencesKey("show_technical_details")
-        val MAX_SEGMENT_DURATION_SEC = androidx.datastore.preferences.core.intPreferencesKey("max_segment_duration_sec")
+        val MAX_SEGMENT_DURATION_SEC = intPreferencesKey("max_segment_duration_sec")
+        val ACCENT_COLOR = stringPreferencesKey("accent_color")
+        val CUSTOM_ACCENT_COLOR_ARGB = intPreferencesKey("custom_accent_color_argb")
+        val FONT_SCALE = stringPreferencesKey("font_scale")
+        val CARD_CORNER_STYLE = stringPreferencesKey("card_corner_style")
+        val SENSITIVITY = stringPreferencesKey("sensitivity")
     }
 
     companion object {
@@ -133,5 +213,18 @@ class SettingsPreferencesRepository @Inject constructor(
         const val THEME_MODE_LIGHT = "light"
         const val THEME_MODE_DARK = "dark"
         const val DEFAULT_THEME_MODE = THEME_MODE_SYSTEM
+        const val DEFAULT_CUSTOM_ACCENT_COLOR_ARGB = -10071900
+        private const val ALPHA_MASK = -0x1000000
     }
 }
+
+val AccentColor.defaultArgb: Int
+    get() = when (this) {
+        AccentColor.INDIGO -> 0xFF6750A4.toInt()
+        AccentColor.BLUE -> 0xFF2196F3.toInt()
+        AccentColor.GREEN -> 0xFF4CAF50.toInt()
+        AccentColor.ORANGE -> 0xFFFF9800.toInt()
+        AccentColor.RED -> 0xFFF44336.toInt()
+        AccentColor.CYAN -> 0xFF00BCD4.toInt()
+        AccentColor.PINK -> 0xFFE91E63.toInt()
+    }

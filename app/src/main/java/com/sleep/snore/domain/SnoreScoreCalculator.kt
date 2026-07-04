@@ -32,12 +32,10 @@ object SnoreScoreCalculator {
         return (ratio * 100).coerceAtMost(100f)
     }
 
-    private fun calculateLoudnessScore(avgDb: Float): Float {
-        return when {
-            avgDb <= 35 -> 0f
-            avgDb >= 70 -> 100f
-            else -> ((avgDb - 35) / 35f * 100)
-        }
+    internal fun calculateLoudnessScore(avgDb: Float): Float {
+        // 输入为 dB FS（负值，约 -90~0），转换为 0-100 分数
+        // -60 dB FS → 0 分（极轻），0 dB FS → 100 分（满量程）
+        return ((avgDb + 60) / 60f * 100f).coerceIn(0f, 100f)
     }
 
     private fun calculateAHIScore(ahi: Float): Float {

@@ -24,4 +24,10 @@ interface FactorLogDao {
 
     @Query("SELECT * FROM factor_logs WHERE date BETWEEN :startDate AND :endDate ORDER BY date ASC")
     fun getBetween(startDate: String, endDate: String): Flow<List<FactorLogEntity>>
+
+    @Query("DELETE FROM factor_logs WHERE record_id = :recordId")
+    suspend fun deleteByRecordId(recordId: Long)
+
+    @Query("DELETE FROM factor_logs WHERE record_id IN (:recordIds)")
+    suspend fun deleteByRecordIds(recordIds: List<Long>)
 }

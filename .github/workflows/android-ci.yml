@@ -8,7 +8,7 @@ on:
 
 jobs:
   verify:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     timeout-minutes: 35
 
     steps:
@@ -27,7 +27,7 @@ jobs:
 
       - name: Run lint, tests, debug, and release build
         shell: pwsh
-        run: .\gradlew.bat :app:lintDebug :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease :app:compileDebugAndroidTestKotlin --no-daemon --console=plain
+        run: ./gradlew :app:lintDebug :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease :app:compileDebugAndroidTestKotlin --no-daemon --console=plain
 
       - name: Upload APK
         uses: actions/upload-artifact@v4

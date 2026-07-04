@@ -1,4 +1,4 @@
-﻿# 睡眠鼾声记录 App — 技术骨架设计文档
+# 睡眠鼾声记录 App — 技术骨架设计文档
 
 > 版本：v1.0 | 日期：2026-07-03
 > 设计依据：Material Design 3 (Material You) + Android 官方架构指南
@@ -452,13 +452,10 @@ app/
 ├── service/
 │   └── SleepRecordingService.kt  — Foreground Service
 │
-├── audio/
-│   ├── AudioRecorder.kt          — AudioRecord 封装
-│   ├── AudioEncoder.kt           — OPUS 编码
-│   └── AudioAnalyzer.kt          — RMS/ZCR/MFCC 提取
-│
-└── ml/
-    └── SnoreClassifier.kt         — TFLite 推理封装
+└── audio/
+    ├── AudioRecorder.kt          — AudioRecord 封装
+    ├── AudioEncoder.kt           — OPUS 编码
+    └── AudioAnalyzer.kt          — RMS/ZCR/MFCC 提取
 ```
 
 ---

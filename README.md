@@ -39,5 +39,4 @@ $env:JAVA_HOME='C:\Program Files\Android\Android Studio\jbr'
 ## 当前实现说明
 
 - AI 评价为本地规则引擎，不依赖网络。
-- `SnoreClassifier` 预留 TFLite 接入口；加入真实模型资产后可替换当前规则型分类。
 - 目前音频片段优先保存为 WAV，换取系统播放器稳定回放；后续可接入合法 Ogg/Opus muxer 压缩体积。
