@@ -4,6 +4,8 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import com.sleep.snore.data.preferences.SettingsPreferencesRepository
+import com.sleep.snore.data.repository.SleepRepository
+import com.sleep.snore.recording.ActiveRecordingFinalizerWorker
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
@@ -30,6 +32,16 @@ class WearableSleepTriggerBootReceiver : BroadcastReceiver() {
                     HealthConnectSleepTriggerWorker.enqueue(appContext)
                     HealthConnectSleepTriggerWorker.enqueueNow(appContext)
                 }
+                val activeRecord = entryPoint.sleepRepository().getActiveRecordingRecord()
+                if (shouldFinalizeWearableRecordingAfterBoot(settings, activeRecord)) {
+                    ActiveRecordingFinalizerWorker.enqueueFallback(
+                        context = appContext,
+                        expectedSource = HealthConnectSleepTriggerSource.SOURCE
+                    )
+                    entryPoint.settingsPreferencesRepository().setWearableSleepTriggerStatus(
+                        "检测到重启/更新后有未完成的手环鼾声记录，已安排兜底结算"
+                    )
+                }
             } finally {
                 pendingResult.finish()
             }
@@ -40,6 +52,7 @@ class WearableSleepTriggerBootReceiver : BroadcastReceiver() {
     @InstallIn(SingletonComponent::class)
     interface WearableSleepTriggerBootEntryPoint {
         fun settingsPreferencesRepository(): SettingsPreferencesRepository
+        fun sleepRepository(): SleepRepository
     }
 
     private companion object {
