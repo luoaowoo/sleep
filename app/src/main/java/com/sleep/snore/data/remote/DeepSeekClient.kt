@@ -26,7 +26,9 @@ class DeepSeekClient @Inject constructor() {
     suspend fun analyze(prompt: String, config: DeepSeekConfig): Result<String> = withContext(Dispatchers.IO) {
         runCatching {
             require(config.isConfigured) { "DeepSeek 配置不完整" }
-            val connection = (URL(config.baseUrl).openConnection() as HttpURLConnection).apply {
+            val url = URL(config.baseUrl)
+            require(url.protocol.equals("https", ignoreCase = true)) { "DeepSeek Base URL 必须使用 HTTPS" }
+            val connection = (url.openConnection() as HttpURLConnection).apply {
                 requestMethod = "POST"
                 connectTimeout = CONNECT_TIMEOUT_MS
                 readTimeout = READ_TIMEOUT_MS

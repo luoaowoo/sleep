@@ -94,11 +94,14 @@ class SleepRecordingService : Service() {
             }
             ACTION_REFRESH_NOTIFICATION -> {
                 if (isSessionActive) updateNotification()
+                START_NOT_STICKY
+            }
+            ACTION_START -> {
+                startSessionIfNeeded()
                 START_STICKY
             }
             else -> {
-                startSessionIfNeeded()
-                START_STICKY
+                if (isSessionActive) START_STICKY else START_NOT_STICKY
             }
         }
     }
@@ -144,7 +147,12 @@ class SleepRecordingService : Service() {
         _recordingState.value = RecordingRuntimeState(isActive = true, startTime = sessionStartTime)
         synchronized(pendingEvents) { pendingEvents.clear() }
         synchronized(encodingJobs) { encodingJobs.clear() }
-        startForegroundNotification(0)
+        if (!startForegroundNotification(0)) {
+            isSessionActive = false
+            _recordingState.value = RecordingRuntimeState()
+            stopSelf()
+            return
+        }
         acquireWakeLock()
 
         startJob = serviceScope.launch {
@@ -274,13 +282,19 @@ class SleepRecordingService : Service() {
         getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
     }
 
-    private fun startForegroundNotification(eventCount: Int) {
+    private fun startForegroundNotification(eventCount: Int): Boolean {
         val notification = buildRecordingNotification(eventCount)
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
-        } else {
-            startForeground(NOTIFICATION_ID, notification)
+        return runCatching {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
+            } else {
+                startForeground(NOTIFICATION_ID, notification)
+            }
+            true
+        }.getOrElse { error ->
+            Log.e(TAG, "failed to start foreground recording service", error)
+            false
         }
     }
 

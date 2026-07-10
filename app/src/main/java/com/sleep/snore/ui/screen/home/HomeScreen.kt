@@ -1,6 +1,8 @@
 package com.sleep.snore.ui.screen.home
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -82,7 +84,8 @@ fun HomeScreen(
                 .padding(padding)
                 .consumeWindowInsets(padding)
                 .padding(horizontal = uiPreferences.pageHorizontalPadding)
-                .padding(top = Spacing.md),
+                .padding(top = Spacing.md)
+                .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(uiPreferences.sectionSpacing)
         ) {
             latestRecord?.let { record ->
@@ -109,7 +112,7 @@ fun HomeScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.height(96.dp))
         }
     }
 }

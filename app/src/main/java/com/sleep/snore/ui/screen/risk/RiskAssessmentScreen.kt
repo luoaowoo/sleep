@@ -10,6 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
+import com.sleep.snore.navigation.Route
 import com.sleep.snore.ui.theme.PillShape
 import com.sleep.snore.ui.theme.Spacing
 import com.sleep.snore.ui.theme.snoreScoreColor
@@ -138,6 +139,7 @@ private fun RiskResultContent(score: Int, padding: PaddingValues, navController:
             .fillMaxSize()
             .padding(padding)
             .consumeWindowInsets(padding)
+            .verticalScroll(rememberScrollState())
             .padding(Spacing.lg),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
@@ -167,8 +169,10 @@ private fun RiskResultContent(score: Int, padding: PaddingValues, navController:
 
         OutlinedButton(
             onClick = {
-                // 回到首页
-                navController.popBackStack()
+                navController.navigate(Route.Home.route) {
+                    popUpTo(Route.Home.route) { inclusive = false }
+                    launchSingleTop = true
+                }
             },
             shape = PillShape
         ) {

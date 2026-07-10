@@ -58,6 +58,7 @@ class HomeViewModel @Inject constructor(
     }
 
     fun generateDeepSeekWeeklyReport() {
+        if (_weeklyReportState.value.isGenerating) return
         viewModelScope.launch {
             val settings = settingsRepository.settings.first()
             val config = DeepSeekConfig(
