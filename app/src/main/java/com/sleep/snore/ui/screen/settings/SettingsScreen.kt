@@ -97,6 +97,7 @@ fun SettingsScreen(
     val fontScale by viewModel.fontScale.collectAsStateWithLifecycle()
     val cardCornerStyle by viewModel.cardCornerStyle.collectAsStateWithLifecycle()
     val standbyState by WearableSleepStandbyService.standbyState.collectAsStateWithLifecycle()
+    val installedXiaomiCompanion = remember(context) { findInstalledXiaomiCompanion(context) }
     val uiPreferences = LocalUiPreferences.current
     val powerManager = remember(context) { context.getSystemService(PowerManager::class.java) }
     val healthConnectPermissionLauncher = rememberLauncherForActivityResult(
@@ -348,6 +349,20 @@ fun SettingsScreen(
                         "小米接入步骤：在 Mi Fitness/小米运动健康中开启 Health Connect 同步，并勾选睡眠；再回到本页授权本应用读取睡眠。",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(Spacing.sm))
+                    ListItem(
+                        headlineContent = {
+                            Text(installedXiaomiCompanion?.let { "已检测到 ${it.label}" } ?: "未检测到 Mi Fitness")
+                        },
+                        supportingContent = {
+                            Text("打开小米伴侣 App 后，在个人资料/设置中开启 Health Connect，同步睡眠数据。旧设备可能使用 Zepp Life。")
+                        },
+                        modifier = Modifier
+                            .heightIn(min = Spacing.touchTargetMin)
+                            .clickable(role = Role.Button) {
+                                openXiaomiCompanionOrStore(context, installedXiaomiCompanion)
+                            }
                     )
                     Spacer(Modifier.height(Spacing.sm))
                     Text(
@@ -822,4 +837,44 @@ private fun pointerHue(position: Offset, width: Int, height: Int): Float {
         ).toDouble()
     ).toFloat()
     return (degrees + 360f) % 360f
+}
+
+private data class XiaomiCompanionApp(
+    val label: String,
+    val packageName: String
+)
+
+private val XiaomiCompanionApps = listOf(
+    XiaomiCompanionApp("Mi Fitness", "com.xiaomi.wearable"),
+    XiaomiCompanionApp("Zepp Life", "com.xiaomi.hm.health")
+)
+
+private fun findInstalledXiaomiCompanion(context: android.content.Context): XiaomiCompanionApp? {
+    return XiaomiCompanionApps.firstOrNull { app ->
+        context.packageManager.getLaunchIntentForPackage(app.packageName) != null
+    }
+}
+
+private fun openXiaomiCompanionOrStore(
+    context: android.content.Context,
+    app: XiaomiCompanionApp?
+) {
+    val packageName = app?.packageName ?: XiaomiCompanionApps.first().packageName
+    val launchIntent = context.packageManager.getLaunchIntentForPackage(packageName)
+    if (launchIntent != null) {
+        context.startActivity(launchIntent)
+        return
+    }
+
+    val marketIntent = Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=$packageName"))
+    runCatching {
+        context.startActivity(marketIntent)
+    }.onFailure {
+        context.startActivity(
+            Intent(
+                Intent.ACTION_VIEW,
+                Uri.parse("https://play.google.com/store/apps/details?id=$packageName")
+            )
+        )
+    }
 }

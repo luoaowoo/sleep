@@ -76,8 +76,14 @@ class AndroidRecordingController @Inject constructor(
         if (settingsRepository.getActiveRecordingTriggerSource() != source) return false
         return runCatching {
             context.startService(SleepRecordingService.stopIntent(context))
+            ActiveRecordingFinalizerWorker.enqueueFallback(context, source)
             true
-        }.getOrDefault(false)
+        }.getOrElse {
+            runCatching {
+                ActiveRecordingFinalizerWorker.enqueueFallback(context, source)
+                true
+            }.getOrDefault(false)
+        }
     }
 
     override fun isRecordingActive(): Boolean {
