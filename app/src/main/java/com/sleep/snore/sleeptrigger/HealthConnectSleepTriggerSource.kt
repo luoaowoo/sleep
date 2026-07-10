@@ -30,16 +30,24 @@ class HealthConnectSleepTriggerSource @Inject constructor(
         }
         val client = HealthConnectClient.getOrCreate(context)
         val grantedPermissions = client.permissionController.getGrantedPermissions()
-        if (READ_SLEEP_PERMISSION !in grantedPermissions) {
+        if (!grantedPermissions.containsAll(REQUIRED_PERMISSIONS)) {
             return PollResult.PermissionMissing
         }
 
-        val latestSession = client.readRecords(
-            ReadRecordsRequest(
-                recordType = SleepSessionRecord::class,
-                timeRangeFilter = TimeRangeFilter.between(now.minus(36, ChronoUnit.HOURS), now)
-            )
-        ).records.maxByOrNull { it.startTime } ?: return PollResult.NoRecentSleep
+        val latestSession = runCatching {
+            client.readRecords(
+                ReadRecordsRequest(
+                    recordType = SleepSessionRecord::class,
+                    timeRangeFilter = TimeRangeFilter.between(now.minus(36, ChronoUnit.HOURS), now)
+                )
+            ).records.maxByOrNull { it.startTime }
+        }.getOrElse { throwable ->
+            return if (throwable is SecurityException) {
+                PollResult.PermissionMissing
+            } else {
+                PollResult.ReadFailed
+            }
+        } ?: return PollResult.NoRecentSleep
 
         val event = if (latestSession.endTime.isAfter(now)) {
             SleepTriggerEvent.SleepStarted(
@@ -65,6 +73,7 @@ class HealthConnectSleepTriggerSource @Inject constructor(
         data object PermissionMissing : PollResult
         data object NoRecentSleep : PollResult
         data object DuplicateEvent : PollResult
+        data object ReadFailed : PollResult
         data class EventEmitted(val event: SleepTriggerEvent) : PollResult
     }
 
@@ -72,5 +81,7 @@ class HealthConnectSleepTriggerSource @Inject constructor(
         const val SOURCE = "health_connect_sleep"
         const val HEALTH_CONNECT_CONFIDENCE = 0.8f
         val READ_SLEEP_PERMISSION: String = HealthPermission.getReadPermission(SleepSessionRecord::class)
+        val BACKGROUND_READ_PERMISSION: String = HealthPermission.PERMISSION_READ_HEALTH_DATA_IN_BACKGROUND
+        val REQUIRED_PERMISSIONS: Set<String> = setOf(READ_SLEEP_PERMISSION, BACKGROUND_READ_PERMISSION)
     }
 }
