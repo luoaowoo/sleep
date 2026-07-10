@@ -2,12 +2,13 @@ package com.sleep.snore.sleeptrigger
 
 import com.google.common.truth.Truth.assertThat
 import com.sleep.snore.recording.RecordingController
+import kotlinx.coroutines.test.runTest
 import org.junit.Test
 
 class AutoSnoreDetectionCoordinatorTest {
 
     @Test
-    fun handleEvent_startsRecordingForHighConfidenceSleep() {
+    fun handleEvent_startsRecordingForHighConfidenceSleep() = runTest {
         val controller = FakeRecordingController()
         val coordinator = AutoSnoreDetectionCoordinator(controller)
 
@@ -22,7 +23,7 @@ class AutoSnoreDetectionCoordinatorTest {
     }
 
     @Test
-    fun handleEvent_ignoresLowConfidenceSleep() {
+    fun handleEvent_ignoresLowConfidenceSleep() = runTest {
         val controller = FakeRecordingController()
         val coordinator = AutoSnoreDetectionCoordinator(controller)
 
@@ -37,7 +38,7 @@ class AutoSnoreDetectionCoordinatorTest {
     }
 
     @Test
-    fun handleEvent_stopsRecordingWhenSleepEnds() {
+    fun handleEvent_stopsRecordingWhenSleepEnds() = runTest {
         val controller = FakeRecordingController(active = true, startedFromSleepTrigger = true)
         val coordinator = AutoSnoreDetectionCoordinator(controller)
 
@@ -52,7 +53,7 @@ class AutoSnoreDetectionCoordinatorTest {
     }
 
     @Test
-    fun handleEvent_doesNotStopManualRecordingWhenSleepEnds() {
+    fun handleEvent_doesNotStopManualRecordingWhenSleepEnds() = runTest {
         val controller = FakeRecordingController(active = true, startedFromSleepTrigger = false)
         val coordinator = AutoSnoreDetectionCoordinator(controller)
 
@@ -76,14 +77,14 @@ class AutoSnoreDetectionCoordinatorTest {
         var stopped = false
             private set
 
-        override fun startFromSleepTrigger(source: String): Boolean {
+        override suspend fun startFromSleepTrigger(source: String): Boolean {
             started = true
             startedFromSleepTrigger = true
             active = true
             return true
         }
 
-        override fun stopFromSleepTrigger(source: String): Boolean {
+        override suspend fun stopFromSleepTrigger(source: String): Boolean {
             if (!active || !startedFromSleepTrigger) return false
             stopped = true
             startedFromSleepTrigger = false

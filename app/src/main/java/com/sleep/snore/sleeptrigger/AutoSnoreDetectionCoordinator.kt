@@ -9,7 +9,7 @@ class AutoSnoreDetectionCoordinator @Inject constructor(
     private val recordingController: RecordingController
 ) {
 
-    fun handleEvent(event: SleepTriggerEvent, enabled: Boolean, stopOnSleepEnd: Boolean): Boolean {
+    suspend fun handleEvent(event: SleepTriggerEvent, enabled: Boolean, stopOnSleepEnd: Boolean): Boolean {
         if (!enabled) return false
         return when (event) {
             is SleepTriggerEvent.SleepStarted -> {

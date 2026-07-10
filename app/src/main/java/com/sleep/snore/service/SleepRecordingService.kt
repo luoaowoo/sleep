@@ -98,7 +98,7 @@ class SleepRecordingService : Service() {
                 START_NOT_STICKY
             }
             ACTION_START -> {
-                startSessionIfNeeded()
+                startSessionIfNeeded(triggerSource = intent.getStringExtra(EXTRA_TRIGGER_SOURCE))
                 START_STICKY
             }
             else -> {
@@ -124,17 +124,19 @@ class SleepRecordingService : Service() {
             stopSnoreDetection()
             _recordingState.value = RecordingRuntimeState()
             CoroutineScope(Dispatchers.IO).launch {
-            try {
-                finalizeCurrentSession()
-            } catch (e: Exception) {
-                Log.e(TAG, "failed to finalize session on destroy", e)
-                writeFallbackFinalRecord()
-            } finally {
+                try {
+                    finalizeCurrentSession()
+                } catch (e: Exception) {
+                    Log.e(TAG, "failed to finalize session on destroy", e)
+                    writeFallbackFinalRecord()
+                } finally {
+                    preferencesRepository.clearActiveRecordingTriggerSource()
                     releaseWakeLock()
                     serviceScope.cancel()
                 }
             }
         } else {
+            clearActiveRecordingTriggerSourceAsync()
             _recordingState.value = RecordingRuntimeState()
             releaseWakeLock()
             serviceScope.cancel()
@@ -142,7 +144,7 @@ class SleepRecordingService : Service() {
         super.onDestroy()
     }
 
-    private fun startSessionIfNeeded(recoveryOnly: Boolean = false) {
+    private fun startSessionIfNeeded(recoveryOnly: Boolean = false, triggerSource: String? = null) {
         if (isSessionActive) return
         ensureServiceScope()
         isFinishingSession = false
@@ -155,6 +157,7 @@ class SleepRecordingService : Service() {
         if (!startForegroundNotification(0)) {
             isSessionActive = false
             _recordingState.value = RecordingRuntimeState()
+            clearActiveRecordingTriggerSourceAsync()
             stopSelf()
             return
         }
@@ -189,12 +192,17 @@ class SleepRecordingService : Service() {
                 )
                 if (!detectorStarted) {
                     abortSessionStart(recordId = recordId, deleteRecord = createdNewRecord)
+                } else if (!triggerSource.isNullOrBlank()) {
+                    preferencesRepository.setActiveRecordingTriggerSource(triggerSource, sessionStartTime)
+                } else if (!recoveryOnly) {
+                    preferencesRepository.clearActiveRecordingTriggerSource()
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "failed to start recording session", e)
                 isSessionActive = false
                 _recordingState.value = RecordingRuntimeState()
                 currentRecordId = null
+                preferencesRepository.clearActiveRecordingTriggerSource()
                 releaseWakeLock()
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
@@ -204,6 +212,7 @@ class SleepRecordingService : Service() {
 
     private fun finishSessionAndStop() {
         if (!isSessionActive) {
+            clearActiveRecordingTriggerSourceAsync()
             stopSelf()
             return
         }
@@ -219,6 +228,7 @@ class SleepRecordingService : Service() {
                 writeFallbackFinalRecord()
             } finally {
                 releaseWakeLock()
+                preferencesRepository.clearActiveRecordingTriggerSource()
                 _recordingState.value = RecordingRuntimeState()
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
@@ -423,6 +433,7 @@ class SleepRecordingService : Service() {
             }.onFailure { Log.w(TAG, "failed to finalize recovered record after recorder start failure", it) }
         }
         releaseWakeLock()
+        preferencesRepository.clearActiveRecordingTriggerSource()
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
     }
@@ -549,9 +560,16 @@ class SleepRecordingService : Service() {
         isSessionActive = false
         _recordingState.value = RecordingRuntimeState()
         currentRecordId = null
+        clearActiveRecordingTriggerSourceAsync()
         releaseWakeLock()
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
+    }
+
+    private fun clearActiveRecordingTriggerSourceAsync() {
+        CoroutineScope(Dispatchers.IO).launch {
+            preferencesRepository.clearActiveRecordingTriggerSource()
+        }
     }
 
     private fun createEmptyRecord(startTime: Long): SleepRecordEntity {
@@ -729,10 +747,16 @@ class SleepRecordingService : Service() {
         private const val DETECTOR_RESTART_DELAY_MS = 1_000L
         private const val MAX_PENDING_ENCODING_JOBS = 32
 
-        fun startIntent(context: Context): Intent = Intent(context, SleepRecordingService::class.java).setAction(ACTION_START)
+        fun startIntent(context: Context, triggerSource: String? = null): Intent =
+            Intent(context, SleepRecordingService::class.java)
+                .setAction(ACTION_START)
+                .apply {
+                    if (!triggerSource.isNullOrBlank()) putExtra(EXTRA_TRIGGER_SOURCE, triggerSource)
+                }
         fun stopIntent(context: Context): Intent = Intent(context, SleepRecordingService::class.java).setAction(ACTION_STOP)
         fun refreshNotificationIntent(context: Context): Intent =
             Intent(context, SleepRecordingService::class.java).setAction(ACTION_REFRESH_NOTIFICATION)
+        private const val EXTRA_TRIGGER_SOURCE = "trigger_source"
     }
 }
 

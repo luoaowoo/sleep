@@ -55,7 +55,9 @@ class HealthConnectSleepTriggerWorker @AssistedInject constructor(
             enabled = true,
             stopOnSleepEnd = stopOnSleepEnd
         )
-        if (handled || pollResult.event is SleepTriggerEvent.SleepEnded) {
+        val recordingStartedBySource = pollResult.event is SleepTriggerEvent.SleepStarted &&
+            settingsRepository.getActiveRecordingTriggerSource() == pollResult.event.source
+        if (recordingStartedBySource || pollResult.event is SleepTriggerEvent.SleepEnded) {
             settingsRepository.setLastWearableSleepEventKey(pollResult.eventKey)
         }
         return when (pollResult.event) {

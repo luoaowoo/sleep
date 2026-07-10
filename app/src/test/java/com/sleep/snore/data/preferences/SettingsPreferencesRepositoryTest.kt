@@ -88,6 +88,25 @@ class SettingsPreferencesRepositoryTest {
         assertThat(repository.getLastWearableSleepEventKey()).isEqualTo("SleepEnded:2:1")
     }
 
+    @Test
+    fun activeRecordingTriggerSource_persistsAndClears() = runTest {
+        val repository = createFixture().repository
+
+        repository.setActiveRecordingTriggerSource("health_connect_sleep", startedAtMillis = 4567L)
+
+        val activeSettings = repository.settings.first()
+        assertThat(repository.getActiveRecordingTriggerSource()).isEqualTo("health_connect_sleep")
+        assertThat(activeSettings.activeRecordingTriggerSource).isEqualTo("health_connect_sleep")
+        assertThat(activeSettings.activeRecordingTriggerStartedAtMillis).isEqualTo(4567L)
+
+        repository.clearActiveRecordingTriggerSource()
+
+        val clearedSettings = repository.settings.first()
+        assertThat(repository.getActiveRecordingTriggerSource()).isNull()
+        assertThat(clearedSettings.activeRecordingTriggerSource).isEmpty()
+        assertThat(clearedSettings.activeRecordingTriggerStartedAtMillis).isEqualTo(0L)
+    }
+
     private fun createFixture(): RepositoryFixture {
         val dataStoreFile = File.createTempFile("sleep-settings", ".preferences_pb").apply {
             delete()

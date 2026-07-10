@@ -38,7 +38,9 @@ data class SettingsPreferences(
     val wearableSleepTriggerEnabled: Boolean = SettingsPreferencesRepository.DEFAULT_WEARABLE_SLEEP_TRIGGER_ENABLED,
     val wearableStopOnSleepEndEnabled: Boolean = SettingsPreferencesRepository.DEFAULT_WEARABLE_STOP_ON_SLEEP_END_ENABLED,
     val wearableSleepTriggerStatus: String = SettingsPreferencesRepository.DEFAULT_WEARABLE_SLEEP_TRIGGER_STATUS,
-    val wearableSleepTriggerLastCheckMillis: Long = 0L
+    val wearableSleepTriggerLastCheckMillis: Long = 0L,
+    val activeRecordingTriggerSource: String = "",
+    val activeRecordingTriggerStartedAtMillis: Long = 0L
 )
 
 @Singleton
@@ -93,6 +95,9 @@ class SettingsPreferencesRepository @Inject constructor(
                 wearableSleepTriggerStatus = preferences[Keys.WEARABLE_SLEEP_TRIGGER_STATUS]
                     ?: DEFAULT_WEARABLE_SLEEP_TRIGGER_STATUS,
                 wearableSleepTriggerLastCheckMillis = preferences[Keys.WEARABLE_SLEEP_TRIGGER_LAST_CHECK_MILLIS]
+                    ?: 0L,
+                activeRecordingTriggerSource = preferences[Keys.ACTIVE_RECORDING_TRIGGER_SOURCE].orEmpty(),
+                activeRecordingTriggerStartedAtMillis = preferences[Keys.ACTIVE_RECORDING_TRIGGER_STARTED_AT_MILLIS]
                     ?: 0L
             )
         }
@@ -258,6 +263,26 @@ class SettingsPreferencesRepository @Inject constructor(
         }
     }
 
+    suspend fun getActiveRecordingTriggerSource(): String? {
+        return safePreferences.map { preferences ->
+            preferences[Keys.ACTIVE_RECORDING_TRIGGER_SOURCE]?.takeIf { it.isNotBlank() }
+        }.firstOrNull()
+    }
+
+    suspend fun setActiveRecordingTriggerSource(source: String, startedAtMillis: Long = System.currentTimeMillis()) {
+        dataStore.edit { preferences ->
+            preferences[Keys.ACTIVE_RECORDING_TRIGGER_SOURCE] = source
+            preferences[Keys.ACTIVE_RECORDING_TRIGGER_STARTED_AT_MILLIS] = startedAtMillis
+        }
+    }
+
+    suspend fun clearActiveRecordingTriggerSource() {
+        dataStore.edit { preferences ->
+            preferences.remove(Keys.ACTIVE_RECORDING_TRIGGER_SOURCE)
+            preferences.remove(Keys.ACTIVE_RECORDING_TRIGGER_STARTED_AT_MILLIS)
+        }
+    }
+
     suspend fun setFontScale(value: FontScale) {
         dataStore.edit { preferences ->
             preferences[Keys.FONT_SCALE] = value.name
@@ -314,6 +339,8 @@ class SettingsPreferencesRepository @Inject constructor(
         val WEARABLE_LAST_SLEEP_EVENT_KEY = stringPreferencesKey("wearable_last_sleep_event_key")
         val WEARABLE_SLEEP_TRIGGER_STATUS = stringPreferencesKey("wearable_sleep_trigger_status")
         val WEARABLE_SLEEP_TRIGGER_LAST_CHECK_MILLIS = longPreferencesKey("wearable_sleep_trigger_last_check_millis")
+        val ACTIVE_RECORDING_TRIGGER_SOURCE = stringPreferencesKey("active_recording_trigger_source")
+        val ACTIVE_RECORDING_TRIGGER_STARTED_AT_MILLIS = longPreferencesKey("active_recording_trigger_started_at_millis")
         val FONT_SCALE = stringPreferencesKey("font_scale")
         val CARD_CORNER_STYLE = stringPreferencesKey("card_corner_style")
         val SENSITIVITY = stringPreferencesKey("sensitivity")
