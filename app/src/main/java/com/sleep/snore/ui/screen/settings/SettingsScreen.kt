@@ -100,7 +100,7 @@ fun SettingsScreen(
     val healthConnectPermissionLauncher = rememberLauncherForActivityResult(
         PermissionController.createRequestPermissionResultContract()
     ) { grantedPermissions ->
-        if (grantedPermissions.containsAll(HealthConnectSleepTriggerSource.REQUIRED_PERMISSIONS)) {
+        if (grantedPermissions.containsAll(HealthConnectSleepTriggerSource.FOREGROUND_REQUIRED_PERMISSIONS)) {
             HealthConnectSleepTriggerWorker.enqueueNow(context)
         }
     }
@@ -350,7 +350,7 @@ fun SettingsScreen(
                     Button(
                         onClick = {
                             healthConnectPermissionLauncher.launch(
-                                HealthConnectSleepTriggerSource.REQUIRED_PERMISSIONS
+                                HealthConnectSleepTriggerSource.BACKGROUND_REQUIRED_PERMISSIONS
                             )
                         }
                     ) {

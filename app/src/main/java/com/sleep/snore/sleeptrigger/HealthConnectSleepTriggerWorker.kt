@@ -8,6 +8,7 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
+import androidx.work.workDataOf
 import androidx.work.WorkerParameters
 import com.sleep.snore.data.preferences.SettingsPreferencesRepository
 import dagger.assisted.Assisted
@@ -29,7 +30,9 @@ class HealthConnectSleepTriggerWorker @AssistedInject constructor(
         if (!settings.wearableSleepTriggerEnabled) return Result.success()
 
         val pollResult = runCatching {
-            healthConnectSleepTriggerSource.pollLatestSleepSession()
+            healthConnectSleepTriggerSource.pollLatestSleepSession(
+                requireBackgroundRead = inputData.getBoolean(KEY_REQUIRE_BACKGROUND_READ, true)
+            )
         }.getOrElse { throwable ->
             settingsRepository.setWearableSleepTriggerStatus(
                 "Health Connect 读取失败：${throwable.message.orEmpty()}".trimEnd('：')
@@ -89,12 +92,16 @@ class HealthConnectSleepTriggerWorker @AssistedInject constructor(
         }
 
         fun enqueueNow(context: Context) {
-            val request = OneTimeWorkRequestBuilder<HealthConnectSleepTriggerWorker>().build()
+            val request = OneTimeWorkRequestBuilder<HealthConnectSleepTriggerWorker>()
+                .setInputData(workDataOf(KEY_REQUIRE_BACKGROUND_READ to false))
+                .build()
             WorkManager.getInstance(context).enqueueUniqueWork(
                 ONE_TIME_WORK_NAME,
                 ExistingWorkPolicy.REPLACE,
                 request
             )
         }
+
+        private const val KEY_REQUIRE_BACKGROUND_READ = "require_background_read"
     }
 }

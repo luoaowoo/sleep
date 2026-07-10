@@ -25,13 +25,21 @@ class HealthConnectSleepTriggerSource @Inject constructor(
     private val mutableEvents = MutableSharedFlow<SleepTriggerEvent>(extraBufferCapacity = 8)
     override val events: Flow<SleepTriggerEvent> = mutableEvents.asSharedFlow()
 
-    suspend fun pollLatestSleepSession(now: Instant = Instant.now()): PollResult {
+    suspend fun pollLatestSleepSession(
+        now: Instant = Instant.now(),
+        requireBackgroundRead: Boolean = true
+    ): PollResult {
         if (HealthConnectClient.getSdkStatus(context) != HealthConnectClient.SDK_AVAILABLE) {
             return PollResult.HealthConnectUnavailable
         }
         val client = HealthConnectClient.getOrCreate(context)
         val grantedPermissions = client.permissionController.getGrantedPermissions()
-        if (!grantedPermissions.containsAll(REQUIRED_PERMISSIONS)) {
+        val requiredPermissions = if (requireBackgroundRead) {
+            BACKGROUND_REQUIRED_PERMISSIONS
+        } else {
+            FOREGROUND_REQUIRED_PERMISSIONS
+        }
+        if (!grantedPermissions.containsAll(requiredPermissions)) {
             return PollResult.PermissionMissing
         }
 
@@ -84,6 +92,8 @@ class HealthConnectSleepTriggerSource @Inject constructor(
         const val HEALTH_CONNECT_CONFIDENCE = 0.8f
         val READ_SLEEP_PERMISSION: String = HealthPermission.getReadPermission(SleepSessionRecord::class)
         val BACKGROUND_READ_PERMISSION: String = HealthPermission.PERMISSION_READ_HEALTH_DATA_IN_BACKGROUND
-        val REQUIRED_PERMISSIONS: Set<String> = setOf(READ_SLEEP_PERMISSION, BACKGROUND_READ_PERMISSION)
+        val FOREGROUND_REQUIRED_PERMISSIONS: Set<String> = setOf(READ_SLEEP_PERMISSION)
+        val BACKGROUND_REQUIRED_PERMISSIONS: Set<String> = setOf(READ_SLEEP_PERMISSION, BACKGROUND_READ_PERMISSION)
+        val REQUIRED_PERMISSIONS: Set<String> = BACKGROUND_REQUIRED_PERMISSIONS
     }
 }
