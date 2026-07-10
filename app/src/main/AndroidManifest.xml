@@ -12,6 +12,7 @@
     <!-- 前台服务 -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
 
     <!-- WakeLock -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
@@ -59,6 +60,11 @@
         <service
             android:name=".service.SleepRecordingService"
             android:foregroundServiceType="microphone"
+            android:exported="false" />
+
+        <service
+            android:name=".sleeptrigger.WearableSleepStandbyService"
+            android:foregroundServiceType="dataSync"
             android:exported="false" />
 
         <receiver

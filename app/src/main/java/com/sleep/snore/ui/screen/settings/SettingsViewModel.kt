@@ -3,6 +3,7 @@ package com.sleep.snore.ui.screen.settings
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.core.content.ContextCompat
 import com.sleep.snore.data.model.AccentColor
 import com.sleep.snore.data.model.CardCornerStyle
 import com.sleep.snore.data.model.FontScale
@@ -11,6 +12,7 @@ import com.sleep.snore.data.preferences.SettingsPreferencesRepository
 import com.sleep.snore.data.preferences.defaultArgb
 import com.sleep.snore.sleeptrigger.HealthConnectSleepTriggerSource
 import com.sleep.snore.sleeptrigger.HealthConnectSleepTriggerWorker
+import com.sleep.snore.sleeptrigger.WearableSleepStandbyService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
@@ -280,6 +282,29 @@ class SettingsViewModel @Inject constructor(
         _uiState.update { it.copy(wearableStopOnSleepEndEnabled = enabled) }
         viewModelScope.launch {
             preferencesRepository.setWearableStopOnSleepEndEnabled(enabled)
+        }
+    }
+
+    fun startWearableSleepStandby() {
+        _uiState.update {
+            it.copy(
+                wearableSleepTriggerEnabled = true,
+                wearableSleepTriggerStatus = "睡前待命已开启，正在等待手环/Health Connect 睡眠记录"
+            )
+        }
+        viewModelScope.launch {
+            preferencesRepository.setWearableSleepTriggerEnabled(true)
+            preferencesRepository.setWearableSleepTriggerStatus("睡前待命已开启，正在等待手环/Health Connect 睡眠记录")
+            runCatching {
+                ContextCompat.startForegroundService(
+                    context,
+                    WearableSleepStandbyService.startIntent(context)
+                )
+            }.onFailure {
+                val status = "睡前待命启动失败，请检查通知/后台运行权限"
+                _uiState.update { state -> state.copy(wearableSleepTriggerStatus = status) }
+                preferencesRepository.setWearableSleepTriggerStatus(status)
+            }
         }
     }
 

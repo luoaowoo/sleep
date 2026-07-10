@@ -41,43 +41,15 @@ class HealthConnectSleepTriggerWorker @AssistedInject constructor(
         }
 
         val requireBackgroundRead = inputData.getBoolean(KEY_REQUIRE_BACKGROUND_READ, true)
-        val status = if (pollResult is HealthConnectSleepTriggerSource.PollResult.EventEmitted) {
-            handleEmittedEvent(pollResult, settings.wearableStopOnSleepEndEnabled)
-        } else {
-            pollResult.toStatusText(requireBackgroundRead)
-        }
-        settingsRepository.setWearableSleepTriggerStatus(status)
-        return Result.success()
-    }
-
-    private suspend fun handleEmittedEvent(
-        pollResult: HealthConnectSleepTriggerSource.PollResult.EventEmitted,
-        stopOnSleepEnd: Boolean
-    ): String {
-        val result = coordinator.handleEvent(
-            event = pollResult.event,
-            enabled = true,
-            stopOnSleepEnd = stopOnSleepEnd
+        val handleResult = handleWearableSleepPollResult(
+            pollResult = pollResult,
+            stopOnSleepEnd = settings.wearableStopOnSleepEndEnabled,
+            coordinator = coordinator,
+            settingsRepository = settingsRepository,
+            requireBackgroundRead = requireBackgroundRead
         )
-        if (result.shouldRememberEvent) {
-            settingsRepository.setLastWearableSleepEventKey(pollResult.eventKey)
-        }
-        return result.statusText ?: pollResult.toStatusText(requireBackgroundRead = true)
-    }
-
-    private fun HealthConnectSleepTriggerSource.PollResult.toStatusText(requireBackgroundRead: Boolean): String {
-        return when (this) {
-            HealthConnectSleepTriggerSource.PollResult.HealthConnectUnavailable -> "Health Connect 不可用"
-            HealthConnectSleepTriggerSource.PollResult.PermissionMissing -> if (requireBackgroundRead) {
-                "缺少 Health Connect 睡眠/后台读取权限"
-            } else {
-                "缺少 Health Connect 睡眠读取权限"
-            }
-            HealthConnectSleepTriggerSource.PollResult.NoRecentSleep -> "未发现最近睡眠记录"
-            HealthConnectSleepTriggerSource.PollResult.DuplicateEvent -> "最近睡眠记录已处理，等待新记录"
-            HealthConnectSleepTriggerSource.PollResult.ReadFailed -> "Health Connect 读取失败"
-            is HealthConnectSleepTriggerSource.PollResult.EventEmitted -> "已处理睡眠事件"
-        }
+        settingsRepository.setWearableSleepTriggerStatus(handleResult.statusText)
+        return Result.success()
     }
 
     companion object {

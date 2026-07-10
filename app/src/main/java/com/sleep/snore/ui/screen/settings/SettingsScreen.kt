@@ -361,10 +361,14 @@ fun SettingsScreen(
                         Text("立即检查睡眠记录")
                     }
                     Spacer(Modifier.height(Spacing.sm))
-                    Button(
+                    Button(onClick = viewModel::startWearableSleepStandby) {
+                        Text("睡前开启手环待命")
+                    }
+                    Spacer(Modifier.height(Spacing.sm))
+                    TextButton(
                         onClick = { navController.navigate(Route.Recording.route) }
                     ) {
-                        Text("睡前开启前台检测")
+                        Text("改为手动前台检测")
                     }
                 }
             }
