@@ -52,6 +52,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -70,8 +71,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavHostController
 import com.sleep.snore.data.model.AccentColor
 import com.sleep.snore.data.model.CardCornerStyle
@@ -104,12 +108,15 @@ fun SettingsScreen(
     val installedXiaomiCompanion = remember(context) { findInstalledXiaomiCompanion(context) }
     val uiPreferences = LocalUiPreferences.current
     val powerManager = remember(context) { context.getSystemService(PowerManager::class.java) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var permissionRefreshTick by remember { mutableStateOf(0) }
+    var healthConnectPermissionRefreshTick by remember { mutableStateOf(0) }
     val healthConnectPermissionLauncher = rememberLauncherForActivityResult(
         PermissionController.createRequestPermissionResultContract()
     ) { grantedPermissions ->
+        healthConnectPermissionRefreshTick++
         viewModel.onHealthConnectPermissionsResult(grantedPermissions)
     }
-    var permissionRefreshTick by remember { mutableStateOf(0) }
     val audioPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) {
@@ -137,7 +144,7 @@ fun SettingsScreen(
             ) == PackageManager.PERMISSION_GRANTED
     }
     var hasHealthConnectPermission by remember(context) { mutableStateOf(false) }
-    LaunchedEffect(context, permissionRefreshTick) {
+    LaunchedEffect(context, healthConnectPermissionRefreshTick) {
         hasHealthConnectPermission = runCatching {
             HealthConnectClient.getSdkStatus(context) == HealthConnectClient.SDK_AVAILABLE &&
                 HealthConnectClient.getOrCreate(context)
@@ -145,6 +152,17 @@ fun SettingsScreen(
                     .getGrantedPermissions()
                     .containsAll(HealthConnectSleepTriggerSource.BACKGROUND_REQUIRED_PERMISSIONS)
         }.getOrDefault(false)
+    }
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                healthConnectPermissionRefreshTick++
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
     }
 
     Scaffold(

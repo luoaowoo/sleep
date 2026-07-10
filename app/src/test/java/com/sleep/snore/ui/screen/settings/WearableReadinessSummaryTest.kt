@@ -33,7 +33,7 @@ class WearableReadinessSummaryTest {
 
         assertThat(summary).contains("麦克风权限")
         assertThat(summary).contains("通知权限")
-        assertThat(summary).contains("Health Connect 授权")
+        assertThat(summary).contains("Health Connect 睡眠/后台读取授权")
         assertThat(summary).contains("电池优化放行")
         assertThat(summary).contains("小米伴侣 App")
         assertThat(summary).contains("Health Connect 周期检查")

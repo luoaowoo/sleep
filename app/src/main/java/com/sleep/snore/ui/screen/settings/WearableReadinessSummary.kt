@@ -11,7 +11,7 @@ internal fun wearableReadinessSummary(
     val missingItems = buildList {
         if (!hasRecordAudioPermission) add("麦克风权限")
         if (!hasNotificationPermission) add("通知权限")
-        if (!hasHealthConnectPermission) add("Health Connect 授权")
+        if (!hasHealthConnectPermission) add("Health Connect 睡眠/后台读取授权")
         if (!isIgnoringBatteryOptimizations) add("电池优化放行")
         if (!hasXiaomiCompanion) add("小米伴侣 App")
         if (!periodicCheckEnabled) add("Health Connect 周期检查")
