@@ -131,7 +131,6 @@ fun SettingsScreen(
                     CustomAccentColorSelector(
                         selectedArgb = customAccentColorArgb,
                         dynamicColorEnabled = uiState.dynamicColorEnabled,
-                        onUseCustom = { viewModel.setCustomAccentColorArgb(customAccentColorArgb) },
                         onColorChange = viewModel::setCustomAccentColorArgb
                     )
                     Spacer(Modifier.height(Spacing.sm))
@@ -423,7 +422,6 @@ private fun AccentPresetSelector(
 private fun CustomAccentColorSelector(
     selectedArgb: Int,
     dynamicColorEnabled: Boolean,
-    onUseCustom: () -> Unit,
     onColorChange: (Int) -> Unit
 ) {
     var showDialog by remember { mutableStateOf(false) }
@@ -439,7 +437,6 @@ private fun CustomAccentColorSelector(
             .fillMaxWidth()
             .heightIn(min = 72.dp)
             .clickable(role = Role.Button) {
-                onUseCustom()
                 tempArgb = selectedArgb
                 showDialog = true
             },
@@ -503,7 +500,6 @@ private fun CustomAccentColorSelector(
                 Button(
                     onClick = {
                         onColorChange(tempArgb)
-                        onUseCustom()
                         showDialog = false
                     }
                 ) {

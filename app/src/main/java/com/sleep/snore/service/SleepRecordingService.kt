@@ -102,7 +102,10 @@ class SleepRecordingService : Service() {
                 START_STICKY
             }
             else -> {
-                if (isSessionActive) START_STICKY else START_NOT_STICKY
+                if (!isSessionActive) {
+                    startSessionIfNeeded(recoveryOnly = true)
+                }
+                START_STICKY
             }
         }
     }
@@ -138,7 +141,7 @@ class SleepRecordingService : Service() {
         super.onDestroy()
     }
 
-    private fun startSessionIfNeeded() {
+    private fun startSessionIfNeeded(recoveryOnly: Boolean = false) {
         if (isSessionActive) return
         ensureServiceScope()
         isFinishingSession = false
@@ -165,6 +168,10 @@ class SleepRecordingService : Service() {
                         .onFailure { Log.w(TAG, "auto clean failed before recording start", it) }
                 }
                 val activeRecord = recoverActiveRecordingIfAvailable()
+                if (recoveryOnly && activeRecord == null) {
+                    stopRecoveryWithoutActiveRecord()
+                    return@launch
+                }
                 val createdNewRecord = activeRecord == null
                 val recordId = if (activeRecord == null) {
                     repository.insertRecord(createEmptyRecord(sessionStartTime))
@@ -491,6 +498,16 @@ class SleepRecordingService : Service() {
         }
     }
 
+    private fun stopRecoveryWithoutActiveRecord() {
+        Log.i(TAG, "sticky service restart ignored because no active recording exists")
+        isSessionActive = false
+        _recordingState.value = RecordingRuntimeState()
+        currentRecordId = null
+        releaseWakeLock()
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        stopSelf()
+    }
+
     private fun createEmptyRecord(startTime: Long): SleepRecordEntity {
         return SleepRecordEntity(
             startTime = startTime,
@@ -522,9 +539,10 @@ class SleepRecordingService : Service() {
         events: List<SnoreEventEntity>
     ): SleepRecordEntity {
         val durationMs = max(1L, endTime - startTime)
-        val sleepDurationMin = max(1, (durationMs / 60_000L).toInt())
         val snoreDurationMs = events.sumOf { it.durationMs.toLong() }
-        val snoreDurationMin = (snoreDurationMs / 60_000L).toInt()
+        val durationSummary = recordingDurationSummary(durationMs, snoreDurationMs)
+        val sleepDurationMin = durationSummary.sleepDurationMin
+        val snoreDurationMin = durationSummary.snoreDurationMin
         val snoreRatio = (snoreDurationMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)
         val avgDb = if (events.isEmpty()) 0f else events.map { it.avgDb }.average().toFloat()
         val maxDb = events.maxOfOrNull { it.peakDb } ?: 0f
@@ -678,3 +696,22 @@ private data class ApneaStats(
     val ahi: Float,
     val centralApneaCount: Int
 )
+
+internal data class RecordingDurationSummary(
+    val sleepDurationMin: Int,
+    val snoreDurationMin: Int
+)
+
+internal fun recordingDurationSummary(durationMs: Long, snoreDurationMs: Long): RecordingDurationSummary {
+    val safeDurationMs = max(1L, durationMs)
+    val sleepDurationMin = max(1, ((safeDurationMs + 59_999L) / 60_000L).toInt())
+    val roundedSnoreDurationMin = if (snoreDurationMs > 0L) {
+        max(1, ((snoreDurationMs + 59_999L) / 60_000L).toInt())
+    } else {
+        0
+    }
+    return RecordingDurationSummary(
+        sleepDurationMin = sleepDurationMin,
+        snoreDurationMin = roundedSnoreDurationMin.coerceAtMost(sleepDurationMin)
+    )
+}

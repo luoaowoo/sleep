@@ -31,8 +31,7 @@ fun SleepSnoreTheme(
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
-        customAccentColorArgb != null -> colorSchemeForCustomColor(customAccentColorArgb, darkTheme)
-        else -> colorSchemeFor(accentColor, darkTheme)
+        else -> colorSchemeForSettings(accentColor, customAccentColorArgb, darkTheme)
     }
 
     val view = LocalView.current
@@ -57,4 +56,14 @@ fun SleepSnoreTheme(
         shapes = cardShapes(cardCornerStyle),
         content = content
     )
+}
+
+internal fun colorSchemeForSettings(
+    accentColor: AccentColor,
+    customAccentColorArgb: Int?,
+    darkTheme: Boolean
+) = if (accentColor == AccentColor.CUSTOM && customAccentColorArgb != null) {
+    colorSchemeForCustomColor(customAccentColorArgb, darkTheme)
+} else {
+    colorSchemeFor(accentColor, darkTheme)
 }
