@@ -41,9 +41,11 @@ class ActiveRecordingFinalizerWorker @AssistedInject constructor(
         }
         val finalized = activeRecordingFinalizer.finalizeIfActive(
             expectedTriggerSource = expectedSource,
-            endTimeMillis = inputSleepEndTimeMillis
-                ?: resolvedWearableSleepEnd?.endTimeMillis
-                ?: System.currentTimeMillis()
+            endTimeMillis = wearableFallbackEndTimeMillis(
+                inputSleepEndTimeMillis = inputSleepEndTimeMillis,
+                resolvedSleepEndTimeMillis = resolvedWearableSleepEnd?.endTimeMillis,
+                fallbackNowMillis = System.currentTimeMillis()
+            )
         )
         if (finalized && expectedSource == HealthConnectSleepTriggerSource.SOURCE) {
             if (inputSleepEndTimeMillis != null) {
@@ -85,4 +87,14 @@ class ActiveRecordingFinalizerWorker @AssistedInject constructor(
             )
         }
     }
+}
+
+internal fun wearableFallbackEndTimeMillis(
+    inputSleepEndTimeMillis: Long?,
+    resolvedSleepEndTimeMillis: Long?,
+    fallbackNowMillis: Long
+): Long {
+    return inputSleepEndTimeMillis
+        ?: resolvedSleepEndTimeMillis
+        ?: fallbackNowMillis
 }
