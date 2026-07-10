@@ -1,8 +1,11 @@
 package com.sleep.snore.ui.screen.settings
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Color as AndroidColor
 import android.net.Uri
+import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -63,6 +66,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
@@ -102,6 +106,15 @@ fun SettingsScreen(
     val isIgnoringBatteryOptimizations = remember(context) {
         powerManager?.isIgnoringBatteryOptimizations(context.packageName) == true
     }
+    val hasRecordAudioPermission = ContextCompat.checkSelfPermission(
+        context,
+        Manifest.permission.RECORD_AUDIO
+    ) == PackageManager.PERMISSION_GRANTED
+    val hasNotificationPermission = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+        ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.POST_NOTIFICATIONS
+        ) == PackageManager.PERMISSION_GRANTED
 
     Scaffold(
         topBar = {
@@ -220,37 +233,51 @@ fun SettingsScreen(
 
             Text("后台录音", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
             Card(shape = MaterialTheme.shapes.extraLarge) {
-                ListItem(
-                    headlineContent = {
-                        Text(if (isIgnoringBatteryOptimizations) "电池优化已放行" else "建议允许后台整晚运行")
-                    },
-                    supportingContent = {
-                        Text(
-                            if (isIgnoringBatteryOptimizations) {
-                                "系统已允许本应用忽略电池优化，夜间录音更不容易被中断。"
-                            } else {
-                                "若夜间录音被系统中断，请将本应用设为不受限制/允许后台运行。"
-                            }
-                        )
-                    },
-                    modifier = Modifier
-                        .heightIn(min = Spacing.touchTargetMin)
-                        .clickable(role = Role.Button) {
-                            runCatching {
-                                context.startActivity(
-                                    Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-                                        data = Uri.parse("package:${context.packageName}")
-                                    }
-                                )
-                            }.onFailure {
+                Column {
+                    ListItem(
+                        headlineContent = {
+                            Text(if (isIgnoringBatteryOptimizations) "电池优化已放行" else "建议允许后台整晚运行")
+                        },
+                        supportingContent = {
+                            Text(
+                                if (isIgnoringBatteryOptimizations) {
+                                    "系统已允许本应用忽略电池优化，夜间录音更不容易被中断。"
+                                } else {
+                                    "若夜间录音被系统中断，请将本应用设为不受限制/允许后台运行。"
+                                }
+                            )
+                        },
+                        modifier = Modifier
+                            .heightIn(min = Spacing.touchTargetMin)
+                            .clickable(role = Role.Button) {
                                 runCatching {
-                                    context.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+                                    context.startActivity(
+                                        Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                                            data = Uri.parse("package:${context.packageName}")
+                                        }
+                                    )
                                 }.onFailure {
-                                    context.startActivity(Intent(Settings.ACTION_SETTINGS))
+                                    runCatching {
+                                        context.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+                                    }.onFailure {
+                                        context.startActivity(Intent(Settings.ACTION_SETTINGS))
+                                    }
                                 }
                             }
-                        }
-                )
+                    )
+                    HorizontalDivider()
+                    ListItem(
+                        headlineContent = { Text(if (hasRecordAudioPermission) "麦克风权限已授权" else "缺少麦克风权限") },
+                        supportingContent = { Text("手环自动触发录音前必须已有麦克风权限；未授权时不会后台开麦。") },
+                        modifier = Modifier.heightIn(min = Spacing.touchTargetMin)
+                    )
+                    HorizontalDivider()
+                    ListItem(
+                        headlineContent = { Text(if (hasNotificationPermission) "通知权限已授权" else "建议开启通知权限") },
+                        supportingContent = { Text("前台检测依赖可见通知；Android 13+ 未授权时后台稳定性会变差。") },
+                        modifier = Modifier.heightIn(min = Spacing.touchTargetMin)
+                    )
+                }
             }
 
             Text("手环自动检测", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)

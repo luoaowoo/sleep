@@ -2,6 +2,7 @@ package com.sleep.snore.sleeptrigger
 
 import com.google.common.truth.Truth.assertThat
 import com.sleep.snore.recording.RecordingController
+import com.sleep.snore.recording.RecordingStartResult
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 
@@ -12,13 +13,14 @@ class AutoSnoreDetectionCoordinatorTest {
         val controller = FakeRecordingController()
         val coordinator = AutoSnoreDetectionCoordinator(controller)
 
-        val handled = coordinator.handleEvent(
+        val result = coordinator.handleEvent(
             event = SleepTriggerEvent.SleepStarted("health_connect", timestamp = 1L, confidence = 0.9f),
             enabled = true,
             stopOnSleepEnd = true
         )
 
-        assertThat(handled).isTrue()
+        assertThat(result.handled).isTrue()
+        assertThat(result.shouldRememberEvent).isTrue()
         assertThat(controller.started).isTrue()
     }
 
@@ -27,14 +29,33 @@ class AutoSnoreDetectionCoordinatorTest {
         val controller = FakeRecordingController()
         val coordinator = AutoSnoreDetectionCoordinator(controller)
 
-        val handled = coordinator.handleEvent(
+        val result = coordinator.handleEvent(
             event = SleepTriggerEvent.SleepStarted("health_connect", timestamp = 1L, confidence = 0.4f),
             enabled = true,
             stopOnSleepEnd = true
         )
 
-        assertThat(handled).isFalse()
+        assertThat(result.handled).isFalse()
+        assertThat(result.shouldRememberEvent).isFalse()
         assertThat(controller.started).isFalse()
+    }
+
+    @Test
+    fun handleEvent_doesNotRememberUnconfirmedRecordingStart() = runTest {
+        val controller = FakeRecordingController(
+            startResult = RecordingStartResult.Submitted("pending")
+        )
+        val coordinator = AutoSnoreDetectionCoordinator(controller)
+
+        val result = coordinator.handleEvent(
+            event = SleepTriggerEvent.SleepStarted("health_connect", timestamp = 1L, confidence = 0.9f),
+            enabled = true,
+            stopOnSleepEnd = true
+        )
+
+        assertThat(result.handled).isFalse()
+        assertThat(result.shouldRememberEvent).isFalse()
+        assertThat(result.statusText).isEqualTo("pending")
     }
 
     @Test
@@ -42,13 +63,14 @@ class AutoSnoreDetectionCoordinatorTest {
         val controller = FakeRecordingController(active = true, startedFromSleepTrigger = true)
         val coordinator = AutoSnoreDetectionCoordinator(controller)
 
-        val handled = coordinator.handleEvent(
+        val result = coordinator.handleEvent(
             event = SleepTriggerEvent.SleepEnded("health_connect", timestamp = 2L),
             enabled = true,
             stopOnSleepEnd = true
         )
 
-        assertThat(handled).isTrue()
+        assertThat(result.handled).isTrue()
+        assertThat(result.shouldRememberEvent).isTrue()
         assertThat(controller.stopped).isTrue()
     }
 
@@ -57,13 +79,14 @@ class AutoSnoreDetectionCoordinatorTest {
         val controller = FakeRecordingController(active = true, startedFromSleepTrigger = false)
         val coordinator = AutoSnoreDetectionCoordinator(controller)
 
-        val handled = coordinator.handleEvent(
+        val result = coordinator.handleEvent(
             event = SleepTriggerEvent.SleepEnded("health_connect", timestamp = 2L),
             enabled = true,
             stopOnSleepEnd = true
         )
 
-        assertThat(handled).isFalse()
+        assertThat(result.handled).isFalse()
+        assertThat(result.shouldRememberEvent).isTrue()
         assertThat(controller.stopped).isFalse()
         assertThat(controller.isRecordingActive()).isTrue()
     }
@@ -73,30 +96,32 @@ class AutoSnoreDetectionCoordinatorTest {
         val controller = FakeRecordingController(active = false, startedFromSleepTrigger = true)
         val coordinator = AutoSnoreDetectionCoordinator(controller)
 
-        val handled = coordinator.handleEvent(
+        val result = coordinator.handleEvent(
             event = SleepTriggerEvent.SleepEnded("health_connect", timestamp = 2L),
             enabled = true,
             stopOnSleepEnd = true
         )
 
-        assertThat(handled).isTrue()
+        assertThat(result.handled).isTrue()
+        assertThat(result.shouldRememberEvent).isTrue()
         assertThat(controller.stopped).isTrue()
     }
 
     private class FakeRecordingController(
         private var active: Boolean = false,
-        private var startedFromSleepTrigger: Boolean = false
+        private var startedFromSleepTrigger: Boolean = false,
+        private val startResult: RecordingStartResult = RecordingStartResult.Confirmed("started")
     ) : RecordingController {
         var started = false
             private set
         var stopped = false
             private set
 
-        override suspend fun startFromSleepTrigger(source: String): Boolean {
+        override suspend fun startFromSleepTrigger(source: String): RecordingStartResult {
             started = true
-            startedFromSleepTrigger = true
-            active = true
-            return true
+            startedFromSleepTrigger = startResult.confirmed
+            active = startResult.confirmed
+            return startResult
         }
 
         override suspend fun stopFromSleepTrigger(source: String): Boolean {

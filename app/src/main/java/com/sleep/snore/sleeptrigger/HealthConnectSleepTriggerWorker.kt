@@ -50,32 +50,15 @@ class HealthConnectSleepTriggerWorker @AssistedInject constructor(
         pollResult: HealthConnectSleepTriggerSource.PollResult.EventEmitted,
         stopOnSleepEnd: Boolean
     ): String {
-        val handled = coordinator.handleEvent(
+        val result = coordinator.handleEvent(
             event = pollResult.event,
             enabled = true,
             stopOnSleepEnd = stopOnSleepEnd
         )
-        val recordingStartedBySource = pollResult.event is SleepTriggerEvent.SleepStarted &&
-            settingsRepository.getActiveRecordingTriggerSource() == pollResult.event.source
-        if (recordingStartedBySource || pollResult.event is SleepTriggerEvent.SleepEnded) {
+        if (result.shouldRememberEvent) {
             settingsRepository.setLastWearableSleepEventKey(pollResult.eventKey)
         }
-        return when (pollResult.event) {
-            is SleepTriggerEvent.SleepStarted -> {
-                if (handled) {
-                    "检测到睡眠，已请求开启鼾声检测"
-                } else {
-                    "检测到睡眠，但后台麦克风启动失败；请睡前开启前台检测"
-                }
-            }
-            is SleepTriggerEvent.SleepEnded -> {
-                if (handled) {
-                    "检测到睡眠结束，已请求停止鼾声检测"
-                } else {
-                    "检测到睡眠结束，无需停止"
-                }
-            }
-        }
+        return result.statusText ?: pollResult.toStatusText()
     }
 
     private fun HealthConnectSleepTriggerSource.PollResult.toStatusText(): String {

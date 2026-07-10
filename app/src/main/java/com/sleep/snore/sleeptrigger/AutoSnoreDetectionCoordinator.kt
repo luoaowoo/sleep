@@ -1,26 +1,62 @@
 package com.sleep.snore.sleeptrigger
 
 import com.sleep.snore.recording.RecordingController
+import com.sleep.snore.recording.RecordingStartResult
 import javax.inject.Inject
 import javax.inject.Singleton
+
+sealed interface AutoSnoreDetectionResult {
+    val handled: Boolean
+    val shouldRememberEvent: Boolean
+    val statusText: String?
+
+    data class SleepStart(val recordingStartResult: RecordingStartResult) : AutoSnoreDetectionResult {
+        override val handled: Boolean = recordingStartResult.confirmed
+        override val shouldRememberEvent: Boolean = recordingStartResult.confirmed
+        override val statusText: String = recordingStartResult.statusText
+    }
+
+    data class SleepEnd(override val handled: Boolean) : AutoSnoreDetectionResult {
+        override val shouldRememberEvent: Boolean = true
+        override val statusText: String = if (handled) {
+            "检测到睡眠结束，已请求停止鼾声检测"
+        } else {
+            "检测到睡眠结束，无需停止"
+        }
+    }
+
+    data object Ignored : AutoSnoreDetectionResult {
+        override val handled: Boolean = false
+        override val shouldRememberEvent: Boolean = false
+        override val statusText: String? = null
+    }
+}
 
 @Singleton
 class AutoSnoreDetectionCoordinator @Inject constructor(
     private val recordingController: RecordingController
 ) {
 
-    suspend fun handleEvent(event: SleepTriggerEvent, enabled: Boolean, stopOnSleepEnd: Boolean): Boolean {
-        if (!enabled) return false
+    suspend fun handleEvent(
+        event: SleepTriggerEvent,
+        enabled: Boolean,
+        stopOnSleepEnd: Boolean
+    ): AutoSnoreDetectionResult {
+        if (!enabled) return AutoSnoreDetectionResult.Ignored
         return when (event) {
             is SleepTriggerEvent.SleepStarted -> {
                 if (event.confidence < MIN_SLEEP_CONFIDENCE) {
-                    false
+                    AutoSnoreDetectionResult.Ignored
                 } else {
-                    recordingController.startFromSleepTrigger(event.source)
+                    AutoSnoreDetectionResult.SleepStart(
+                        recordingController.startFromSleepTrigger(event.source)
+                    )
                 }
             }
             is SleepTriggerEvent.SleepEnded -> {
-                stopOnSleepEnd && recordingController.stopFromSleepTrigger(event.source)
+                AutoSnoreDetectionResult.SleepEnd(
+                    stopOnSleepEnd && recordingController.stopFromSleepTrigger(event.source)
+                )
             }
         }
     }
