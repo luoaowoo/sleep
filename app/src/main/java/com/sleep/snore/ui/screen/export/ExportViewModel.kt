@@ -27,11 +27,16 @@ class ExportViewModel @Inject constructor(
     fun exportRecords() {
         viewModelScope.launch {
             _isExporting.value = true
-            val file = exporter.exportRecordsCsv()
-            if (file == null) {
-                _exportMessage.value = "暂无可导出的睡眠记录"
-            } else {
-                _exportFile.value = file
+            runCatching {
+                exporter.exportRecordsCsv()
+            }.onSuccess { file ->
+                if (file == null) {
+                    _exportMessage.value = "暂无可导出的睡眠记录"
+                } else {
+                    _exportFile.value = file
+                }
+            }.onFailure {
+                _exportMessage.value = "导出失败，请稍后重试"
             }
             _isExporting.value = false
         }
@@ -40,11 +45,16 @@ class ExportViewModel @Inject constructor(
     fun exportEvents() {
         viewModelScope.launch {
             _isExporting.value = true
-            val file = exporter.exportAllEventsCsv()
-            if (file == null) {
-                _exportMessage.value = "暂无可导出的鼾声片段"
-            } else {
-                _exportFile.value = file
+            runCatching {
+                exporter.exportAllEventsCsv()
+            }.onSuccess { file ->
+                if (file == null) {
+                    _exportMessage.value = "暂无可导出的鼾声片段"
+                } else {
+                    _exportFile.value = file
+                }
+            }.onFailure {
+                _exportMessage.value = "导出失败，请稍后重试"
             }
             _isExporting.value = false
         }

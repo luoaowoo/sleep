@@ -58,9 +58,12 @@ fun ExportScreen(
             putExtra(Intent.EXTRA_STREAM, uri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
-        context.startActivity(Intent.createChooser(sendIntent, "分享睡眠数据 CSV"))
+        runCatching {
+            context.startActivity(Intent.createChooser(sendIntent, "分享睡眠数据 CSV"))
+        }.onFailure {
+            snackbarHostState.showSnackbar("未找到可用的分享应用")
+        }
         viewModel.clearExportFile()
-        snackbarHostState.showSnackbar("CSV 已生成")
     }
 
     LaunchedEffect(exportMessage) {

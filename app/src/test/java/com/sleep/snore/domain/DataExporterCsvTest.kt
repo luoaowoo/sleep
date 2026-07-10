@@ -56,6 +56,12 @@ class DataExporterCsvTest {
         assertEquals("\"'@SUM(A1:A2)\"", result)
     }
 
+    @Test
+    fun `前置空白后以公式符号开头也添加单引号前缀防注入`() {
+        val result = csv(" \t=SUM(A1:A2)")
+        assertEquals("\"' \t=SUM(A1:A2)\"", result)
+    }
+
     // ===== 用例 4：普通字段原样输出（实现上同样被双引号包裹）=====
     @Test
     fun `普通字段原样输出但被双引号包裹`() {

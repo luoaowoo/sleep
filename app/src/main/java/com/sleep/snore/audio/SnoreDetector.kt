@@ -19,7 +19,8 @@ class SnoreDetector(
     private val callback: SnoreCallback,
     silenceThresholdDb: Double = -40.0,
     maxSegmentDurationSec: Int = DEFAULT_MAX_SEGMENT_DURATION_SEC,
-    sensitivity: Sensitivity = Sensitivity.MEDIUM
+    sensitivity: Sensitivity = Sensitivity.MEDIUM,
+    private val clockNowMs: () -> Long = System::currentTimeMillis
 ) : Closeable {
 
     private val audioRecorder: AudioRecorder
@@ -136,7 +137,7 @@ class SnoreDetector(
             silenceFrameCount = 0
 
             if (!inSnoreSegment) {
-                segmentStartTime = System.currentTimeMillis()
+                segmentStartTime = clockNowMs()
                 inSnoreSegment = true
                 segmentBuffer.clear()
             }
@@ -179,7 +180,7 @@ class SnoreDetector(
         if (!inSnoreSegment) return
 
         val durationMs = if (segmentStartTime > 0) {
-            System.currentTimeMillis() - segmentStartTime
+            clockNowMs() - segmentStartTime
         } else 0L
 
         if (!hasTriggeredSegment || durationMs < 500) {

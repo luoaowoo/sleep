@@ -38,40 +38,61 @@ class DeepSeekClient @Inject constructor() {
                 setRequestProperty("Accept", "application/json")
             }
 
-            val body = JSONObject()
-                .put("model", config.modelName)
-                .put("temperature", 0.3)
-                .put("messages", JSONArray().apply {
-                    put(
-                        JSONObject()
-                            .put("role", "system")
-                            .put("content", "你是谨慎的睡眠健康分析助手，只做健康建议，不做医学诊断。")
-                    )
-                    put(JSONObject().put("role", "user").put("content", prompt))
-                })
+            try {
+                val body = JSONObject()
+                    .put("model", config.modelName)
+                    .put("temperature", 0.3)
+                    .put("messages", JSONArray().apply {
+                        put(
+                            JSONObject()
+                                .put("role", "system")
+                                .put("content", "你是谨慎的睡眠健康分析助手，只做健康建议，不做医学诊断。")
+                        )
+                        put(JSONObject().put("role", "user").put("content", prompt))
+                    })
 
-            OutputStreamWriter(connection.outputStream, Charsets.UTF_8).use { writer ->
-                writer.write(body.toString())
+                OutputStreamWriter(connection.outputStream, Charsets.UTF_8).use { writer ->
+                    writer.write(body.toString())
+                }
+
+                val responseCode = connection.responseCode
+                val responseText = if (responseCode in 200..299) {
+                    connection.inputStream.bufferedReader(Charsets.UTF_8).use(BufferedReader::readText)
+                } else {
+                    error("DeepSeek 请求失败 HTTP $responseCode：${connection.safeErrorSummary()}")
+                }
+
+                JSONObject(responseText)
+                    .getJSONArray("choices")
+                    .getJSONObject(0)
+                    .getJSONObject("message")
+                    .getString("content")
+                    .trim()
+            } finally {
+                connection.disconnect()
             }
-
-            val responseText = if (connection.responseCode in 200..299) {
-                connection.inputStream.bufferedReader(Charsets.UTF_8).use(BufferedReader::readText)
-            } else {
-                val error = connection.errorStream?.bufferedReader(Charsets.UTF_8)?.use(BufferedReader::readText).orEmpty()
-                error("DeepSeek 请求失败 HTTP ${connection.responseCode}: $error")
-            }
-
-            JSONObject(responseText)
-                .getJSONArray("choices")
-                .getJSONObject(0)
-                .getJSONObject("message")
-                .getString("content")
-                .trim()
         }
     }
 
     private companion object {
         const val CONNECT_TIMEOUT_MS = 15_000
         const val READ_TIMEOUT_MS = 45_000
+    }
+}
+
+private const val MAX_ERROR_BODY_CHARS = 180
+
+private fun HttpURLConnection.safeErrorSummary(): String {
+    val errorText = errorStream
+        ?.bufferedReader(Charsets.UTF_8)
+        ?.use(BufferedReader::readText)
+        .orEmpty()
+        .replace(Regex("\\s+"), " ")
+        .trim()
+
+    return when {
+        errorText.isBlank() -> "请检查 API Key、Base URL、模型名或网络状态"
+        errorText.length > MAX_ERROR_BODY_CHARS -> errorText.take(MAX_ERROR_BODY_CHARS) + "…"
+        else -> errorText
     }
 }

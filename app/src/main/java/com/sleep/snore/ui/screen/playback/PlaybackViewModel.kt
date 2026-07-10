@@ -48,10 +48,31 @@ class PlaybackViewModel @Inject constructor(
             mediaPlayer = player
             player.apply {
                 setDataSource(event.audioFilePath)
-                setOnCompletionListener { stopPlayback() }
-                prepare()
-                start()
                 _currentlyPlayingEventId.value = event.id
+                setOnPreparedListener { preparedPlayer ->
+                    if (mediaPlayer === preparedPlayer) {
+                        preparedPlayer.start()
+                    } else {
+                        preparedPlayer.release()
+                    }
+                }
+                setOnCompletionListener { completedPlayer ->
+                    if (mediaPlayer === completedPlayer) {
+                        stopPlayback()
+                    } else {
+                        completedPlayer.release()
+                    }
+                }
+                setOnErrorListener { errorPlayer, _, _ ->
+                    if (mediaPlayer === errorPlayer) {
+                        _playbackError.value = "无法播放该片段"
+                        stopPlayback()
+                    } else {
+                        errorPlayer.release()
+                    }
+                    true
+                }
+                prepareAsync()
             }
         }.onFailure {
             _playbackError.value = "无法播放该片段"
@@ -64,12 +85,19 @@ class PlaybackViewModel @Inject constructor(
     }
 
     fun stopPlayback() {
-        mediaPlayer?.runCatching {
-            if (isPlaying) stop()
-            release()
+        val player = mediaPlayer ?: run {
+            _currentlyPlayingEventId.value = null
+            return
         }
         mediaPlayer = null
         _currentlyPlayingEventId.value = null
+        runCatching {
+            player.setOnPreparedListener(null)
+            player.setOnCompletionListener(null)
+            player.setOnErrorListener(null)
+            if (player.isPlaying) player.stop()
+        }
+        runCatching { player.release() }
     }
 
     override fun onCleared() {

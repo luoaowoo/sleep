@@ -42,6 +42,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import com.sleep.snore.data.db.entity.SnoreEventEntity
 import com.sleep.snore.data.model.SnoreType
+import com.sleep.snore.navigation.Route
 import com.sleep.snore.ui.components.PieSlice
 import com.sleep.snore.ui.components.SnoreScoreRing
 import com.sleep.snore.ui.components.SnoreTimeline
@@ -74,7 +75,7 @@ fun ResultScreen(
 
     LaunchedEffect(deleteCompleted) {
         if (deleteCompleted) {
-            navController.popBackStack()
+            navController.popBackToHomeFallback()
         }
     }
 
@@ -113,7 +114,7 @@ fun ResultScreen(
             TopAppBar(
                 title = { Text("睡眠报告") },
                 navigationIcon = {
-                    TextButton(onClick = { navController.popBackStack() }) { Text("返回") }
+                    TextButton(onClick = { navController.popBackToHomeFallback() }) { Text("返回") }
                 },
                 actions = {
                     if (record != null) {
@@ -146,7 +147,7 @@ fun ResultScreen(
                         .padding(padding)
                         .consumeWindowInsets(padding)
                         .padding(horizontal = uiPreferences.pageHorizontalPadding),
-                    onBack = { navController.popBackStack() }
+                    onBack = { navController.popBackToHomeFallback() }
                 )
             }
 
@@ -233,6 +234,11 @@ fun ResultScreen(
                                 Column(Modifier.weight(1f)) {
                                     Text("鼾声集锦", style = MaterialTheme.typography.titleMedium)
                                     Text("${r.snoreEventCount} 个片段", style = MaterialTheme.typography.bodySmall)
+                                }
+                                if (events.isNotEmpty()) {
+                                    TextButton(onClick = { navController.navigate(Route.Playback.route) }) {
+                                        Text("去回放")
+                                    }
                                 }
                             }
                             if (uiPreferences.showTechnicalDetails && events.isNotEmpty()) {
@@ -338,4 +344,12 @@ private fun typeColor(type: SnoreType): Color = when (type) {
     SnoreType.EPIGLOTTIS -> Color(0xFFB3261E)
     SnoreType.MIXED -> Color(0xFF7D5260)
     SnoreType.UNKNOWN -> Color(0xFF79747E)
+}
+
+private fun NavHostController.popBackToHomeFallback() {
+    if (!popBackStack()) {
+        navigate(Route.Home.route) {
+            launchSingleTop = true
+        }
+    }
 }

@@ -19,7 +19,7 @@ import org.junit.Test
  * - SnoreDetector.processFrame() 为 internal，可直接调用以驱动纯 Kotlin 状态机逻辑
  *   (能量检测 → ZCR 过滤 → 连续帧计数 → 触发 / 复位)。
  * - 不调用 startListening()/stopListening()/close()，避免触发 AudioRecord 调用。
- * - System.currentTimeMillis() 通过 mockk 桩控 (mockTimeMs)，按需推进模拟片段时长，
+ * - SnoreDetector 通过测试时钟 (mockTimeMs)，按需推进模拟片段时长，
  *   无需 Thread.sleep。
  * - android.util.Log 通过 mockkStatic 桩控，规避 "not mocked" 异常，使丢弃分支可测。
  */
@@ -31,8 +31,6 @@ class SnoreDetectorTest {
     @Before
     fun setUp() {
         mockTimeMs = 0L
-        mockkStatic(System::currentTimeMillis)
-        every { System.currentTimeMillis() } answers { mockTimeMs }
         mockkStatic(Log::class)
         every { Log.d(any(), any<String>()) } returns 0
         every { Log.d(any(), any<String>(), any()) } returns 0
@@ -40,8 +38,15 @@ class SnoreDetectorTest {
 
     @After
     fun tearDown() {
-        unmockkStatic(System::currentTimeMillis)
         unmockkStatic(Log::class)
+    }
+
+    private fun detector(callback: RecordingCallback): SnoreDetector {
+        return SnoreDetector(
+            callback = callback,
+            silenceThresholdDb = -40.0,
+            clockNowMs = { mockTimeMs }
+        )
     }
 
     private fun feedFrame(detector: SnoreDetector, pcmFrame: ByteArray) {
@@ -87,7 +92,7 @@ class SnoreDetectorTest {
     @Test
     fun silenceFrames_doNotTriggerSnoreEvent() {
         val callback = RecordingCallback()
-        val detector = SnoreDetector(callback, silenceThresholdDb = -40.0)
+        val detector = detector(callback)
 
         // 传入 10 帧静音 (RMS 低于能量阈值 -40dB)
         repeat(10) {
@@ -102,7 +107,7 @@ class SnoreDetectorTest {
     @Test
     fun shortSnoreBurst_doesNotTriggerEvent() {
         val callback = RecordingCallback()
-        val detector = SnoreDetector(callback, silenceThresholdDb = -40.0)
+        val detector = detector(callback)
 
         // 传入 3 帧疑似鼾声 (180Hz 正弦波: 高能量 + ZCR≈0.0225 命中 [0.006, 0.038])
         // triggerFrameCount = 4，3 帧不足以触达阈值
@@ -123,7 +128,7 @@ class SnoreDetectorTest {
     @Test
     fun validSnoreSequence_triggersStartedCallback() {
         val callback = RecordingCallback()
-        val detector = SnoreDetector(callback, silenceThresholdDb = -40.0)
+        val detector = detector(callback)
 
         // 连续传入 4 帧 180Hz 疑似鼾声 → 第 4 帧 snoreFrameCount==triggerFrameCount 触发 onSnoreStarted
         repeat(4) {
@@ -138,7 +143,7 @@ class SnoreDetectorTest {
     @Test
     fun stateResetsAfterFlush_lowEnergyDoesNotRetrigger() {
         val callback = RecordingCallback()
-        val detector = SnoreDetector(callback, silenceThresholdDb = -40.0)
+        val detector = detector(callback)
 
         // 1) 触发鼾声事件
         mockTimeMs = 1_000L
@@ -182,7 +187,7 @@ class SnoreDetectorTest {
     @Test
     fun maxSegmentFrames_triggersFlush() {
         val callback = RecordingCallback()
-        val detector = SnoreDetector(callback, silenceThresholdDb = -40.0)
+        val detector = detector(callback)
         val snoreFrame = sineFrame(frequencyHz = 180, amplitude = 12_000)
         // 默认 maxSegmentDurationSec=60, FRAME_DURATION_MS=50 → maxSegmentFrames=1200
         val maxSegmentFrames = 1200
@@ -215,7 +220,7 @@ class SnoreDetectorTest {
     @Test
     fun shortSegment_isDiscarded() {
         val callback = RecordingCallback()
-        val detector = SnoreDetector(callback, silenceThresholdDb = -40.0)
+        val detector = detector(callback)
 
         // 触发鼾声
         mockTimeMs = 1_000L
@@ -243,7 +248,7 @@ class SnoreDetectorTest {
     @Test
     fun untriggeredSegment_nonSnoreFrame_resets() {
         val callback = RecordingCallback()
-        val detector = SnoreDetector(callback, silenceThresholdDb = -40.0)
+        val detector = detector(callback)
 
         // 喂入 3 帧鼾声 (< triggerFrameCount=4)，inSnoreSegment=true 但 hasTriggeredSegment=false
         mockTimeMs = 1_000L
@@ -277,7 +282,7 @@ class SnoreDetectorTest {
     @Test
     fun triggeredSegment_nonSnoreFrame_accumulatesSilenceThenFlushes() {
         val callback = RecordingCallback()
-        val detector = SnoreDetector(callback, silenceThresholdDb = -40.0)
+        val detector = detector(callback)
         val snoreFrame = sineFrame(frequencyHz = 180, amplitude = 12_000)
         val nonSnoreFrame = sineFrame(frequencyHz = 2000, amplitude = 12_000)
 

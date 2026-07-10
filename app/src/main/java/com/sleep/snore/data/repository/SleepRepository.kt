@@ -1,11 +1,13 @@
 ﻿package com.sleep.snore.data.repository
 
+import android.content.Context
 import com.sleep.snore.data.db.dao.FactorLogDao
 import com.sleep.snore.data.db.dao.SleepRecordDao
 import com.sleep.snore.data.db.dao.SnoreEventDao
 import com.sleep.snore.data.db.entity.FactorLogEntity
 import com.sleep.snore.data.db.entity.SleepRecordEntity
 import com.sleep.snore.data.db.entity.SnoreEventEntity
+import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -14,6 +16,7 @@ import javax.inject.Singleton
 
 @Singleton
 class SleepRepository @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val sleepRecordDao: SleepRecordDao,
     private val snoreEventDao: SnoreEventDao,
     private val factorLogDao: FactorLogDao
@@ -29,23 +32,23 @@ class SleepRepository @Inject constructor(
     fun getRecentRecords(limit: Int): Flow<List<SleepRecordEntity>> = sleepRecordDao.getRecent(limit)
     fun getRecordsSince(since: Long): Flow<List<SleepRecordEntity>> = sleepRecordDao.getRecordsSince(since)
     fun getRecordsBetween(start: Long, end: Long): Flow<List<SleepRecordEntity>> = sleepRecordDao.getRecordsBetween(start, end)
-    suspend fun deleteRecord(id: Long) = sleepRecordDao.deleteById(id)
+    suspend fun deleteRecord(id: Long) = deleteRecordWithAudio(id)
     suspend fun deleteRecordWithAudio(id: Long) {
         val audioPaths = getEventsByRecordId(id).first().mapNotNull { event ->
             event.audioFilePath.takeIf { it.isNotBlank() }
         }
+        deleteAudioFiles(audioPaths)
         factorLogDao.deleteByRecordId(id)
         sleepRecordDao.deleteById(id)
-        deleteAudioFiles(audioPaths)
     }
     suspend fun deleteOldRecords(before: Long) = sleepRecordDao.deleteOlderThan(before)
     suspend fun deleteOldRecordsWithAudio(before: Long) {
         val recordIds = sleepRecordDao.getIdsCreatedBefore(before)
         if (recordIds.isEmpty()) return
         val audioPaths = snoreEventDao.getAudioPathsByRecordIds(recordIds)
+        deleteAudioFiles(audioPaths)
         factorLogDao.deleteByRecordIds(recordIds)
         sleepRecordDao.deleteOlderThan(before)
-        deleteAudioFiles(audioPaths)
     }
 
     // ===== SnoreEvent =====
@@ -66,8 +69,15 @@ class SleepRepository @Inject constructor(
     fun getAllFactorLogs(): Flow<List<FactorLogEntity>> = factorLogDao.getAll()
 
     private fun deleteAudioFiles(paths: List<String>) {
-        paths.forEach { path ->
-            runCatching { File(path).delete() }
+        val audioRoot = File(context.filesDir, "snore_audio").canonicalFile
+        paths.distinct().forEach { path ->
+            val file = File(path).canonicalFile
+            if (!file.path.startsWith(audioRoot.path + File.separator)) {
+                error("Refuse to delete file outside app audio directory")
+            }
+            if (file.isFile && !file.delete()) {
+                error("Audio file delete failed")
+            }
         }
     }
 }
