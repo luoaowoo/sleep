@@ -11,6 +11,8 @@ import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 @HiltAndroidApp
@@ -30,12 +32,18 @@ class SleepSnoreApp : Application() {
                 .build()
         )
         appScope.launch {
-            settingsPreferencesRepository.settings.collect { settings ->
-                if (settings.wearableSleepTriggerEnabled) {
+            settingsPreferencesRepository.settings
+                .map { it.wearableSleepTriggerEnabled }
+                .distinctUntilChanged()
+                .collect { enabled ->
+                if (enabled) {
                     HealthConnectSleepTriggerWorker.enqueue(this@SleepSnoreApp)
+                    HealthConnectSleepTriggerWorker.enqueueNow(this@SleepSnoreApp)
                 } else {
                     WorkManager.getInstance(this@SleepSnoreApp)
                         .cancelUniqueWork(HealthConnectSleepTriggerWorker.WORK_NAME)
+                    WorkManager.getInstance(this@SleepSnoreApp)
+                        .cancelUniqueWork(HealthConnectSleepTriggerWorker.ONE_TIME_WORK_NAME)
                 }
             }
         }

@@ -73,6 +73,7 @@ import com.sleep.snore.data.preferences.SettingsPreferencesRepository
 import com.sleep.snore.data.preferences.defaultArgb
 import com.sleep.snore.navigation.Route
 import com.sleep.snore.sleeptrigger.HealthConnectSleepTriggerSource
+import com.sleep.snore.sleeptrigger.HealthConnectSleepTriggerWorker
 import com.sleep.snore.ui.theme.LocalUiPreferences
 import com.sleep.snore.ui.theme.Spacing
 import kotlin.math.atan2
@@ -93,7 +94,11 @@ fun SettingsScreen(
     val powerManager = remember(context) { context.getSystemService(PowerManager::class.java) }
     val healthConnectPermissionLauncher = rememberLauncherForActivityResult(
         PermissionController.createRequestPermissionResultContract()
-    ) { }
+    ) { grantedPermissions ->
+        if (grantedPermissions.containsAll(HealthConnectSleepTriggerSource.REQUIRED_PERMISSIONS)) {
+            HealthConnectSleepTriggerWorker.enqueueNow(context)
+        }
+    }
     val isIgnoringBatteryOptimizations = remember(context) {
         powerManager?.isIgnoringBatteryOptimizations(context.packageName) == true
     }
@@ -290,6 +295,12 @@ fun SettingsScreen(
                         }
                     ) {
                         Text("授权 Health Connect")
+                    }
+                    Spacer(Modifier.height(Spacing.sm))
+                    Button(
+                        onClick = { HealthConnectSleepTriggerWorker.enqueueNow(context) }
+                    ) {
+                        Text("立即检查睡眠记录")
                     }
                     Spacer(Modifier.height(Spacing.sm))
                     Button(

@@ -3,7 +3,9 @@ package com.sleep.snore.sleeptrigger
 import android.content.Context
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
+import androidx.work.ExistingWorkPolicy
 import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
@@ -87,6 +89,7 @@ class HealthConnectSleepTriggerWorker @AssistedInject constructor(
 
     companion object {
         const val WORK_NAME = "health_connect_sleep_trigger"
+        const val ONE_TIME_WORK_NAME = "health_connect_sleep_trigger_now"
 
         fun enqueue(context: Context) {
             val request = PeriodicWorkRequestBuilder<HealthConnectSleepTriggerWorker>(
@@ -96,6 +99,15 @@ class HealthConnectSleepTriggerWorker @AssistedInject constructor(
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(
                 WORK_NAME,
                 ExistingPeriodicWorkPolicy.UPDATE,
+                request
+            )
+        }
+
+        fun enqueueNow(context: Context) {
+            val request = OneTimeWorkRequestBuilder<HealthConnectSleepTriggerWorker>().build()
+            WorkManager.getInstance(context).enqueueUniqueWork(
+                ONE_TIME_WORK_NAME,
+                ExistingWorkPolicy.REPLACE,
                 request
             )
         }
