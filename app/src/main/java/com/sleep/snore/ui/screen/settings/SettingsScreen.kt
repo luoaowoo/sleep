@@ -79,6 +79,7 @@ import com.sleep.snore.data.preferences.defaultArgb
 import com.sleep.snore.navigation.Route
 import com.sleep.snore.sleeptrigger.HealthConnectSleepTriggerSource
 import com.sleep.snore.sleeptrigger.HealthConnectSleepTriggerWorker
+import com.sleep.snore.sleeptrigger.WearableSleepStandbyService
 import com.sleep.snore.ui.theme.LocalUiPreferences
 import com.sleep.snore.ui.theme.Spacing
 import kotlin.math.atan2
@@ -95,6 +96,7 @@ fun SettingsScreen(
     val customAccentColorArgb by viewModel.customAccentColorArgb.collectAsStateWithLifecycle()
     val fontScale by viewModel.fontScale.collectAsStateWithLifecycle()
     val cardCornerStyle by viewModel.cardCornerStyle.collectAsStateWithLifecycle()
+    val standbyState by WearableSleepStandbyService.standbyState.collectAsStateWithLifecycle()
     val uiPreferences = LocalUiPreferences.current
     val powerManager = remember(context) { context.getSystemService(PowerManager::class.java) }
     val healthConnectPermissionLauncher = rememberLauncherForActivityResult(
@@ -281,6 +283,20 @@ fun SettingsScreen(
                     )
                     HorizontalDivider()
                     ListItem(
+                        headlineContent = { Text("小米/MIUI 后台权限") },
+                        supportingContent = { Text("在应用详情中手动开启自启动、后台运行和省电策略“不限制”，可降低夜间待命/录音被杀概率。") },
+                        modifier = Modifier
+                            .heightIn(min = Spacing.touchTargetMin)
+                            .clickable(role = Role.Button) {
+                                context.startActivity(
+                                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                        data = Uri.parse("package:${context.packageName}")
+                                    }
+                                )
+                            }
+                    )
+                    HorizontalDivider()
+                    ListItem(
                         headlineContent = { Text(if (hasRecordAudioPermission) "麦克风权限已授权" else "缺少麦克风权限") },
                         supportingContent = { Text("手环自动触发录音前必须已有麦克风权限；未授权时不会后台开麦。点此授权。") },
                         modifier = Modifier
@@ -344,6 +360,13 @@ fun SettingsScreen(
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    if (standbyState.isActive) {
+                        Text(
+                            "待命状态：运行中，${standbyState.statusText}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
                     Spacer(Modifier.height(Spacing.sm))
                     Button(
                         onClick = {
@@ -361,8 +384,16 @@ fun SettingsScreen(
                         Text("立即检查睡眠记录")
                     }
                     Spacer(Modifier.height(Spacing.sm))
-                    Button(onClick = viewModel::startWearableSleepStandby) {
-                        Text("睡前开启手环待命")
+                    Button(
+                        onClick = {
+                            if (standbyState.isActive) {
+                                viewModel.stopWearableSleepStandby()
+                            } else {
+                                viewModel.startWearableSleepStandby()
+                            }
+                        }
+                    ) {
+                        Text(if (standbyState.isActive) "停止手环待命" else "睡前开启手环待命")
                     }
                     Spacer(Modifier.height(Spacing.sm))
                     TextButton(

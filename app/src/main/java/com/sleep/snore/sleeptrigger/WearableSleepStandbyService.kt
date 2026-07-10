@@ -18,6 +18,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
@@ -28,9 +29,11 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 data class WearableSleepStandbyState(
     val isActive: Boolean = false,
+    val startedAtMillis: Long = 0L,
     val lastCheckMillis: Long = 0L,
     val statusText: String = "睡前待命未开启"
 )
@@ -45,6 +48,7 @@ class WearableSleepStandbyService : Service() {
     private var serviceJob = SupervisorJob()
     private var serviceScope = CoroutineScope(Dispatchers.IO + serviceJob)
     private var standbyJob: Job? = null
+    private var standbyStartedAtMillis: Long = 0L
 
     override fun onCreate() {
         super.onCreate()
@@ -67,6 +71,12 @@ class WearableSleepStandbyService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
+    override fun onTimeout(startId: Int, fgsType: Int) {
+        val status = "睡前待命已达到系统前台服务时长限制，请重新打开应用后再开启"
+        Log.w(TAG, "foreground service timed out: startId=$startId type=$fgsType")
+        stopStandby(status)
+    }
+
     override fun onDestroy() {
         standbyJob?.cancel()
         serviceScope.cancel()
@@ -81,9 +91,11 @@ class WearableSleepStandbyService : Service() {
             return
         }
         val initialStatus = "睡前待命已开启，正在等待手环/Health Connect 睡眠记录"
+        standbyStartedAtMillis = System.currentTimeMillis()
         _standbyState.value = WearableSleepStandbyState(
             isActive = true,
-            lastCheckMillis = System.currentTimeMillis(),
+            startedAtMillis = standbyStartedAtMillis,
+            lastCheckMillis = standbyStartedAtMillis,
             statusText = initialStatus
         )
         if (!startForegroundNotification(initialStatus)) {
@@ -96,6 +108,10 @@ class WearableSleepStandbyService : Service() {
             settingsRepository.setWearableSleepTriggerEnabled(true)
             settingsRepository.setWearableSleepTriggerStatus(initialStatus)
             while (isActive) {
+                if (System.currentTimeMillis() - standbyStartedAtMillis >= MAX_STANDBY_DURATION_MS) {
+                    stopStandby("睡前待命已接近 Android 前台服务 6 小时限制，请重新打开应用后再开启")
+                    return@launch
+                }
                 val shouldStop = pollOnce()
                 if (shouldStop) {
                     stopStandby("已检测到睡眠并请求开启鼾声检测")
@@ -115,11 +131,11 @@ class WearableSleepStandbyService : Service() {
 
         val pollResult = runCatching {
             healthConnectSleepTriggerSource.pollLatestSleepSession(
-                requireBackgroundRead = false
+                requireBackgroundRead = true
             )
         }.getOrElse { throwable ->
             val status = "睡前待命检查失败：${throwable.message.orEmpty()}".trimEnd('：')
-            settingsRepository.setWearableSleepTriggerStatus(status)
+            persistStandbyStatus(status)
             updateStandbyStatus(status)
             return false
         }
@@ -129,10 +145,10 @@ class WearableSleepStandbyService : Service() {
             stopOnSleepEnd = settings.wearableStopOnSleepEndEnabled,
             coordinator = coordinator,
             settingsRepository = settingsRepository,
-            requireBackgroundRead = false
+            requireBackgroundRead = true
         )
         val status = handleResult.statusText
-        settingsRepository.setWearableSleepTriggerStatus(status)
+        persistStandbyStatus(status)
         updateStandbyStatus(status)
         return handleResult.emittedSleepStart && handleResult.eventHandled
     }
@@ -140,17 +156,29 @@ class WearableSleepStandbyService : Service() {
     private fun stopStandby(status: String) {
         standbyJob?.cancel()
         standbyJob = null
+        standbyStartedAtMillis = 0L
         _standbyState.value = WearableSleepStandbyState(statusText = status)
-        serviceScope.launch {
-            settingsRepository.setWearableSleepTriggerMessage(status)
-        }
+        persistStandbyMessageAsync(status)
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
+    }
+
+    private suspend fun persistStandbyStatus(status: String) {
+        withContext(NonCancellable) {
+            settingsRepository.setWearableSleepTriggerStatus(status)
+        }
+    }
+
+    private fun persistStandbyMessageAsync(status: String) {
+        CoroutineScope(Dispatchers.IO).launch {
+            settingsRepository.setWearableSleepTriggerMessage(status)
+        }
     }
 
     private fun updateStandbyStatus(status: String) {
         val state = WearableSleepStandbyState(
             isActive = true,
+            startedAtMillis = standbyStartedAtMillis,
             lastCheckMillis = System.currentTimeMillis(),
             statusText = status
         )
@@ -229,6 +257,7 @@ class WearableSleepStandbyService : Service() {
         const val NOTIFICATION_ID = 1002
         private const val TAG = "WearableSleepStandby"
         private const val POLL_INTERVAL_MS = 5L * 60L * 1000L
+        private const val MAX_STANDBY_DURATION_MS = 5L * 60L * 60L * 1000L + 30L * 60L * 1000L
 
         private val _standbyState = MutableStateFlow(WearableSleepStandbyState())
         val standbyState: StateFlow<WearableSleepStandbyState> = _standbyState.asStateFlow()
