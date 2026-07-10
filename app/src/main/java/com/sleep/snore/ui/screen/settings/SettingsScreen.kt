@@ -9,6 +9,7 @@ import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.health.connect.client.PermissionController
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -103,18 +104,33 @@ fun SettingsScreen(
             HealthConnectSleepTriggerWorker.enqueueNow(context)
         }
     }
+    var permissionRefreshTick by remember { mutableStateOf(0) }
+    val audioPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) {
+        permissionRefreshTick++
+    }
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) {
+        permissionRefreshTick++
+    }
     val isIgnoringBatteryOptimizations = remember(context) {
         powerManager?.isIgnoringBatteryOptimizations(context.packageName) == true
     }
-    val hasRecordAudioPermission = ContextCompat.checkSelfPermission(
-        context,
-        Manifest.permission.RECORD_AUDIO
-    ) == PackageManager.PERMISSION_GRANTED
-    val hasNotificationPermission = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+    val hasRecordAudioPermission = remember(context, permissionRefreshTick) {
         ContextCompat.checkSelfPermission(
             context,
-            Manifest.permission.POST_NOTIFICATIONS
+            Manifest.permission.RECORD_AUDIO
         ) == PackageManager.PERMISSION_GRANTED
+    }
+    val hasNotificationPermission = remember(context, permissionRefreshTick) {
+        Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
+    }
 
     Scaffold(
         topBar = {
@@ -268,14 +284,25 @@ fun SettingsScreen(
                     HorizontalDivider()
                     ListItem(
                         headlineContent = { Text(if (hasRecordAudioPermission) "麦克风权限已授权" else "缺少麦克风权限") },
-                        supportingContent = { Text("手环自动触发录音前必须已有麦克风权限；未授权时不会后台开麦。") },
-                        modifier = Modifier.heightIn(min = Spacing.touchTargetMin)
+                        supportingContent = { Text("手环自动触发录音前必须已有麦克风权限；未授权时不会后台开麦。点此授权。") },
+                        modifier = Modifier
+                            .heightIn(min = Spacing.touchTargetMin)
+                            .clickable(enabled = !hasRecordAudioPermission, role = Role.Button) {
+                                audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                            }
                     )
                     HorizontalDivider()
                     ListItem(
                         headlineContent = { Text(if (hasNotificationPermission) "通知权限已授权" else "建议开启通知权限") },
-                        supportingContent = { Text("前台检测依赖可见通知；Android 13+ 未授权时后台稳定性会变差。") },
-                        modifier = Modifier.heightIn(min = Spacing.touchTargetMin)
+                        supportingContent = { Text("前台检测依赖可见通知；Android 13+ 未授权时后台稳定性会变差。点此授权。") },
+                        modifier = Modifier
+                            .heightIn(min = Spacing.touchTargetMin)
+                            .clickable(
+                                enabled = !hasNotificationPermission && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU,
+                                role = Role.Button
+                            ) {
+                                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                            }
                     )
                 }
             }
@@ -299,6 +326,12 @@ fun SettingsScreen(
                     Spacer(Modifier.height(Spacing.xs))
                     Text(
                         "需要授予 Health Connect 睡眠读取和后台读取权限。Android 可能阻止纯后台启动麦克风，所以手环触发更适合做辅助校准/自动停止。",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(Spacing.xs))
+                    Text(
+                        "小米接入步骤：在 Mi Fitness/小米运动健康中开启 Health Connect 同步，并勾选睡眠；再回到本页授权本应用读取睡眠。",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

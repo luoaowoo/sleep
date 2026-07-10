@@ -212,8 +212,7 @@ class SleepRecordingService : Service() {
 
     private fun finishSessionAndStop() {
         if (!isSessionActive) {
-            clearActiveRecordingTriggerSourceAsync()
-            stopSelf()
+            finishRecoveredSessionAndStop()
             return
         }
         isFinishingSession = true
@@ -230,6 +229,46 @@ class SleepRecordingService : Service() {
                 releaseWakeLock()
                 preferencesRepository.clearActiveRecordingTriggerSource()
                 _recordingState.value = RecordingRuntimeState()
+                stopForeground(STOP_FOREGROUND_REMOVE)
+                stopSelf()
+                serviceScope.cancel()
+            }
+        }
+    }
+
+    private fun finishRecoveredSessionAndStop() {
+        ensureServiceScope()
+        isFinishingSession = true
+        serviceScope.launch {
+            try {
+                val activeRecord = repository.getActiveRecordingRecord()
+                if (activeRecord == null) {
+                    Log.i(TAG, "stop requested without active recording")
+                    return@launch
+                }
+                currentRecordId = activeRecord.id
+                sessionStartTime = activeRecord.startTime
+                val events = repository.getEventsSnapshotByRecordId(activeRecord.id)
+                val endTime = System.currentTimeMillis()
+                repository.updateRecord(
+                    buildFinalRecord(
+                        recordId = activeRecord.id,
+                        startTime = activeRecord.startTime,
+                        endTime = endTime,
+                        events = events
+                    )
+                )
+                Log.i(TAG, "finalized recovered recording on stop: ${activeRecord.id}")
+            } catch (e: Exception) {
+                Log.e(TAG, "failed to finalize recovered recording on stop", e)
+                writeFallbackFinalRecord()
+            } finally {
+                preferencesRepository.clearActiveRecordingTriggerSource()
+                currentRecordId = null
+                sessionStartTime = 0L
+                isSessionActive = false
+                _recordingState.value = RecordingRuntimeState()
+                releaseWakeLock()
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
                 serviceScope.cancel()
