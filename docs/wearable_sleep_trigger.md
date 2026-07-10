@@ -16,11 +16,12 @@
 
 ## 后续实现路线
 
-1. 设置页增加“手环自动检测”区域：开关、授权状态、触发源说明、排障入口。
+1. 设置页已增加“手环自动检测”区域：可开启 Health Connect 睡眠触发、睡眠结束自动停止，并提供睡眠读取授权入口。
 2. 接入 Health Connect：
    - 申请读取睡眠会话权限。
    - 读取最近睡眠记录，转换为 `SleepTriggerEvent.SleepStarted/SleepEnded`。
    - 对非实时同步加 UI 说明，避免用户误以为是即时唤醒。
+   - 当前工程使用已验证可构建的 `androidx.health.connect:connect-client:1.1.0-alpha11`；后续网络/缓存稳定后可按 AndroidX 发布节奏升级。
 3. 如果小米官方发布可用 SDK，再新增 `XiaomiSleepTriggerSource`，保持对上层接口不变。
 4. 后台保活策略：
    - 录音必须通过前台麦克风服务运行。

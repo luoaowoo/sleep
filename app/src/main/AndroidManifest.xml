@@ -1,5 +1,10 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <queries>
+        <package android:name="com.google.android.apps.healthdata" />
+    </queries>
 
     <!-- 录音权限 -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
@@ -17,6 +22,10 @@
 
     <!-- 用户可选 DeepSeek AI 分析 -->
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Health Connect 睡眠记录读取（小米运动健康同步后可作为触发信号） -->
+    <uses-permission android:name="android.permission.health.READ_SLEEP" />
+    <uses-permission android:name="android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND" />
 
     <application
         android:name=".SleepSnoreApp"
@@ -36,8 +45,15 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <intent-filter>
+                <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+            </intent-filter>
         </activity>
 
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            tools:node="remove" />
         <!-- 前台录音服务 -->
         <service
             android:name=".service.SleepRecordingService"

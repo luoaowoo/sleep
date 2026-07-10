@@ -12,5 +12,5 @@ abstract class SleepTriggerSourceModule {
 
     @Binds
     @Singleton
-    abstract fun bindSleepTriggerSource(source: NoopSleepTriggerSource): SleepTriggerSource
+    abstract fun bindSleepTriggerSource(source: HealthConnectSleepTriggerSource): SleepTriggerSource
 }

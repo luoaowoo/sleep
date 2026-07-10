@@ -5,6 +5,8 @@ import android.graphics.Color as AndroidColor
 import android.net.Uri
 import android.os.PowerManager
 import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.health.connect.client.PermissionController
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -70,6 +72,7 @@ import com.sleep.snore.data.model.FontScale
 import com.sleep.snore.data.preferences.SettingsPreferencesRepository
 import com.sleep.snore.data.preferences.defaultArgb
 import com.sleep.snore.navigation.Route
+import com.sleep.snore.sleeptrigger.HealthConnectSleepTriggerSource
 import com.sleep.snore.ui.theme.LocalUiPreferences
 import com.sleep.snore.ui.theme.Spacing
 import kotlin.math.atan2
@@ -88,6 +91,9 @@ fun SettingsScreen(
     val cardCornerStyle by viewModel.cardCornerStyle.collectAsStateWithLifecycle()
     val uiPreferences = LocalUiPreferences.current
     val powerManager = remember(context) { context.getSystemService(PowerManager::class.java) }
+    val healthConnectPermissionLauncher = rememberLauncherForActivityResult(
+        PermissionController.createRequestPermissionResultContract()
+    ) { }
     val isIgnoringBatteryOptimizations = remember(context) {
         powerManager?.isIgnoringBatteryOptimizations(context.packageName) == true
     }
@@ -242,6 +248,40 @@ fun SettingsScreen(
                 )
             }
 
+            Text("手环自动检测", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+            Card(shape = MaterialTheme.shapes.extraLarge) {
+                Column(modifier = Modifier.padding(uiPreferences.cardPadding)) {
+                    SettingSwitchRow(
+                        title = "Health Connect 睡眠触发",
+                        supportingText = "小米运动健康同步睡眠记录后，应用会按系统调度读取睡眠会话，并尝试自动开始/结束鼾声检测；非实时能力，建议睡前仍开启前台准备。",
+                        checked = uiState.wearableSleepTriggerEnabled,
+                        onCheckedChange = viewModel::onWearableSleepTriggerChange
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(vertical = Spacing.sm))
+                    SettingSwitchRow(
+                        title = "睡眠结束后自动停止",
+                        supportingText = "读取到 Health Connect 睡眠结束事件后自动结束鼾声检测。",
+                        checked = uiState.wearableStopOnSleepEndEnabled,
+                        onCheckedChange = viewModel::onWearableStopOnSleepEndChange
+                    )
+                    Spacer(Modifier.height(Spacing.xs))
+                    Text(
+                        "需要在 Health Connect 中授予睡眠读取权限，并让小米运动健康同步睡眠数据。Android 后台限制可能阻止纯后台启动麦克风服务。",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(Spacing.sm))
+                    Button(
+                        onClick = {
+                            healthConnectPermissionLauncher.launch(
+                                setOf(HealthConnectSleepTriggerSource.READ_SLEEP_PERMISSION)
+                            )
+                        }
+                    ) {
+                        Text("授权睡眠读取")
+                    }
+                }
+            }
             Text("数据", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
             Card(shape = MaterialTheme.shapes.extraLarge) {
                 Column {

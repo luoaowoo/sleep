@@ -37,6 +37,8 @@ data class SettingsUiState(
     val deepSeekBaseUrl: String = SettingsPreferencesRepository.DEFAULT_DEEPSEEK_BASE_URL,
     val deepSeekModelName: String = SettingsPreferencesRepository.DEFAULT_DEEPSEEK_MODEL_NAME,
     val aiCustomInfo: String = "",
+    val wearableSleepTriggerEnabled: Boolean = SettingsPreferencesRepository.DEFAULT_WEARABLE_SLEEP_TRIGGER_ENABLED,
+    val wearableStopOnSleepEndEnabled: Boolean = SettingsPreferencesRepository.DEFAULT_WEARABLE_STOP_ON_SLEEP_END_ENABLED,
     val storageUsageText: String = "计算中..."
 )
 
@@ -84,7 +86,9 @@ class SettingsViewModel @Inject constructor(
                         deepSeekApiKey = settings.deepSeekApiKey,
                         deepSeekBaseUrl = settings.deepSeekBaseUrl,
                         deepSeekModelName = settings.deepSeekModelName,
-                        aiCustomInfo = settings.aiCustomInfo
+                        aiCustomInfo = settings.aiCustomInfo,
+                        wearableSleepTriggerEnabled = settings.wearableSleepTriggerEnabled,
+                        wearableStopOnSleepEndEnabled = settings.wearableStopOnSleepEndEnabled
                     )
                 }
             }
@@ -216,6 +220,20 @@ class SettingsViewModel @Inject constructor(
     fun setSensitivity(value: Sensitivity) {
         viewModelScope.launch {
             preferencesRepository.setSensitivity(value)
+        }
+    }
+
+    fun onWearableSleepTriggerChange(enabled: Boolean) {
+        _uiState.update { it.copy(wearableSleepTriggerEnabled = enabled) }
+        viewModelScope.launch {
+            preferencesRepository.setWearableSleepTriggerEnabled(enabled)
+        }
+    }
+
+    fun onWearableStopOnSleepEndChange(enabled: Boolean) {
+        _uiState.update { it.copy(wearableStopOnSleepEndEnabled = enabled) }
+        viewModelScope.launch {
+            preferencesRepository.setWearableStopOnSleepEndEnabled(enabled)
         }
     }
 
