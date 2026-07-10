@@ -105,13 +105,16 @@ fun SettingsScreen(
     val standbyState by WearableSleepStandbyService.standbyState.collectAsStateWithLifecycle()
     val wearableSleepDetectionActive = standbyState.isActive ||
         uiState.activeRecordingTriggerSource == HealthConnectSleepTriggerSource.SOURCE
-    val installedXiaomiCompanion = remember(context) { findInstalledXiaomiCompanion(context) }
     val uiPreferences = LocalUiPreferences.current
     val powerManager = remember(context) { context.getSystemService(PowerManager::class.java) }
     val lifecycleOwner = LocalLifecycleOwner.current
     var permissionRefreshTick by remember { mutableStateOf(0) }
     var healthConnectPermissionRefreshTick by remember { mutableStateOf(0) }
     var powerStateRefreshTick by remember { mutableStateOf(0) }
+    var companionAppRefreshTick by remember { mutableStateOf(0) }
+    val installedXiaomiCompanion = remember(context, companionAppRefreshTick) {
+        findInstalledXiaomiCompanion(context)
+    }
     val healthConnectPermissionLauncher = rememberLauncherForActivityResult(
         PermissionController.createRequestPermissionResultContract()
     ) { grantedPermissions ->
@@ -159,6 +162,7 @@ fun SettingsScreen(
             if (event == Lifecycle.Event.ON_RESUME) {
                 healthConnectPermissionRefreshTick++
                 powerStateRefreshTick++
+                companionAppRefreshTick++
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -420,6 +424,7 @@ fun SettingsScreen(
                         modifier = Modifier
                             .heightIn(min = Spacing.touchTargetMin)
                             .clickable(role = Role.Button) {
+                                companionAppRefreshTick++
                                 openXiaomiCompanionOrStore(context, installedXiaomiCompanion)
                             }
                     )
