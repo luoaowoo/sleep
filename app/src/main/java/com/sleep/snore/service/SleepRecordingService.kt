@@ -95,7 +95,9 @@ class SleepRecordingService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         return when (intent?.action) {
             ACTION_STOP -> {
-                finishSessionAndStop()
+                finishSessionAndStop(
+                    wearableSleepEndTimeMillis = intent.sleepEndTimeMillisExtra()
+                )
                 START_NOT_STICKY
             }
             ACTION_REFRESH_NOTIFICATION -> {
@@ -218,10 +220,13 @@ class SleepRecordingService : Service() {
         }
     }
 
-    private fun finishSessionAndStop(handledWearableSleepEndEventKey: String? = null) {
+    private fun finishSessionAndStop(
+        handledWearableSleepEndEventKey: String? = null,
+        wearableSleepEndTimeMillis: Long? = null
+    ) {
         if (isFinishingSession) return
         if (!isSessionActive) {
-            finishRecoveredSessionAndStop(handledWearableSleepEndEventKey)
+            finishRecoveredSessionAndStop(handledWearableSleepEndEventKey, wearableSleepEndTimeMillis)
             return
         }
         isFinishingSession = true
@@ -231,10 +236,10 @@ class SleepRecordingService : Service() {
 
         serviceScope.launch {
             try {
-                finalizeCurrentSession()
+                finalizeCurrentSession(wearableSleepEndTimeMillis)
             } catch (e: Exception) {
                 Log.e(TAG, "failed to finish recording session", e)
-                writeFallbackFinalRecord()
+                writeFallbackFinalRecord(wearableSleepEndTimeMillis)
             } finally {
                 if (!handledWearableSleepEndEventKey.isNullOrBlank()) {
                     preferencesRepository.setLastWearableSleepEventKey(handledWearableSleepEndEventKey)
@@ -249,7 +254,10 @@ class SleepRecordingService : Service() {
         }
     }
 
-    private fun finishRecoveredSessionAndStop(handledWearableSleepEndEventKey: String? = null) {
+    private fun finishRecoveredSessionAndStop(
+        handledWearableSleepEndEventKey: String? = null,
+        wearableSleepEndTimeMillis: Long? = null
+    ) {
         ensureServiceScope()
         if (isFinishingSession) return
         isFinishingSession = true
@@ -263,7 +271,7 @@ class SleepRecordingService : Service() {
                 currentRecordId = activeRecord.id
                 sessionStartTime = activeRecord.startTime
                 val events = repository.getEventsSnapshotByRecordId(activeRecord.id)
-                val endTime = System.currentTimeMillis()
+                val endTime = wearableSleepEndTimeMillis ?: System.currentTimeMillis()
                 repository.updateRecord(
                     buildFinalRecord(
                         recordId = activeRecord.id,
@@ -275,7 +283,7 @@ class SleepRecordingService : Service() {
                 Log.i(TAG, "finalized recovered recording on stop: ${activeRecord.id}")
             } catch (e: Exception) {
                 Log.e(TAG, "failed to finalize recovered recording on stop", e)
-                writeFallbackFinalRecord()
+                writeFallbackFinalRecord(wearableSleepEndTimeMillis)
             } finally {
                 if (!handledWearableSleepEndEventKey.isNullOrBlank()) {
                     preferencesRepository.setLastWearableSleepEventKey(handledWearableSleepEndEventKey)
@@ -293,7 +301,7 @@ class SleepRecordingService : Service() {
         }
     }
 
-    private suspend fun finalizeCurrentSession() {
+    private suspend fun finalizeCurrentSession(wearableSleepEndTimeMillis: Long? = null) {
         val completedPendingWork = withTimeoutOrNull(FINALIZE_TIMEOUT_MS) {
             startJob?.join()
             val jobs = synchronized(encodingJobs) { encodingJobs.toList() }
@@ -307,7 +315,7 @@ class SleepRecordingService : Service() {
         }
         val recordId = currentRecordId
         if (recordId != null) {
-            val endTime = System.currentTimeMillis()
+            val endTime = wearableSleepEndTimeMillis ?: System.currentTimeMillis()
             val events = getCurrentSessionEvents(recordId)
             repository.updateRecord(buildFinalRecord(recordId, sessionStartTime, endTime, events))
         }
@@ -317,10 +325,10 @@ class SleepRecordingService : Service() {
         if (settings?.autoCleanEnabled == true) cleanOldData()
     }
 
-    private suspend fun writeFallbackFinalRecord() {
+    private suspend fun writeFallbackFinalRecord(wearableSleepEndTimeMillis: Long? = null) {
         val recordId = currentRecordId ?: return
         runCatching {
-            val endTime = System.currentTimeMillis()
+            val endTime = wearableSleepEndTimeMillis ?: System.currentTimeMillis()
             val events = getCurrentSessionEvents(recordId)
             val durationMs = max(1L, endTime - sessionStartTime)
             val snoreDurationMs = events.sumOf { it.durationMs.toLong() }
@@ -596,7 +604,10 @@ class SleepRecordingService : Service() {
                     RecordingSleepEndFallbackResult.StopPolling -> return@launch
                     is RecordingSleepEndFallbackResult.StopRecording -> {
                         serviceScope.launch {
-                            finishSessionAndStop(pollResult.eventKey)
+                            finishSessionAndStop(
+                                handledWearableSleepEndEventKey = pollResult.eventKey,
+                                wearableSleepEndTimeMillis = pollResult.endTimeMillis
+                            )
                         }
                         return@launch
                     }
@@ -839,11 +850,23 @@ class SleepRecordingService : Service() {
                 .apply {
                     if (!triggerSource.isNullOrBlank()) putExtra(EXTRA_TRIGGER_SOURCE, triggerSource)
                 }
-        fun stopIntent(context: Context): Intent = Intent(context, SleepRecordingService::class.java).setAction(ACTION_STOP)
+        fun stopIntent(context: Context, sleepEndTimeMillis: Long? = null): Intent =
+            Intent(context, SleepRecordingService::class.java)
+                .setAction(ACTION_STOP)
+                .apply {
+                    if (sleepEndTimeMillis != null && sleepEndTimeMillis > 0L) {
+                        putExtra(EXTRA_SLEEP_END_TIME_MILLIS, sleepEndTimeMillis)
+                    }
+                }
         fun refreshNotificationIntent(context: Context): Intent =
             Intent(context, SleepRecordingService::class.java).setAction(ACTION_REFRESH_NOTIFICATION)
         private const val EXTRA_TRIGGER_SOURCE = "trigger_source"
+        private const val EXTRA_SLEEP_END_TIME_MILLIS = "sleep_end_time_millis"
     }
+}
+
+private fun Intent.sleepEndTimeMillisExtra(): Long? {
+    return getLongExtra("sleep_end_time_millis", 0L).takeIf { it > 0L }
 }
 
 private data class ApneaStats(

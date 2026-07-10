@@ -71,7 +71,8 @@ class RecordingSleepEndFallbackPollerTest {
         assertThat(result).isEqualTo(
             RecordingSleepEndFallbackResult.StopRecording(
                 statusText = "检测到睡眠结束，录音服务正在停止鼾声检测",
-                eventKey = "SleepEnded:2000:1234"
+                eventKey = "SleepEnded:2000:1234",
+                endTimeMillis = 2000L
             )
         )
         assertThat(repository.getLastWearableSleepEventKey()).isNull()

@@ -185,7 +185,7 @@ class WearableSleepPollResultHandlerTest {
             started = true
             return startResult
         }
-        override suspend fun stopFromSleepTrigger(source: String): Boolean = stopResult
+        override suspend fun stopFromSleepTrigger(source: String, sleepEndTimeMillis: Long?): Boolean = stopResult
         override fun isRecordingActive(): Boolean = startResult.confirmed
     }
 }

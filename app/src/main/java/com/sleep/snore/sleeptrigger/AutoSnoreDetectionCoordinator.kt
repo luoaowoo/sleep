@@ -63,7 +63,7 @@ class AutoSnoreDetectionCoordinator @Inject constructor(
                     return AutoSnoreDetectionResult.SleepEnd(handled = false, stopRequested = false)
                 }
                 AutoSnoreDetectionResult.SleepEnd(
-                    recordingController.stopFromSleepTrigger(event.source)
+                    recordingController.stopFromSleepTrigger(event.source, event.timestamp)
                 )
             }
         }

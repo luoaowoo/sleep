@@ -73,6 +73,7 @@ class AutoSnoreDetectionCoordinatorTest {
         assertThat(result.shouldRememberEvent).isTrue()
         assertThat(result.statusText).isEqualTo("检测到睡眠结束，已请求停止鼾声检测")
         assertThat(controller.stopped).isTrue()
+        assertThat(controller.stoppedAtMillis).isEqualTo(2L)
     }
 
     @Test
@@ -136,6 +137,8 @@ class AutoSnoreDetectionCoordinatorTest {
             private set
         var stopped = false
             private set
+        var stoppedAtMillis: Long? = null
+            private set
 
         override suspend fun startFromSleepTrigger(source: String): RecordingStartResult {
             started = true
@@ -144,9 +147,10 @@ class AutoSnoreDetectionCoordinatorTest {
             return startResult
         }
 
-        override suspend fun stopFromSleepTrigger(source: String): Boolean {
+        override suspend fun stopFromSleepTrigger(source: String, sleepEndTimeMillis: Long?): Boolean {
             if (!startedFromSleepTrigger) return false
             stopped = true
+            stoppedAtMillis = sleepEndTimeMillis
             startedFromSleepTrigger = false
             active = false
             return true

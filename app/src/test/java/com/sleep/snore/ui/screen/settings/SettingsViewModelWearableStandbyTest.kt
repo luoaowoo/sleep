@@ -80,7 +80,7 @@ class SettingsViewModelWearableStandbyTest {
             return RecordingStartResult.Confirmed("started")
         }
 
-        override suspend fun stopFromSleepTrigger(source: String): Boolean {
+        override suspend fun stopFromSleepTrigger(source: String, sleepEndTimeMillis: Long?): Boolean {
             stoppedSources += source
             return true
         }

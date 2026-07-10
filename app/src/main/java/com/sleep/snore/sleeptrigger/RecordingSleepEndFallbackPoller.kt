@@ -10,7 +10,11 @@ import kotlinx.coroutines.flow.first
 sealed interface RecordingSleepEndFallbackResult {
     data object ContinuePolling : RecordingSleepEndFallbackResult
     data object StopPolling : RecordingSleepEndFallbackResult
-    data class StopRecording(val statusText: String, val eventKey: String) : RecordingSleepEndFallbackResult
+    data class StopRecording(
+        val statusText: String,
+        val eventKey: String,
+        val endTimeMillis: Long
+    ) : RecordingSleepEndFallbackResult
 }
 
 @Singleton
@@ -40,7 +44,8 @@ class RecordingSleepEndFallbackPoller @Inject constructor(
         }
 
         val emittedEvent = pollResult as? HealthConnectSleepTriggerSource.PollResult.EventEmitted
-        if (emittedEvent?.event !is SleepTriggerEvent.SleepEnded) {
+        val sleepEnded = emittedEvent?.event as? SleepTriggerEvent.SleepEnded
+        if (sleepEnded == null) {
             if (pollResult !is HealthConnectSleepTriggerSource.PollResult.EventEmitted) {
                 settingsRepository.setWearableSleepTriggerStatus(
                     "录音服务等待睡眠结束：${pollResult.toWearableSleepStatusText(requireBackgroundRead = true)}"
@@ -51,7 +56,11 @@ class RecordingSleepEndFallbackPoller @Inject constructor(
 
         val status = "检测到睡眠结束，录音服务正在停止鼾声检测"
         settingsRepository.setWearableSleepTriggerStatus(status)
-        return RecordingSleepEndFallbackResult.StopRecording(status, emittedEvent.eventKey)
+        return RecordingSleepEndFallbackResult.StopRecording(
+            statusText = status,
+            eventKey = emittedEvent.eventKey,
+            endTimeMillis = sleepEnded.timestamp
+        )
     }
 }
 

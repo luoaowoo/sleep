@@ -34,7 +34,7 @@ sealed interface RecordingStartResult {
 
 interface RecordingController {
     suspend fun startFromSleepTrigger(source: String): RecordingStartResult
-    suspend fun stopFromSleepTrigger(source: String): Boolean
+    suspend fun stopFromSleepTrigger(source: String, sleepEndTimeMillis: Long? = null): Boolean
     fun isRecordingActive(): Boolean
 }
 
@@ -72,15 +72,15 @@ class AndroidRecordingController @Inject constructor(
         }
     }
 
-    override suspend fun stopFromSleepTrigger(source: String): Boolean {
+    override suspend fun stopFromSleepTrigger(source: String, sleepEndTimeMillis: Long?): Boolean {
         if (settingsRepository.getActiveRecordingTriggerSource() != source) return false
         return runCatching {
-            context.startService(SleepRecordingService.stopIntent(context))
-            ActiveRecordingFinalizerWorker.enqueueFallback(context, source)
+            context.startService(SleepRecordingService.stopIntent(context, sleepEndTimeMillis))
+            ActiveRecordingFinalizerWorker.enqueueFallback(context, source, sleepEndTimeMillis)
             true
         }.getOrElse {
             runCatching {
-                ActiveRecordingFinalizerWorker.enqueueFallback(context, source)
+                ActiveRecordingFinalizerWorker.enqueueFallback(context, source, sleepEndTimeMillis)
                 true
             }.getOrDefault(false)
         }

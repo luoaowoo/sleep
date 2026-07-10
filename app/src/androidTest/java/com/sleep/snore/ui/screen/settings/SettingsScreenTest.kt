@@ -116,7 +116,7 @@ class SettingsScreenTest {
             return RecordingStartResult.Confirmed("started")
         }
 
-        override suspend fun stopFromSleepTrigger(source: String): Boolean = true
+        override suspend fun stopFromSleepTrigger(source: String, sleepEndTimeMillis: Long?): Boolean = true
 
         override fun isRecordingActive(): Boolean = false
     }
