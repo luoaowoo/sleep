@@ -38,6 +38,7 @@ import java.util.Locale
 import javax.inject.Inject
 import kotlin.math.max
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
@@ -402,7 +403,7 @@ class SleepRecordingService : Service() {
                         Log.w(TAG, "drop snore event because encoding queue is full: $pendingJobCount")
                         return
                     }
-                    val job = serviceScope.launch {
+                    val job = serviceScope.launch(start = CoroutineStart.LAZY) {
                         val features = SnoreFeatureAnalyzer.analyze(pcmData, peakDb, durationMs)
                         val audioFile = audioEncoder.encodeToOpus(pcmData, outputDir, "snore_$startTimestamp")
                         if (audioFile == null || audioFile.length() == 0L) {
@@ -434,6 +435,7 @@ class SleepRecordingService : Service() {
                         synchronized(encodingJobs) { encodingJobs.remove(job) }
                     }
                     synchronized(encodingJobs) { encodingJobs.add(job) }
+                    job.start()
                 }
 
                 override fun onRecorderError(errorCode: Int, consecutiveErrors: Int) {
@@ -476,12 +478,16 @@ class SleepRecordingService : Service() {
             stopSnoreDetection()
             delay(DETECTOR_RESTART_DELAY_MS)
             if (!isSessionActive) return@launch
-            startSnoreDetection(
+            val restarted = startSnoreDetection(
                 recordId = recordId,
                 silenceThresholdDb = lastSilenceThresholdDb,
                 maxSegmentDurationSec = lastMaxSegmentDurationSec,
                 sensitivity = lastSensitivity
             )
+            if (!restarted) {
+                Log.e(TAG, "failed to restart snore detector; finishing session")
+                finishSessionAndStop()
+            }
         }
     }
 

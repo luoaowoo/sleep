@@ -1,6 +1,7 @@
 ﻿package com.sleep.snore.data.repository
 
 import android.content.Context
+import android.util.Log
 import com.sleep.snore.data.db.dao.FactorLogDao
 import com.sleep.snore.data.db.dao.SleepRecordDao
 import com.sleep.snore.data.db.dao.SnoreEventDao
@@ -71,13 +72,22 @@ class SleepRepository @Inject constructor(
     private fun deleteAudioFiles(paths: List<String>) {
         val audioRoot = File(context.filesDir, "snore_audio").canonicalFile
         paths.distinct().forEach { path ->
-            val file = File(path).canonicalFile
-            if (!file.path.startsWith(audioRoot.path + File.separator)) {
-                error("Refuse to delete file outside app audio directory")
-            }
-            if (file.isFile && !file.delete()) {
-                error("Audio file delete failed")
+            runCatching {
+                val file = File(path).canonicalFile
+                if (!file.path.startsWith(audioRoot.path + File.separator)) {
+                    Log.w(TAG, "skip deleting file outside app audio directory: $path")
+                    return@runCatching
+                }
+                if (file.isFile && !file.delete()) {
+                    Log.w(TAG, "audio file delete failed: $path")
+                }
+            }.onFailure {
+                Log.w(TAG, "skip deleting invalid audio path: $path", it)
             }
         }
+    }
+
+    private companion object {
+        const val TAG = "SleepRepository"
     }
 }
