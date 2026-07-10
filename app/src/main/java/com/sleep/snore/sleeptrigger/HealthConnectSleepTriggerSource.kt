@@ -13,8 +13,7 @@ import java.time.temporal.ChronoUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.emptyFlow
 
 @Singleton
 class HealthConnectSleepTriggerSource @Inject constructor(
@@ -22,8 +21,7 @@ class HealthConnectSleepTriggerSource @Inject constructor(
     private val settingsRepository: SettingsPreferencesRepository
 ) : SleepTriggerSource, HealthConnectSleepSessionPoller {
 
-    private val mutableEvents = MutableSharedFlow<SleepTriggerEvent>(extraBufferCapacity = 8)
-    override val events: Flow<SleepTriggerEvent> = mutableEvents.asSharedFlow()
+    override val events: Flow<SleepTriggerEvent> = emptyFlow()
 
     override suspend fun pollLatestSleepSession(
         now: Instant,
@@ -76,7 +74,6 @@ class HealthConnectSleepTriggerSource @Inject constructor(
         if (interpretedEvent.eventKey == settingsRepository.getLastWearableSleepEventKey()) {
             return PollResult.DuplicateEvent
         }
-        mutableEvents.tryEmit(interpretedEvent.event)
         return PollResult.EventEmitted(interpretedEvent.event, interpretedEvent.eventKey)
     }
 
