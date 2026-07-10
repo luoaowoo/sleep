@@ -31,6 +31,7 @@
    - 如果服务运行态丢失但数据库仍有 active record，睡眠结束/停止事件会恢复该记录并结算，避免留下未完成录音。
    - 开机或应用更新后通过 `WearableSleepTriggerBootReceiver` 恢复周期轮询，并立即执行一次检查。
    - 自动开麦前预检麦克风权限；缺少麦克风权限时不尝试后台启动，并在设置页状态中提示原因。通知权限作为 Android 13+ 稳定性建议展示。
+   - 如果 Health Connect 检测到睡眠但后台开麦失败，会写入设置页状态，并在通知权限允许时发出提醒，引导用户睡前开启前台检测。
    - 当前工程使用已验证可构建的 `androidx.health.connect:connect-client:1.1.0-alpha11`；后续网络/缓存稳定后可按 AndroidX 发布节奏升级。
 3. 如果小米官方发布可用 SDK，再新增 `XiaomiSleepTriggerSource`，保持对上层接口不变。
 4. 后台保活策略：

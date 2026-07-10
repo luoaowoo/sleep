@@ -41,7 +41,8 @@ interface RecordingController {
 @Singleton
 class AndroidRecordingController @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val settingsRepository: SettingsPreferencesRepository
+    private val settingsRepository: SettingsPreferencesRepository,
+    private val recordingFailureNotifier: RecordingFailureNotifier
 ) : RecordingController {
 
     override suspend fun startFromSleepTrigger(source: String): RecordingStartResult {
@@ -49,13 +50,12 @@ class AndroidRecordingController @Inject constructor(
             return if (settingsRepository.getActiveRecordingTriggerSource() == source) {
                 RecordingStartResult.Confirmed("检测到睡眠，鼾声检测已在运行")
             } else {
-                RecordingStartResult.Failed("检测到睡眠，但当前已有检测在运行；不会接管手动录音")
+                startIssue("检测到睡眠，但当前已有检测在运行；不会接管手动录音")
             }
         }
         val missingPermissionStatus = missingRequiredPermissionStatus()
         if (missingPermissionStatus != null) {
-            settingsRepository.setWearableSleepTriggerStatus(missingPermissionStatus)
-            return RecordingStartResult.Failed(missingPermissionStatus)
+            return startIssue(missingPermissionStatus)
         }
         return runCatching {
             ContextCompat.startForegroundService(context, SleepRecordingService.startIntent(context, source))
@@ -64,12 +64,11 @@ class AndroidRecordingController @Inject constructor(
             } else if (isRecordingActive()) {
                 RecordingStartResult.Submitted("检测到睡眠，已请求开启鼾声检测，正在等待服务确认")
             } else {
-                RecordingStartResult.Failed("检测到睡眠，但后台麦克风未能确认启动；请睡前开启前台检测")
+                startIssue("检测到睡眠，但后台麦克风未能确认启动；请睡前开启前台检测")
             }
         }.getOrElse {
             val status = "后台启动麦克风服务失败，请睡前开启前台检测"
-            settingsRepository.setWearableSleepTriggerStatus(status)
-            RecordingStartResult.Failed(status)
+            startIssue(status)
         }
     }
 
@@ -93,6 +92,12 @@ class AndroidRecordingController @Inject constructor(
         if (!hasRecordAudio) return "缺少麦克风权限，请先在睡前检测页授权"
 
         return null
+    }
+
+    private suspend fun startIssue(status: String): RecordingStartResult.Failed {
+        settingsRepository.setWearableSleepTriggerStatus(status)
+        recordingFailureNotifier.notifyWearableStartIssue(status)
+        return RecordingStartResult.Failed(status)
     }
 
     private suspend fun waitForConfirmedSource(source: String): Boolean {
