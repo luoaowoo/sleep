@@ -100,9 +100,7 @@ fun SettingsScreen(
     val healthConnectPermissionLauncher = rememberLauncherForActivityResult(
         PermissionController.createRequestPermissionResultContract()
     ) { grantedPermissions ->
-        if (grantedPermissions.containsAll(HealthConnectSleepTriggerSource.FOREGROUND_REQUIRED_PERMISSIONS)) {
-            HealthConnectSleepTriggerWorker.enqueueNow(context)
-        }
+        viewModel.onHealthConnectPermissionsResult(grantedPermissions)
     }
     var permissionRefreshTick by remember { mutableStateOf(0) }
     val audioPermissionLauncher = rememberLauncherForActivityResult(
@@ -358,7 +356,7 @@ fun SettingsScreen(
                     }
                     Spacer(Modifier.height(Spacing.sm))
                     Button(
-                        onClick = { HealthConnectSleepTriggerWorker.enqueueNow(context) }
+                        onClick = viewModel::checkWearableSleepNow
                     ) {
                         Text("立即检查睡眠记录")
                     }

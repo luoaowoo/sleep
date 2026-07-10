@@ -9,6 +9,8 @@ import com.sleep.snore.data.model.FontScale
 import com.sleep.snore.data.model.Sensitivity
 import com.sleep.snore.data.preferences.SettingsPreferencesRepository
 import com.sleep.snore.data.preferences.defaultArgb
+import com.sleep.snore.sleeptrigger.HealthConnectSleepTriggerSource
+import com.sleep.snore.sleeptrigger.HealthConnectSleepTriggerWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
@@ -233,6 +235,44 @@ class SettingsViewModel @Inject constructor(
         _uiState.update { it.copy(wearableSleepTriggerEnabled = enabled) }
         viewModelScope.launch {
             preferencesRepository.setWearableSleepTriggerEnabled(enabled)
+            if (enabled) {
+                preferencesRepository.setWearableSleepTriggerStatus("已开启手环自动检测，正在检查最近睡眠记录")
+                HealthConnectSleepTriggerWorker.enqueueNow(context)
+            } else {
+                preferencesRepository.setWearableSleepTriggerMessage("手环自动检测已关闭")
+            }
+        }
+    }
+
+    fun onHealthConnectPermissionsResult(grantedPermissions: Set<String>) {
+        when {
+            grantedPermissions.containsAll(HealthConnectSleepTriggerSource.BACKGROUND_REQUIRED_PERMISSIONS) -> {
+                checkWearableSleepNow("Health Connect 已授权，正在检查最近睡眠记录")
+            }
+            grantedPermissions.containsAll(HealthConnectSleepTriggerSource.FOREGROUND_REQUIRED_PERMISSIONS) -> {
+                checkWearableSleepNow("已授权睡眠读取，正在检查最近睡眠记录；后台轮询仍需后台读取权限")
+            }
+            else -> {
+                viewModelScope.launch {
+                    preferencesRepository.setWearableSleepTriggerMessage("未授予 Health Connect 睡眠读取权限，无法检查睡眠记录")
+                }
+            }
+        }
+    }
+
+    fun checkWearableSleepNow(
+        status: String = "正在检查最近睡眠记录"
+    ) {
+        _uiState.update {
+            it.copy(
+                wearableSleepTriggerEnabled = true,
+                wearableSleepTriggerStatus = status
+            )
+        }
+        viewModelScope.launch {
+            preferencesRepository.setWearableSleepTriggerEnabled(true)
+            preferencesRepository.setWearableSleepTriggerStatus(status)
+            HealthConnectSleepTriggerWorker.enqueueNow(context)
         }
     }
 

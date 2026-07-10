@@ -263,6 +263,12 @@ class SettingsPreferencesRepository @Inject constructor(
         }
     }
 
+    suspend fun setWearableSleepTriggerMessage(status: String) {
+        dataStore.edit { preferences ->
+            preferences[Keys.WEARABLE_SLEEP_TRIGGER_STATUS] = status
+        }
+    }
+
     suspend fun getActiveRecordingTriggerSource(): String? {
         return safePreferences.map { preferences ->
             preferences[Keys.ACTIVE_RECORDING_TRIGGER_SOURCE]?.takeIf { it.isNotBlank() }
