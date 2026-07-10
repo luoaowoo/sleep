@@ -105,7 +105,7 @@ class AutoSnoreDetectionCoordinatorTest {
         )
 
         assertThat(result.handled).isFalse()
-        assertThat(result.shouldRememberEvent).isFalse()
+        assertThat(result.shouldRememberEvent).isTrue()
         assertThat(result.statusText).isEqualTo("检测到睡眠结束，已按设置保持鼾声检测")
         assertThat(controller.stopped).isFalse()
         assertThat(controller.isRecordingActive()).isTrue()

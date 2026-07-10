@@ -14,11 +14,18 @@ internal suspend fun handleWearableSleepPollResult(
     stopOnSleepEnd: Boolean,
     coordinator: AutoSnoreDetectionCoordinator,
     settingsRepository: SettingsPreferencesRepository,
-    requireBackgroundRead: Boolean
+    requireBackgroundRead: Boolean,
+    allowSleepStartRecording: Boolean = true
 ): WearableSleepPollHandleResult {
     if (pollResult !is HealthConnectSleepTriggerSource.PollResult.EventEmitted) {
         return WearableSleepPollHandleResult(
             statusText = pollResult.toWearableSleepStatusText(requireBackgroundRead)
+        )
+    }
+    if (pollResult.event is SleepTriggerEvent.SleepStarted && !allowSleepStartRecording) {
+        return WearableSleepPollHandleResult(
+            statusText = "检测到睡眠开始；后台轮询不会直接启动麦克风，请使用睡前前台检测",
+            emittedSleepStart = true
         )
     }
 

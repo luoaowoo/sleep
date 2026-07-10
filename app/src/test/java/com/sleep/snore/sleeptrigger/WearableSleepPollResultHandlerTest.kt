@@ -81,6 +81,31 @@ class WearableSleepPollResultHandlerTest {
     }
 
     @Test
+    fun handleWearableSleepPollResult_doesNotStartRecordingWhenSleepStartDisallowed() = runTest {
+        val settingsRepository = mockk<SettingsPreferencesRepository>(relaxed = true)
+        val controller = FakeRecordingController()
+        val pollResult = HealthConnectSleepTriggerSource.PollResult.EventEmitted(
+            event = SleepTriggerEvent.SleepStarted("health_connect_sleep", timestamp = 1L, confidence = 0.8f),
+            eventKey = "SleepStarted:1:1"
+        )
+
+        val result = handleWearableSleepPollResult(
+            pollResult = pollResult,
+            stopOnSleepEnd = true,
+            coordinator = AutoSnoreDetectionCoordinator(controller),
+            settingsRepository = settingsRepository,
+            requireBackgroundRead = true,
+            allowSleepStartRecording = false
+        )
+
+        assertThat(result.statusText).isEqualTo("检测到睡眠开始；后台轮询不会直接启动麦克风，请使用睡前前台检测")
+        assertThat(result.emittedSleepStart).isTrue()
+        assertThat(result.eventHandled).isFalse()
+        assertThat(controller.started).isFalse()
+        coVerify(exactly = 0) { settingsRepository.setLastWearableSleepEventKey(any()) }
+    }
+
+    @Test
     fun handleWearableSleepPollResult_marksHandledSleepEnd() = runTest {
         val settingsRepository = mockk<SettingsPreferencesRepository>(relaxed = true)
         val coordinator = AutoSnoreDetectionCoordinator(FakeRecordingController())
@@ -126,11 +151,40 @@ class WearableSleepPollResultHandlerTest {
         coVerify(exactly = 0) { settingsRepository.setLastWearableSleepEventKey(any()) }
     }
 
+    @Test
+    fun handleWearableSleepPollResult_remembersSleepEndWhenAutoStopDisabled() = runTest {
+        val settingsRepository = mockk<SettingsPreferencesRepository>(relaxed = true)
+        val coordinator = AutoSnoreDetectionCoordinator(FakeRecordingController())
+        val pollResult = HealthConnectSleepTriggerSource.PollResult.EventEmitted(
+            event = SleepTriggerEvent.SleepEnded("health_connect_sleep", timestamp = 2L),
+            eventKey = "SleepEnded:2:1"
+        )
+
+        val result = handleWearableSleepPollResult(
+            pollResult = pollResult,
+            stopOnSleepEnd = false,
+            coordinator = coordinator,
+            settingsRepository = settingsRepository,
+            requireBackgroundRead = true
+        )
+
+        assertThat(result.emittedSleepEnd).isTrue()
+        assertThat(result.eventHandled).isFalse()
+        assertThat(result.statusText).isEqualTo("检测到睡眠结束，已按设置保持鼾声检测")
+        coVerify { settingsRepository.setLastWearableSleepEventKey("SleepEnded:2:1") }
+    }
+
     private class FakeRecordingController(
         private val startResult: RecordingStartResult = RecordingStartResult.Confirmed("started"),
         private val stopResult: Boolean = true
     ) : RecordingController {
-        override suspend fun startFromSleepTrigger(source: String): RecordingStartResult = startResult
+        var started = false
+            private set
+
+        override suspend fun startFromSleepTrigger(source: String): RecordingStartResult {
+            started = true
+            return startResult
+        }
         override suspend fun stopFromSleepTrigger(source: String): Boolean = stopResult
         override fun isRecordingActive(): Boolean = startResult.confirmed
     }

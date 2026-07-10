@@ -49,7 +49,8 @@ class HealthConnectSleepTriggerWorker @AssistedInject constructor(
             stopOnSleepEnd = settings.wearableStopOnSleepEndEnabled,
             coordinator = coordinator,
             settingsRepository = settingsRepository,
-            requireBackgroundRead = requireBackgroundRead
+            requireBackgroundRead = requireBackgroundRead,
+            allowSleepStartRecording = !requireBackgroundRead
         )
         settingsRepository.setWearableSleepTriggerStatus(handleResult.statusText)
         return Result.success()

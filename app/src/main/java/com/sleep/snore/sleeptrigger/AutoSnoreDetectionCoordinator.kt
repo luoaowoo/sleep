@@ -20,7 +20,7 @@ sealed interface AutoSnoreDetectionResult {
         override val handled: Boolean,
         private val stopRequested: Boolean = true
     ) : AutoSnoreDetectionResult {
-        override val shouldRememberEvent: Boolean = handled
+        override val shouldRememberEvent: Boolean = handled || !stopRequested
         override val statusText: String = if (handled) {
             "检测到睡眠结束，已请求停止鼾声检测"
         } else if (!stopRequested) {

@@ -10,7 +10,7 @@
 
 - `sleeptrigger/HealthConnectSleepTriggerSource`：读取最近 Health Connect 睡眠会话，并转换为 `SleepStarted` / `SleepEnded`。
 - `sleeptrigger/HealthConnectSleepEventInterpreter`：过滤未来/非法睡眠记录，再选择最新有效记录，避免错误事件抢占。
-- `sleeptrigger/HealthConnectSleepTriggerWorker`：15 分钟周期轮询；立即检查只要求前台睡眠读取权限，后台轮询要求后台读取权限。
+- `sleeptrigger/HealthConnectSleepTriggerWorker`：15 分钟周期轮询；立即检查只要求前台睡眠读取权限，后台轮询要求后台读取权限。后台周期轮询不会直接启动麦克风，只处理已结束睡眠和状态提示，避免触发 Android 后台麦克风前台服务限制。
 - Worker、录音服务兜底轮询和兼容待命服务都会按当前手环触发录音的开始时间过滤旧 `SleepEnded`，避免用户睡前刚开启检测时被上一晚已结束记录误停。
 - `sleeptrigger/RecordingSleepEndFallbackPoller`：当前手环触发录音运行期间，由前台麦克风服务低频读取 Health Connect；只处理 `SleepEnded`，不会因 `SleepStarted` 再次自触发启动录音。
 - `sleeptrigger/WearableSleepStandbyService`：保留为兼容的前台待命/停止入口；Android 15 对 `dataSync` 前台服务有 6 小时/24 小时额度，因此主链路不再依赖它整晚轮询。
@@ -32,7 +32,7 @@
 
 ## 后台保活策略
 
-- 周期轮询使用 WorkManager，适合恢复和辅助自动化，不承诺实时。
+- 周期轮询使用 WorkManager，适合恢复、自动停止和辅助状态提示，不承诺实时，也不会在后台直接开麦。
 - 睡前前台检测会先启动前台麦克风检测，降低 MIUI/Android 限制纯后台麦克风启动导致的失败和误报成功。
 - 当前录音如果由手环/Health Connect 触发，`SleepRecordingService` 会在前台麦克风服务内低频轮询 Health Connect 睡眠结束事件；这样不依赖 `dataSync` 待命服务整晚占用前台服务额度。
 - 用户点击“停止睡前前台检测”时，会同时请求停止由睡前入口预开启的前台鼾声检测，避免用户误以为只停了轮询但录音仍在运行。
@@ -44,7 +44,7 @@
 
 ## 已知限制
 
-- Health Connect 同步延迟取决于小米运动健康和系统调度；如果没有进行中的睡眠会话，应用只能在同步后处理已结束记录。
+- Health Connect 同步延迟取决于小米运动健康和系统调度；多数场景下应用只能在同步后处理已结束记录，因此“睡着后开始录音”的可靠方案是睡前先开启前台检测。
 - Android 12+ / 14+ / MIUI 可能限制纯后台启动麦克风服务；待命模式能提高成功率，但不能绕过系统策略。
 - 小米如果发布稳定官方 SDK，可新增 `XiaomiSleepTriggerSource`，保持上层 `SleepTriggerEvent` / `AutoSnoreDetectionCoordinator` 不变。
 
