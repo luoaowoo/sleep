@@ -12,7 +12,7 @@
 - `sleeptrigger/HealthConnectSleepEventInterpreter`：过滤未来/非法睡眠记录，再选择最新有效记录，避免错误事件抢占。
 - `sleeptrigger/HealthConnectSleepTriggerWorker`：15 分钟周期轮询；立即检查只要求前台睡眠读取权限，后台轮询要求后台读取权限。
 - Worker 和待命服务都会按当前手环触发录音的开始时间过滤旧 `SleepEnded`，避免用户睡前刚开启检测时被上一晚已结束记录误停。
-- `sleeptrigger/WearableSleepStandbyService`：睡前前台待命服务，保持可见通知，按 5 分钟间隔前台检查睡眠记录；检测到已确认的睡眠开始后退出待命。Android 15 对 `dataSync` 前台服务有 6 小时/24 小时额度，服务会在 5 小时 30 分钟主动停止，并实现 `Service.onTimeout(int, int)` 兜底。
+- `sleeptrigger/WearableSleepStandbyService`：睡前前台待命服务，保持可见通知，按 5 分钟间隔前台检查睡眠记录；检测到已确认的睡眠开始后继续轮询，直到检测到睡眠结束再停止待命。Android 15 对 `dataSync` 前台服务有 6 小时/24 小时额度，服务会在 5 小时 30 分钟主动停止，并实现 `Service.onTimeout(int, int)` 兜底。
 - `ui/screen/settings/SettingsViewModel`：启动睡前待命前会硬性检查麦克风、通知、Health Connect 睡眠/后台读取权限；权限齐全后先通过 `RecordingController` 合法启动前台麦克风检测，确认成功后再启动手环待命服务。
 - `ui/screen/settings/SettingsScreen`：检测并打开 Mi Fitness（`com.xiaomi.wearable`）或 Zepp Life（`com.xiaomi.hm.health`），方便用户到小米伴侣 App 中开启 Health Connect 睡眠同步。
 - `sleeptrigger/WearableSleepPollResultHandler`：Worker 和待命服务共用事件处理逻辑；只有录音确认成功后才记住事件 key，失败时保留重试机会。
