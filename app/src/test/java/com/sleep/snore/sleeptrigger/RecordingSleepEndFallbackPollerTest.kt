@@ -69,9 +69,12 @@ class RecordingSleepEndFallbackPollerTest {
         val result = poller.pollOnce(sessionStartTimeMillis = 999L)
 
         assertThat(result).isEqualTo(
-            RecordingSleepEndFallbackResult.StopRecording("检测到睡眠结束，录音服务正在停止鼾声检测")
+            RecordingSleepEndFallbackResult.StopRecording(
+                statusText = "检测到睡眠结束，录音服务正在停止鼾声检测",
+                eventKey = "SleepEnded:2000:1234"
+            )
         )
-        assertThat(repository.getLastWearableSleepEventKey()).isEqualTo("SleepEnded:2000:1234")
+        assertThat(repository.getLastWearableSleepEventKey()).isNull()
         assertThat(repository.settings.first().wearableSleepTriggerStatus)
             .isEqualTo("检测到睡眠结束，录音服务正在停止鼾声检测")
     }
@@ -118,6 +121,24 @@ class RecordingSleepEndFallbackPollerTest {
     }
 
     @Test
+    fun pollOnce_recordsPermissionMissingStatusAndContinues() = runTest {
+        val repository = createRepository()
+        repository.setWearableSleepTriggerEnabled(true)
+        repository.setWearableStopOnSleepEndEnabled(true)
+        repository.setActiveRecordingTriggerSource(HealthConnectSleepTriggerSource.SOURCE, 1234L)
+        val poller = RecordingSleepEndFallbackPoller(
+            settingsRepository = repository,
+            sleepSessionPoller = FakeSleepSessionPoller(HealthConnectSleepTriggerSource.PollResult.PermissionMissing)
+        )
+
+        val result = poller.pollOnce(sessionStartTimeMillis = 999L)
+
+        assertThat(result).isEqualTo(RecordingSleepEndFallbackResult.ContinuePolling)
+        assertThat(repository.settings.first().wearableSleepTriggerStatus)
+            .isEqualTo("录音服务等待睡眠结束：缺少 Health Connect 睡眠/后台读取权限")
+    }
+
+    @Test
     fun pollOnce_continuesWhenPollThrows() = runTest {
         val repository = createRepository()
         repository.setWearableSleepTriggerEnabled(true)
@@ -131,6 +152,8 @@ class RecordingSleepEndFallbackPollerTest {
         val result = poller.pollOnce(sessionStartTimeMillis = 999L)
 
         assertThat(result).isEqualTo(RecordingSleepEndFallbackResult.ContinuePolling)
+        assertThat(repository.settings.first().wearableSleepTriggerStatus)
+            .isEqualTo("录音服务检查睡眠结束失败，将继续重试")
     }
 
     private fun createRepository(): SettingsPreferencesRepository {

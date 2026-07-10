@@ -218,9 +218,10 @@ class SleepRecordingService : Service() {
         }
     }
 
-    private fun finishSessionAndStop() {
+    private fun finishSessionAndStop(handledWearableSleepEndEventKey: String? = null) {
+        if (isFinishingSession) return
         if (!isSessionActive) {
-            finishRecoveredSessionAndStop()
+            finishRecoveredSessionAndStop(handledWearableSleepEndEventKey)
             return
         }
         isFinishingSession = true
@@ -235,6 +236,9 @@ class SleepRecordingService : Service() {
                 Log.e(TAG, "failed to finish recording session", e)
                 writeFallbackFinalRecord()
             } finally {
+                if (!handledWearableSleepEndEventKey.isNullOrBlank()) {
+                    preferencesRepository.setLastWearableSleepEventKey(handledWearableSleepEndEventKey)
+                }
                 releaseWakeLock()
                 preferencesRepository.clearActiveRecordingTriggerSource()
                 _recordingState.value = RecordingRuntimeState()
@@ -245,8 +249,9 @@ class SleepRecordingService : Service() {
         }
     }
 
-    private fun finishRecoveredSessionAndStop() {
+    private fun finishRecoveredSessionAndStop(handledWearableSleepEndEventKey: String? = null) {
         ensureServiceScope()
+        if (isFinishingSession) return
         isFinishingSession = true
         serviceScope.launch {
             try {
@@ -272,6 +277,9 @@ class SleepRecordingService : Service() {
                 Log.e(TAG, "failed to finalize recovered recording on stop", e)
                 writeFallbackFinalRecord()
             } finally {
+                if (!handledWearableSleepEndEventKey.isNullOrBlank()) {
+                    preferencesRepository.setLastWearableSleepEventKey(handledWearableSleepEndEventKey)
+                }
                 preferencesRepository.clearActiveRecordingTriggerSource()
                 currentRecordId = null
                 sessionStartTime = 0L
@@ -583,11 +591,13 @@ class SleepRecordingService : Service() {
         wearableSleepEndWatcherJob = serviceScope.launch {
             delay(WEARABLE_SLEEP_END_WATCH_INITIAL_DELAY_MS)
             while (isSessionActive) {
-                when (recordingSleepEndFallbackPoller.pollOnce(sessionStartTime)) {
+                when (val pollResult = recordingSleepEndFallbackPoller.pollOnce(sessionStartTime)) {
                     RecordingSleepEndFallbackResult.ContinuePolling -> Unit
                     RecordingSleepEndFallbackResult.StopPolling -> return@launch
                     is RecordingSleepEndFallbackResult.StopRecording -> {
-                        serviceScope.launch { finishSessionAndStop() }
+                        serviceScope.launch {
+                            finishSessionAndStop(pollResult.eventKey)
+                        }
                         return@launch
                     }
                 }
