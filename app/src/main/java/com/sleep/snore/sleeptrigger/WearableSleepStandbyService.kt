@@ -138,6 +138,7 @@ class WearableSleepStandbyService : Service() {
 
         val pollResult = runCatching {
             healthConnectSleepTriggerSource.pollLatestSleepSession(
+                now = Instant.now(),
                 requireBackgroundRead = true,
                 ignoreEventsBefore = sleepEventIgnoreEventsBefore(
                     settings = settings,

@@ -52,6 +52,7 @@ data class SettingsUiState(
     val wearableStopOnSleepEndEnabled: Boolean = SettingsPreferencesRepository.DEFAULT_WEARABLE_STOP_ON_SLEEP_END_ENABLED,
     val wearableSleepTriggerStatus: String = SettingsPreferencesRepository.DEFAULT_WEARABLE_SLEEP_TRIGGER_STATUS,
     val wearableSleepTriggerLastCheckText: String = "尚未检查",
+    val activeRecordingTriggerSource: String = "",
     val storageUsageText: String = "计算中..."
 )
 
@@ -104,7 +105,8 @@ class SettingsViewModel @Inject constructor(
                         wearableSleepTriggerEnabled = settings.wearableSleepTriggerEnabled,
                         wearableStopOnSleepEndEnabled = settings.wearableStopOnSleepEndEnabled,
                         wearableSleepTriggerStatus = settings.wearableSleepTriggerStatus,
-                        wearableSleepTriggerLastCheckText = settings.wearableSleepTriggerLastCheckMillis.toLastCheckText()
+                        wearableSleepTriggerLastCheckText = settings.wearableSleepTriggerLastCheckMillis.toLastCheckText(),
+                        activeRecordingTriggerSource = settings.activeRecordingTriggerSource
                     )
                 }
             }
@@ -327,17 +329,9 @@ class SettingsViewModel @Inject constructor(
                 preferencesRepository.setWearableSleepTriggerStatus(recordingStartResult.statusText)
                 return@launch
             }
-            runCatching {
-                ContextCompat.startForegroundService(
-                    context,
-                    WearableSleepStandbyService.startIntent(context)
-                )
-            }.onFailure {
-                val status = "鼾声检测已开启，但手环待命启动失败；请检查通知/后台运行权限"
-                recordingController.stopFromSleepTrigger(HealthConnectSleepTriggerSource.SOURCE)
-                _uiState.update { state -> state.copy(wearableSleepTriggerStatus = status) }
-                preferencesRepository.setWearableSleepTriggerStatus(status)
-            }
+            val status = "睡前鼾声检测已开启，录音服务将低频检查 Health Connect 睡眠结束"
+            _uiState.update { state -> state.copy(wearableSleepTriggerStatus = status) }
+            preferencesRepository.setWearableSleepTriggerStatus(status)
         }
     }
 

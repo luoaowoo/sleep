@@ -16,10 +16,15 @@ sealed interface AutoSnoreDetectionResult {
         override val statusText: String = recordingStartResult.statusText
     }
 
-    data class SleepEnd(override val handled: Boolean) : AutoSnoreDetectionResult {
+    data class SleepEnd(
+        override val handled: Boolean,
+        private val stopRequested: Boolean = true
+    ) : AutoSnoreDetectionResult {
         override val shouldRememberEvent: Boolean = handled
         override val statusText: String = if (handled) {
             "检测到睡眠结束，已请求停止鼾声检测"
+        } else if (!stopRequested) {
+            "检测到睡眠结束，已按设置保持鼾声检测"
         } else {
             "检测到睡眠结束，但未能停止鼾声检测；将继续重试"
         }
@@ -54,8 +59,11 @@ class AutoSnoreDetectionCoordinator @Inject constructor(
                 }
             }
             is SleepTriggerEvent.SleepEnded -> {
+                if (!stopOnSleepEnd) {
+                    return AutoSnoreDetectionResult.SleepEnd(handled = false, stopRequested = false)
+                }
                 AutoSnoreDetectionResult.SleepEnd(
-                    stopOnSleepEnd && recordingController.stopFromSleepTrigger(event.source)
+                    recordingController.stopFromSleepTrigger(event.source)
                 )
             }
         }

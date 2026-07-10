@@ -13,4 +13,10 @@ abstract class SleepTriggerSourceModule {
     @Binds
     @Singleton
     abstract fun bindSleepTriggerSource(source: HealthConnectSleepTriggerSource): SleepTriggerSource
+
+    @Binds
+    @Singleton
+    abstract fun bindHealthConnectSleepSessionPoller(
+        source: HealthConnectSleepTriggerSource
+    ): HealthConnectSleepSessionPoller
 }

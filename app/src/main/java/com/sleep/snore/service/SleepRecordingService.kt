@@ -31,6 +31,9 @@ import com.sleep.snore.data.preferences.SettingsPreferencesRepository
 import com.sleep.snore.data.repository.SleepRepository
 import com.sleep.snore.domain.SnoreEvaluator
 import com.sleep.snore.domain.SnoreScoreCalculator
+import com.sleep.snore.sleeptrigger.HealthConnectSleepTriggerSource
+import com.sleep.snore.sleeptrigger.RecordingSleepEndFallbackPoller
+import com.sleep.snore.sleeptrigger.RecordingSleepEndFallbackResult
 import dagger.hilt.android.AndroidEntryPoint
 import java.io.File
 import java.util.Calendar
@@ -63,6 +66,7 @@ class SleepRecordingService : Service() {
 
     @Inject lateinit var repository: SleepRepository
     @Inject lateinit var preferencesRepository: SettingsPreferencesRepository
+    @Inject lateinit var recordingSleepEndFallbackPoller: RecordingSleepEndFallbackPoller
 
     private var serviceJob = SupervisorJob()
     private var serviceScope = CoroutineScope(Dispatchers.IO + serviceJob)
@@ -70,6 +74,7 @@ class SleepRecordingService : Service() {
     private val pendingEvents = mutableListOf<SnoreEventEntity>()
     private val encodingJobs = mutableListOf<Job>()
     private var startJob: Job? = null
+    private var wearableSleepEndWatcherJob: Job? = null
 
     private var wakeLock: PowerManager.WakeLock? = null
     private var snoreDetector: SnoreDetector? = null
@@ -194,8 +199,11 @@ class SleepRecordingService : Service() {
                     abortSessionStart(recordId = recordId, deleteRecord = createdNewRecord)
                 } else if (!triggerSource.isNullOrBlank()) {
                     preferencesRepository.setActiveRecordingTriggerSource(triggerSource, sessionStartTime)
+                    startWearableSleepEndWatcherIfNeeded(triggerSource)
                 } else if (!recoveryOnly) {
                     preferencesRepository.clearActiveRecordingTriggerSource()
+                } else {
+                    startWearableSleepEndWatcherIfNeeded(settings.activeRecordingTriggerSource)
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "failed to start recording session", e)
@@ -217,6 +225,7 @@ class SleepRecordingService : Service() {
         }
         isFinishingSession = true
         isSessionActive = false
+        stopWearableSleepEndWatcher()
         stopSnoreDetection()
 
         serviceScope.launch {
@@ -458,9 +467,11 @@ class SleepRecordingService : Service() {
 
     private suspend fun abortSessionStart(recordId: Long, deleteRecord: Boolean) {
         isSessionActive = false
+        stopWearableSleepEndWatcher()
         _recordingState.value = RecordingRuntimeState()
         currentRecordId = null
         snoreDetector = null
+        stopWearableSleepEndWatcher()
         if (deleteRecord) {
             runCatching { repository.deleteRecordWithAudio(recordId) }
                 .onFailure { Log.w(TAG, "failed to delete empty record after recorder start failure", it) }
@@ -564,6 +575,30 @@ class SleepRecordingService : Service() {
         runCatching { snoreDetector?.stopListening() }
             .onFailure { Log.w(TAG, "failed to stop snore detection cleanly", it) }
         snoreDetector = null
+    }
+
+    private fun startWearableSleepEndWatcherIfNeeded(triggerSource: String?) {
+        if (triggerSource != HealthConnectSleepTriggerSource.SOURCE) return
+        if (wearableSleepEndWatcherJob?.isActive == true) return
+        wearableSleepEndWatcherJob = serviceScope.launch {
+            delay(WEARABLE_SLEEP_END_WATCH_INITIAL_DELAY_MS)
+            while (isSessionActive) {
+                when (recordingSleepEndFallbackPoller.pollOnce(sessionStartTime)) {
+                    RecordingSleepEndFallbackResult.ContinuePolling -> Unit
+                    RecordingSleepEndFallbackResult.StopPolling -> return@launch
+                    is RecordingSleepEndFallbackResult.StopRecording -> {
+                        serviceScope.launch { finishSessionAndStop() }
+                        return@launch
+                    }
+                }
+                delay(WEARABLE_SLEEP_END_WATCH_INTERVAL_MS)
+            }
+        }
+    }
+
+    private fun stopWearableSleepEndWatcher() {
+        wearableSleepEndWatcherJob?.cancel()
+        wearableSleepEndWatcherJob = null
     }
 
     private fun restartSnoreDetectionAfterRecorderError() {
@@ -785,6 +820,8 @@ class SleepRecordingService : Service() {
         private const val MAX_DETECTOR_RESTART_ATTEMPTS = 3
         private const val DETECTOR_RESTART_DELAY_MS = 1_000L
         private const val MAX_PENDING_ENCODING_JOBS = 32
+        private const val WEARABLE_SLEEP_END_WATCH_INITIAL_DELAY_MS = 5L * 60L * 1000L
+        private const val WEARABLE_SLEEP_END_WATCH_INTERVAL_MS = 10L * 60L * 1000L
 
         fun startIntent(context: Context, triggerSource: String? = null): Intent =
             Intent(context, SleepRecordingService::class.java)

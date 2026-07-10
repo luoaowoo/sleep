@@ -11,9 +11,10 @@
 - `sleeptrigger/HealthConnectSleepTriggerSource`：读取最近 Health Connect 睡眠会话，并转换为 `SleepStarted` / `SleepEnded`。
 - `sleeptrigger/HealthConnectSleepEventInterpreter`：过滤未来/非法睡眠记录，再选择最新有效记录，避免错误事件抢占。
 - `sleeptrigger/HealthConnectSleepTriggerWorker`：15 分钟周期轮询；立即检查只要求前台睡眠读取权限，后台轮询要求后台读取权限。
-- Worker 和待命服务都会按当前手环触发录音的开始时间过滤旧 `SleepEnded`，避免用户睡前刚开启检测时被上一晚已结束记录误停。
-- `sleeptrigger/WearableSleepStandbyService`：睡前前台待命服务，保持可见通知，按 5 分钟间隔前台检查睡眠记录；检测到已确认的睡眠开始后继续轮询，直到检测到睡眠结束再停止待命。Android 15 对 `dataSync` 前台服务有 6 小时/24 小时额度，服务会在 5 小时 30 分钟主动停止，并实现 `Service.onTimeout(int, int)` 兜底。
-- `ui/screen/settings/SettingsViewModel`：启动睡前待命前会硬性检查麦克风、通知、Health Connect 睡眠/后台读取权限；权限齐全后先通过 `RecordingController` 合法启动前台麦克风检测，确认成功后再启动手环待命服务。
+- Worker、录音服务兜底轮询和兼容待命服务都会按当前手环触发录音的开始时间过滤旧 `SleepEnded`，避免用户睡前刚开启检测时被上一晚已结束记录误停。
+- `sleeptrigger/RecordingSleepEndFallbackPoller`：当前手环触发录音运行期间，由前台麦克风服务低频读取 Health Connect；只处理 `SleepEnded`，不会因 `SleepStarted` 再次自触发启动录音。
+- `sleeptrigger/WearableSleepStandbyService`：保留为兼容的前台待命/停止入口；Android 15 对 `dataSync` 前台服务有 6 小时/24 小时额度，因此主链路不再依赖它整晚轮询。
+- `ui/screen/settings/SettingsViewModel`：启动睡前待命前会硬性检查麦克风、通知、Health Connect 睡眠/后台读取权限；权限齐全后通过 `RecordingController` 合法启动前台麦克风检测，由录音服务承担睡眠结束兜底轮询。
 - `ui/screen/settings/SettingsScreen`：检测并打开 Mi Fitness（`com.xiaomi.wearable`）或 Zepp Life（`com.xiaomi.hm.health`），方便用户到小米伴侣 App 中开启 Health Connect 睡眠同步。
 - `sleeptrigger/WearableSleepPollResultHandler`：Worker 和待命服务共用事件处理逻辑；只有录音确认成功后才记住事件 key，失败时保留重试机会。
 - `recording/RecordingController`：统一外部触发的录音启动/停止入口，预检麦克风权限并等待前台录音服务确认。
@@ -31,10 +32,10 @@
 ## 后台保活策略
 
 - 周期轮询使用 WorkManager，适合恢复和辅助自动化，不承诺实时。
-- 睡前待命会先启动前台麦克风检测，再启动前台待命服务和常驻通知，并按后台 Health Connect 读取权限模型运行，降低 MIUI/Android 后台限制导致的启动失败和误报成功。
-- 检测到睡眠开始后，待命服务不会立刻退出；它会继续低频轮询 Health Connect，直到检测到睡眠结束并请求停止鼾声检测，减少只依赖 WorkManager 带来的长延迟。
+- 睡前待命会先启动前台麦克风检测，降低 MIUI/Android 限制纯后台麦克风启动导致的失败和误报成功。
+- 当前录音如果由手环/Health Connect 触发，`SleepRecordingService` 会在前台麦克风服务内低频轮询 Health Connect 睡眠结束事件；这样不依赖 `dataSync` 待命服务整晚占用前台服务额度。
 - 用户点击“停止手环待命”时，会同时请求停止由待命入口预开启的前台鼾声检测，避免用户误以为只停了轮询但录音仍在运行。
-- 睡前待命不是无限后台服务：Android 15 会限制 `dataSync` 前台服务累计时长，因此应用会在接近 6 小时限制前自停并提示用户重新开启。
+- `WearableSleepStandbyService` 不是无限后台服务：Android 15 会限制 `dataSync` 前台服务累计时长，因此该兼容服务会在接近 6 小时限制前自停并提示用户重新开启。
 - 真正录音仍由 `SleepRecordingService` 以前台麦克风服务运行，并持有有限时长 WakeLock。
 - 进程或服务状态丢失时，睡眠结束事件会尝试恢复数据库中的 active record 并完成结算，避免留下半截记录。
 - 睡眠结束停止请求会额外排一个延迟兜底结算 Worker；若服务已经正常结算并清除 active record，Worker 会自动空跑。

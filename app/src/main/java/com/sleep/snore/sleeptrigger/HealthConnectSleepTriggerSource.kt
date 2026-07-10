@@ -20,15 +20,15 @@ import kotlinx.coroutines.flow.asSharedFlow
 class HealthConnectSleepTriggerSource @Inject constructor(
     @ApplicationContext private val context: Context,
     private val settingsRepository: SettingsPreferencesRepository
-) : SleepTriggerSource {
+) : SleepTriggerSource, HealthConnectSleepSessionPoller {
 
     private val mutableEvents = MutableSharedFlow<SleepTriggerEvent>(extraBufferCapacity = 8)
     override val events: Flow<SleepTriggerEvent> = mutableEvents.asSharedFlow()
 
-    suspend fun pollLatestSleepSession(
-        now: Instant = Instant.now(),
-        requireBackgroundRead: Boolean = true,
-        ignoreEventsBefore: Instant? = null
+    override suspend fun pollLatestSleepSession(
+        now: Instant,
+        requireBackgroundRead: Boolean,
+        ignoreEventsBefore: Instant?
     ): PollResult {
         if (HealthConnectClient.getSdkStatus(context) != HealthConnectClient.SDK_AVAILABLE) {
             return PollResult.HealthConnectUnavailable

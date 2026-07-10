@@ -94,6 +94,24 @@ class AutoSnoreDetectionCoordinatorTest {
     }
 
     @Test
+    fun handleEvent_keepsRecordingWhenStopOnSleepEndDisabled() = runTest {
+        val controller = FakeRecordingController(active = true, startedFromSleepTrigger = true)
+        val coordinator = AutoSnoreDetectionCoordinator(controller)
+
+        val result = coordinator.handleEvent(
+            event = SleepTriggerEvent.SleepEnded("health_connect", timestamp = 2L),
+            enabled = true,
+            stopOnSleepEnd = false
+        )
+
+        assertThat(result.handled).isFalse()
+        assertThat(result.shouldRememberEvent).isFalse()
+        assertThat(result.statusText).isEqualTo("检测到睡眠结束，已按设置保持鼾声检测")
+        assertThat(controller.stopped).isFalse()
+        assertThat(controller.isRecordingActive()).isTrue()
+    }
+
+    @Test
     fun handleEvent_sendsStopWhenAutoRecordingRuntimeStateIsNotVisible() = runTest {
         val controller = FakeRecordingController(active = false, startedFromSleepTrigger = true)
         val coordinator = AutoSnoreDetectionCoordinator(controller)

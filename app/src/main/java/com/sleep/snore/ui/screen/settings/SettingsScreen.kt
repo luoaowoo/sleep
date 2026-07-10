@@ -97,6 +97,8 @@ fun SettingsScreen(
     val fontScale by viewModel.fontScale.collectAsStateWithLifecycle()
     val cardCornerStyle by viewModel.cardCornerStyle.collectAsStateWithLifecycle()
     val standbyState by WearableSleepStandbyService.standbyState.collectAsStateWithLifecycle()
+    val wearableSleepDetectionActive = standbyState.isActive ||
+        uiState.activeRecordingTriggerSource == HealthConnectSleepTriggerSource.SOURCE
     val installedXiaomiCompanion = remember(context) { findInstalledXiaomiCompanion(context) }
     val uiPreferences = LocalUiPreferences.current
     val powerManager = remember(context) { context.getSystemService(PowerManager::class.java) }
@@ -375,9 +377,11 @@ fun SettingsScreen(
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    if (standbyState.isActive) {
+                    if (wearableSleepDetectionActive) {
                         Text(
-                            "待命状态：运行中，${standbyState.statusText}",
+                            standbyState.statusText.takeIf { standbyState.isActive }
+                                ?.let { "待命状态：运行中，$it" }
+                                ?: "待命状态：录音服务正在前台检测，并低频检查睡眠结束",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.primary
                         )
@@ -401,14 +405,14 @@ fun SettingsScreen(
                     Spacer(Modifier.height(Spacing.sm))
                     Button(
                         onClick = {
-                            if (standbyState.isActive) {
+                            if (wearableSleepDetectionActive) {
                                 viewModel.stopWearableSleepStandby()
                             } else {
                                 viewModel.startWearableSleepStandby()
                             }
                         }
                     ) {
-                        Text(if (standbyState.isActive) "停止手环待命" else "睡前开启手环待命")
+                        Text(if (wearableSleepDetectionActive) "停止手环待命" else "睡前开启手环待命")
                     }
                     Spacer(Modifier.height(Spacing.sm))
                     TextButton(
