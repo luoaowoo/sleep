@@ -8,6 +8,7 @@ import com.sleep.snore.data.model.CardCornerStyle
 import com.sleep.snore.data.model.FontScale
 import com.sleep.snore.data.model.Sensitivity
 import com.sleep.snore.data.preferences.SettingsPreferencesRepository
+import com.sleep.snore.data.preferences.defaultArgb
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
@@ -149,13 +150,24 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun setAccentColor(value: AccentColor) {
+        _uiState.update {
+            it.copy(
+                dynamicColorEnabled = false,
+                customAccentColorArgb = value.defaultArgb
+            )
+        }
         viewModelScope.launch {
             preferencesRepository.setAccentColor(value)
         }
     }
 
     fun setCustomAccentColorArgb(value: Int) {
-        _uiState.update { it.copy(customAccentColorArgb = value or ALPHA_MASK) }
+        _uiState.update {
+            it.copy(
+                dynamicColorEnabled = false,
+                customAccentColorArgb = value or ALPHA_MASK
+            )
+        }
         viewModelScope.launch {
             preferencesRepository.setCustomAccentColorArgb(value)
         }

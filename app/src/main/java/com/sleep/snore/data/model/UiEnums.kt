@@ -8,7 +8,8 @@ enum class AccentColor {
     ORANGE,
     RED,
     CYAN,
-    PINK
+    PINK,
+    CUSTOM
 }
 
 /** 字号缩放选项 */

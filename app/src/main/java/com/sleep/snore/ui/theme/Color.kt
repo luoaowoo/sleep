@@ -527,6 +527,7 @@ fun colorSchemeFor(accentColor: AccentColor, darkTheme: Boolean): ColorScheme = 
     AccentColor.RED -> if (darkTheme) RedDarkColorScheme else RedLightColorScheme
     AccentColor.CYAN -> if (darkTheme) CyanDarkColorScheme else CyanLightColorScheme
     AccentColor.PINK -> if (darkTheme) PinkDarkColorScheme else PinkLightColorScheme
+    AccentColor.CUSTOM -> if (darkTheme) IndigoDarkColorScheme else IndigoLightColorScheme
 }
 
 // ========== Recording 沉浸色板（更暗，专注态） ==========

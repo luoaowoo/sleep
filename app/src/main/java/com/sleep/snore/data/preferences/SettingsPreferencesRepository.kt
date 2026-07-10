@@ -168,12 +168,15 @@ class SettingsPreferencesRepository @Inject constructor(
         dataStore.edit { preferences ->
             preferences[Keys.ACCENT_COLOR] = value.name
             preferences[Keys.CUSTOM_ACCENT_COLOR_ARGB] = value.defaultArgb
+            preferences[Keys.DYNAMIC_COLOR_ENABLED] = false
         }
     }
 
     suspend fun setCustomAccentColorArgb(value: Int) {
         dataStore.edit { preferences ->
+            preferences[Keys.ACCENT_COLOR] = AccentColor.CUSTOM.name
             preferences[Keys.CUSTOM_ACCENT_COLOR_ARGB] = value or ALPHA_MASK
+            preferences[Keys.DYNAMIC_COLOR_ENABLED] = false
         }
     }
 
@@ -269,4 +272,5 @@ val AccentColor.defaultArgb: Int
         AccentColor.RED -> 0xFFF44336.toInt()
         AccentColor.CYAN -> 0xFF00BCD4.toInt()
         AccentColor.PINK -> 0xFFE91E63.toInt()
+        AccentColor.CUSTOM -> SettingsPreferencesRepository.DEFAULT_CUSTOM_ACCENT_COLOR_ARGB
     }

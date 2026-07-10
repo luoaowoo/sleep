@@ -125,16 +125,13 @@ fun SettingsScreen(
                     Spacer(Modifier.height(Spacing.xs))
                     AccentPresetSelector(
                         selected = accentColor,
-                        onSelect = {
-                            viewModel.setAccentColor(it)
-                            viewModel.onDynamicColorChange(false)
-                        }
+                        onSelect = viewModel::setAccentColor
                     )
                     Spacer(Modifier.height(Spacing.sm))
                     CustomAccentColorSelector(
                         selectedArgb = customAccentColorArgb,
                         dynamicColorEnabled = uiState.dynamicColorEnabled,
-                        onUseCustom = { viewModel.onDynamicColorChange(false) },
+                        onUseCustom = { viewModel.setCustomAccentColorArgb(customAccentColorArgb) },
                         onColorChange = viewModel::setCustomAccentColorArgb
                     )
                     Spacer(Modifier.height(Spacing.sm))
@@ -432,9 +429,9 @@ private fun CustomAccentColorSelector(
     var showDialog by remember { mutableStateOf(false) }
     var tempArgb by remember(selectedArgb, showDialog) { mutableStateOf(selectedArgb) }
     val supportingText = if (dynamicColorEnabled) {
-        "当前动态色优先，应用后会自动切换为自定义 RGB"
+        "点按后关闭动态色，并使用自定义 RGB 主题"
     } else {
-        "点击打开色环，当前 ${selectedArgb.toHexString()}"
+        "自定义主题色生效中，当前 ${selectedArgb.toHexString()}"
     }
 
     Card(
@@ -442,6 +439,7 @@ private fun CustomAccentColorSelector(
             .fillMaxWidth()
             .heightIn(min = 72.dp)
             .clickable(role = Role.Button) {
+                onUseCustom()
                 tempArgb = selectedArgb
                 showDialog = true
             },
@@ -467,7 +465,12 @@ private fun CustomAccentColorSelector(
             onDismissRequest = { showDialog = false },
             title = { Text("自定义 RGB 主题色") },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                Column(
+                    modifier = Modifier
+                        .heightIn(max = 560.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.sm)
+                ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.Center
