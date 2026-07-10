@@ -58,24 +58,18 @@ class HealthConnectSleepTriggerSource @Inject constructor(
             }
         } ?: return PollResult.NoRecentSleep
 
-        val event = if (latestSession.endTime.isAfter(now)) {
-            SleepTriggerEvent.SleepStarted(
-                source = SOURCE,
-                timestamp = latestSession.startTime.toEpochMilli(),
-                confidence = HEALTH_CONNECT_CONFIDENCE
-            )
-        } else {
-            SleepTriggerEvent.SleepEnded(
-                source = SOURCE,
-                timestamp = latestSession.endTime.toEpochMilli()
-            )
-        }
-        val eventKey = "${event::class.simpleName}:${event.timestamp}:${latestSession.startTime.toEpochMilli()}"
-        if (eventKey == settingsRepository.getLastWearableSleepEventKey()) {
+        val interpretedEvent = HealthConnectSleepEventInterpreter.interpret(
+            session = SleepSessionSnapshot(
+                startTime = latestSession.startTime,
+                endTime = latestSession.endTime
+            ),
+            now = now
+        ) ?: return PollResult.NoRecentSleep
+        if (interpretedEvent.eventKey == settingsRepository.getLastWearableSleepEventKey()) {
             return PollResult.DuplicateEvent
         }
-        mutableEvents.tryEmit(event)
-        return PollResult.EventEmitted(event, eventKey)
+        mutableEvents.tryEmit(interpretedEvent.event)
+        return PollResult.EventEmitted(interpretedEvent.event, interpretedEvent.eventKey)
     }
 
     sealed interface PollResult {
