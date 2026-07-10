@@ -45,6 +45,16 @@ fun SleepNavGraph(navController: NavHostController, modifier: Modifier = Modifie
     ) {
         composable(Route.Home.route) { HomeScreen(navController = navController) }
         composable(Route.Playback.route) { PlaybackScreen() }
+        composable(
+            route = Route.Playback.RECORD_TEMPLATE,
+            arguments = listOf(navArgument("recordId") { type = NavType.LongType })
+        ) { backStackEntry ->
+            val recordId = backStackEntry.arguments?.getLong("recordId") ?: -1L
+            PlaybackScreen(
+                recordId = recordId.takeIf { it > 0 },
+                onBack = { navController.popBackStack() }
+            )
+        }
         composable(Route.Settings.route) { SettingsScreen(navController = navController) }
         composable(Route.Recording.route) { RecordingScreen(navController = navController) }
         composable(Route.Export.route) { ExportScreen(navController = navController) }

@@ -53,7 +53,7 @@ fun SleepScaffold() {
                         containerColor = MaterialTheme.colorScheme.surface
                     ) {
                         bottomNavItems.forEach { item ->
-                            val selected = currentRoute == item.route
+                            val selected = isTopLevelRouteSelected(currentRoute, item.route)
                             NavigationRailItem(
                                 selected = selected,
                                 onClick = { navController.navigateTopLevel(item.route, currentRoute) },
@@ -87,7 +87,7 @@ fun SleepScaffold() {
                     if (!hideCompactNavigation) {
                         NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
                             bottomNavItems.forEach { item ->
-                                val selected = currentRoute == item.route
+                                val selected = isTopLevelRouteSelected(currentRoute, item.route)
                                 NavigationBarItem(
                                     selected = selected,
                                     onClick = { navController.navigateTopLevel(item.route, currentRoute) },
@@ -129,4 +129,9 @@ private fun NavHostController.navigateTopLevel(route: String, currentRoute: Stri
         launchSingleTop = true
         restoreState = true
     }
+}
+
+private fun isTopLevelRouteSelected(currentRoute: String?, topLevelRoute: String): Boolean {
+    return currentRoute == topLevelRoute ||
+        (topLevelRoute == Route.Playback.route && currentRoute == Route.Playback.RECORD_TEMPLATE)
 }

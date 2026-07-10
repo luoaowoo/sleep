@@ -159,8 +159,12 @@ class SleepRecordingService : Service() {
             try {
                 val settings = preferencesRepository.settings.first()
                 val sensitivity = preferencesRepository.sensitivity.first()
-                if (settings.autoCleanEnabled) cleanOldData()
+                if (settings.autoCleanEnabled) {
+                    runCatching { cleanOldData() }
+                        .onFailure { Log.w(TAG, "auto clean failed before recording start", it) }
+                }
                 val activeRecord = recoverActiveRecordingIfAvailable()
+                val createdNewRecord = activeRecord == null
                 val recordId = if (activeRecord == null) {
                     repository.insertRecord(createEmptyRecord(sessionStartTime))
                 } else {
@@ -168,16 +172,20 @@ class SleepRecordingService : Service() {
                 }
                 currentRecordId = recordId
                 if (!isSessionActive) return@launch
-                startSnoreDetection(
+                val detectorStarted = startSnoreDetection(
                     recordId = recordId,
                     silenceThresholdDb = settings.silenceThresholdDb.toDouble(),
                     maxSegmentDurationSec = settings.maxSegmentDurationSec,
                     sensitivity = sensitivity
                 )
+                if (!detectorStarted) {
+                    abortSessionStart(recordId = recordId, deleteRecord = createdNewRecord)
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "failed to start recording session", e)
                 isSessionActive = false
                 _recordingState.value = RecordingRuntimeState()
+                currentRecordId = null
                 releaseWakeLock()
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
@@ -352,12 +360,32 @@ class SleepRecordingService : Service() {
         wakeLock = null
     }
 
+    private suspend fun abortSessionStart(recordId: Long, deleteRecord: Boolean) {
+        isSessionActive = false
+        _recordingState.value = RecordingRuntimeState()
+        currentRecordId = null
+        snoreDetector = null
+        if (deleteRecord) {
+            runCatching { repository.deleteRecordWithAudio(recordId) }
+                .onFailure { Log.w(TAG, "failed to delete empty record after recorder start failure", it) }
+        } else {
+            runCatching {
+                val endTime = System.currentTimeMillis()
+                val events = getCurrentSessionEvents(recordId)
+                repository.updateRecord(buildFinalRecord(recordId, sessionStartTime, endTime, events))
+            }.onFailure { Log.w(TAG, "failed to finalize recovered record after recorder start failure", it) }
+        }
+        releaseWakeLock()
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        stopSelf()
+    }
+
     private fun startSnoreDetection(
         recordId: Long,
         silenceThresholdDb: Double,
         maxSegmentDurationSec: Int,
         sensitivity: Sensitivity
-    ) {
+    ): Boolean {
         lastSilenceThresholdDb = silenceThresholdDb
         lastMaxSegmentDurationSec = maxSegmentDurationSec
         lastSensitivity = sensitivity
@@ -393,9 +421,14 @@ class SleepRecordingService : Service() {
                             audioFileSizeBytes = audioFile.length(),
                             aiTypeLabel = features.aiTypeLabel
                         )
-                        val savedId = repository.insertEvent(event)
-                        synchronized(pendingEvents) { pendingEvents.add(event.copy(id = savedId)) }
-                        updateNotification()
+                        runCatching {
+                            val savedId = repository.insertEvent(event)
+                            synchronized(pendingEvents) { pendingEvents.add(event.copy(id = savedId)) }
+                            updateNotification()
+                        }.onFailure {
+                            Log.w(TAG, "failed to persist snore event; deleting orphan audio file", it)
+                            runCatching { audioFile.delete() }
+                        }
                     }
                     job.invokeOnCompletion {
                         synchronized(encodingJobs) { encodingJobs.remove(job) }
@@ -415,9 +448,12 @@ class SleepRecordingService : Service() {
 
         try {
             snoreDetector?.startListening()
+            return true
         } catch (e: Exception) {
             Log.e(TAG, "failed to start snore detection", e)
-            finishSessionAndStop()
+            runCatching { snoreDetector?.close() }
+            snoreDetector = null
+            return false
         }
     }
 

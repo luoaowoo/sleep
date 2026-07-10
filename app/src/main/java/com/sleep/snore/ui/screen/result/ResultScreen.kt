@@ -236,7 +236,7 @@ fun ResultScreen(
                                     Text("${r.snoreEventCount} 个片段", style = MaterialTheme.typography.bodySmall)
                                 }
                                 if (events.isNotEmpty()) {
-                                    TextButton(onClick = { navController.navigate(Route.Playback.route) }) {
+                                    TextButton(onClick = { navController.navigate(Route.Playback.createRoute(r.id)) }) {
                                         Text("去回放")
                                     }
                                 }

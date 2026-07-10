@@ -27,15 +27,24 @@ import java.util.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlaybackScreen(
+    recordId: Long? = null,
+    onBack: (() -> Unit)? = null,
     viewModel: PlaybackViewModel = hiltViewModel()
 ) {
-    val events by viewModel.events.collectAsStateWithLifecycle()
+    val allEvents by viewModel.events.collectAsStateWithLifecycle()
     val currentlyPlayingEventId by viewModel.currentlyPlayingEventId.collectAsStateWithLifecycle()
     val playbackError by viewModel.playbackError.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val lifecycleOwner = LocalLifecycleOwner.current
+    val events = remember(allEvents, recordId) {
+        recordId?.let { id -> allEvents.filter { it.recordId == id } } ?: allEvents
+    }
     val grouped = events.groupBy {
         SimpleDateFormat("M月d日", Locale.CHINESE).format(Date(it.startTimestamp))
+    }
+
+    LaunchedEffect(recordId) {
+        viewModel.stopPlayback()
     }
 
     DisposableEffect(lifecycleOwner, viewModel) {
@@ -60,7 +69,14 @@ fun PlaybackScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text("鼾声回放") })
+            TopAppBar(
+                title = { Text(if (recordId == null) "鼾声回放" else "本次鼾声回放") },
+                navigationIcon = {
+                    if (onBack != null) {
+                        TextButton(onClick = onBack) { Text("返回") }
+                    }
+                }
+            )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
@@ -72,7 +88,11 @@ fun PlaybackScreen(
                     .consumeWindowInsets(padding),
                 contentAlignment = Alignment.Center
             ) {
-                Text("暂无鼾声片段", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    if (recordId == null) "暂无鼾声片段" else "本次暂无鼾声片段",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         } else {
             LazyColumn(
@@ -87,7 +107,7 @@ fun PlaybackScreen(
                     item {
                         Text(date, style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(vertical = Spacing.sm))
                     }
-                    items(dayEvents) { event ->
+                    items(dayEvents, key = { it.id }) { event ->
                         val isPlaying = currentlyPlayingEventId == event.id
                         Card(
                             modifier = Modifier

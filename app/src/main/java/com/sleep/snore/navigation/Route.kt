@@ -11,7 +11,10 @@ import androidx.compose.ui.graphics.vector.ImageVector
 
 sealed class Route(val route: String) {
     data object Home : Route("home")
-    data object Playback : Route("playback")
+    data object Playback : Route("playback") {
+        const val RECORD_TEMPLATE = "playback/{recordId}"
+        fun createRoute(recordId: Long) = "playback/$recordId"
+    }
     data object Settings : Route("settings")
     data object Recording : Route("recording")
     data object Export : Route("export")
