@@ -11,6 +11,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.sleep.snore.data.model.CardCornerStyle
 import com.sleep.snore.data.model.FontScale
+import com.sleep.snore.data.preferences.SecretTextCipher
 import com.sleep.snore.data.preferences.SettingsPreferencesRepository
 import com.sleep.snore.ui.theme.LocalUiPreferences
 import com.sleep.snore.ui.theme.SleepSnoreTheme
@@ -35,7 +36,7 @@ class SettingsScreenTest {
         fontScale: FontScale = FontScale.STANDARD,
         compactMode: Boolean = false
     ): SettingsViewModel {
-        val repository = SettingsPreferencesRepository(context.testSettingsDataStore)
+        val repository = SettingsPreferencesRepository(context.testSettingsDataStore, FakeSecretTextCipher)
         runBlocking {
             repository.setCardCornerStyle(cardCornerStyle)
             repository.setFontScale(fontScale)
@@ -101,5 +102,10 @@ class SettingsScreenTest {
         }
         composeRule.waitForIdle()
         composeRule.onNodeWithText("大").assertIsSelected()
+    }
+
+    private object FakeSecretTextCipher : SecretTextCipher {
+        override fun encrypt(plainText: String): String = "enc:$plainText"
+        override fun decrypt(cipherText: String): String? = cipherText.removePrefix("enc:")
     }
 }

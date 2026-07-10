@@ -48,4 +48,11 @@ class CustomColorSchemeTest {
 
         assertEquals(Color(customColor), scheme.primary)
     }
+
+    @Test
+    fun customScheme_primaryContentMeetsContrastForBrightColors() {
+        val scheme = colorSchemeForCustomColor(0xFFFFFF00.toInt(), darkTheme = false)
+
+        assert(contrastRatio(scheme.onPrimary, scheme.primary) >= 4.5f)
+    }
 }

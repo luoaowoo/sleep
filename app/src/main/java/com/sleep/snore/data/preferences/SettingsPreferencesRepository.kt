@@ -18,6 +18,7 @@ import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 
 data class SettingsPreferences(
     val silenceThresholdDb: Float = SettingsPreferencesRepository.DEFAULT_SILENCE_THRESHOLD_DB,
@@ -31,12 +32,15 @@ data class SettingsPreferences(
     val deepSeekApiKey: String = "",
     val deepSeekBaseUrl: String = SettingsPreferencesRepository.DEFAULT_DEEPSEEK_BASE_URL,
     val deepSeekModelName: String = SettingsPreferencesRepository.DEFAULT_DEEPSEEK_MODEL_NAME,
-    val aiCustomInfo: String = ""
+    val aiCustomInfo: String = "",
+    val wearableSleepTriggerEnabled: Boolean = SettingsPreferencesRepository.DEFAULT_WEARABLE_SLEEP_TRIGGER_ENABLED,
+    val wearableStopOnSleepEndEnabled: Boolean = SettingsPreferencesRepository.DEFAULT_WEARABLE_STOP_ON_SLEEP_END_ENABLED
 )
 
 @Singleton
 class SettingsPreferencesRepository @Inject constructor(
-    private val dataStore: DataStore<Preferences>
+    private val dataStore: DataStore<Preferences>,
+    private val secretTextCipher: SecretTextCipher
 ) {
 
     private val safePreferences: Flow<Preferences> = dataStore.data
@@ -49,6 +53,7 @@ class SettingsPreferencesRepository @Inject constructor(
         }
 
     val settings: Flow<SettingsPreferences> = safePreferences
+        .onEach { preferences -> migrateLegacyDeepSeekApiKeyIfNeeded(preferences) }
         .map { preferences ->
             SettingsPreferences(
                 silenceThresholdDb = preferences[Keys.SILENCE_THRESHOLD_DB]
@@ -69,14 +74,18 @@ class SettingsPreferencesRepository @Inject constructor(
                     ?: DEFAULT_MAX_SEGMENT_DURATION_SEC,
                 customAccentColorArgb = preferences[Keys.CUSTOM_ACCENT_COLOR_ARGB]
                     ?: DEFAULT_CUSTOM_ACCENT_COLOR_ARGB,
-                deepSeekApiKey = preferences[Keys.DEEPSEEK_API_KEY].orEmpty(),
+                deepSeekApiKey = readDeepSeekApiKey(preferences),
                 deepSeekBaseUrl = preferences[Keys.DEEPSEEK_BASE_URL]
                     ?.takeIf { it.isNotBlank() }
                     ?: DEFAULT_DEEPSEEK_BASE_URL,
                 deepSeekModelName = preferences[Keys.DEEPSEEK_MODEL_NAME]
                     ?.takeIf { it.isNotBlank() }
                     ?: DEFAULT_DEEPSEEK_MODEL_NAME,
-                aiCustomInfo = preferences[Keys.AI_CUSTOM_INFO].orEmpty()
+                aiCustomInfo = preferences[Keys.AI_CUSTOM_INFO].orEmpty(),
+                wearableSleepTriggerEnabled = preferences[Keys.WEARABLE_SLEEP_TRIGGER_ENABLED]
+                    ?: DEFAULT_WEARABLE_SLEEP_TRIGGER_ENABLED,
+                wearableStopOnSleepEndEnabled = preferences[Keys.WEARABLE_STOP_ON_SLEEP_END_ENABLED]
+                    ?: DEFAULT_WEARABLE_STOP_ON_SLEEP_END_ENABLED
             )
         }
 
@@ -182,7 +191,13 @@ class SettingsPreferencesRepository @Inject constructor(
 
     suspend fun setDeepSeekApiKey(value: String) {
         dataStore.edit { preferences ->
-            preferences[Keys.DEEPSEEK_API_KEY] = value.trim()
+            val trimmed = value.trim()
+            preferences.remove(Keys.DEEPSEEK_API_KEY)
+            if (trimmed.isBlank()) {
+                preferences.remove(Keys.DEEPSEEK_API_KEY_ENCRYPTED)
+            } else {
+                preferences[Keys.DEEPSEEK_API_KEY_ENCRYPTED] = secretTextCipher.encrypt(trimmed)
+            }
         }
     }
 
@@ -204,6 +219,18 @@ class SettingsPreferencesRepository @Inject constructor(
         }
     }
 
+    suspend fun setWearableSleepTriggerEnabled(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[Keys.WEARABLE_SLEEP_TRIGGER_ENABLED] = enabled
+        }
+    }
+
+    suspend fun setWearableStopOnSleepEndEnabled(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[Keys.WEARABLE_STOP_ON_SLEEP_END_ENABLED] = enabled
+        }
+    }
+
     suspend fun setFontScale(value: FontScale) {
         dataStore.edit { preferences ->
             preferences[Keys.FONT_SCALE] = value.name
@@ -222,6 +249,24 @@ class SettingsPreferencesRepository @Inject constructor(
         }
     }
 
+    private fun readDeepSeekApiKey(preferences: Preferences): String {
+        val encrypted = preferences[Keys.DEEPSEEK_API_KEY_ENCRYPTED]
+        if (!encrypted.isNullOrBlank()) {
+            return secretTextCipher.decrypt(encrypted).orEmpty()
+        }
+        return preferences[Keys.DEEPSEEK_API_KEY].orEmpty()
+    }
+
+    private suspend fun migrateLegacyDeepSeekApiKeyIfNeeded(preferences: Preferences) {
+        val legacyKey = preferences[Keys.DEEPSEEK_API_KEY]?.trim().orEmpty()
+        val encryptedKey = preferences[Keys.DEEPSEEK_API_KEY_ENCRYPTED]
+        if (legacyKey.isBlank() || !encryptedKey.isNullOrBlank()) return
+        dataStore.edit { mutablePreferences ->
+            mutablePreferences[Keys.DEEPSEEK_API_KEY_ENCRYPTED] = secretTextCipher.encrypt(legacyKey)
+            mutablePreferences.remove(Keys.DEEPSEEK_API_KEY)
+        }
+    }
+
     private object Keys {
         val SILENCE_THRESHOLD_DB = floatPreferencesKey("silence_threshold_db")
         val AUTO_CLEAN_ENABLED = booleanPreferencesKey("auto_clean_enabled")
@@ -233,9 +278,12 @@ class SettingsPreferencesRepository @Inject constructor(
         val ACCENT_COLOR = stringPreferencesKey("accent_color")
         val CUSTOM_ACCENT_COLOR_ARGB = intPreferencesKey("custom_accent_color_argb")
         val DEEPSEEK_API_KEY = stringPreferencesKey("deepseek_api_key")
+        val DEEPSEEK_API_KEY_ENCRYPTED = stringPreferencesKey("deepseek_api_key_encrypted")
         val DEEPSEEK_BASE_URL = stringPreferencesKey("deepseek_base_url")
         val DEEPSEEK_MODEL_NAME = stringPreferencesKey("deepseek_model_name")
         val AI_CUSTOM_INFO = stringPreferencesKey("ai_custom_info")
+        val WEARABLE_SLEEP_TRIGGER_ENABLED = booleanPreferencesKey("wearable_sleep_trigger_enabled")
+        val WEARABLE_STOP_ON_SLEEP_END_ENABLED = booleanPreferencesKey("wearable_stop_on_sleep_end_enabled")
         val FONT_SCALE = stringPreferencesKey("font_scale")
         val CARD_CORNER_STYLE = stringPreferencesKey("card_corner_style")
         val SENSITIVITY = stringPreferencesKey("sensitivity")
@@ -259,6 +307,8 @@ class SettingsPreferencesRepository @Inject constructor(
         const val DEFAULT_CUSTOM_ACCENT_COLOR_ARGB = -10071900
         const val DEFAULT_DEEPSEEK_BASE_URL = "https://api.deepseek.com/v1/chat/completions"
         const val DEFAULT_DEEPSEEK_MODEL_NAME = "deepseek-chat"
+        const val DEFAULT_WEARABLE_SLEEP_TRIGGER_ENABLED = false
+        const val DEFAULT_WEARABLE_STOP_ON_SLEEP_END_ENABLED = true
         private const val ALPHA_MASK = -0x1000000
     }
 }

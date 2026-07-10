@@ -124,11 +124,12 @@ class SleepRecordingService : Service() {
             stopSnoreDetection()
             _recordingState.value = RecordingRuntimeState()
             CoroutineScope(Dispatchers.IO).launch {
-                try {
-                    finalizeCurrentSession()
-                } catch (e: Exception) {
-                    Log.e(TAG, "failed to finalize session on destroy", e)
-                } finally {
+            try {
+                finalizeCurrentSession()
+            } catch (e: Exception) {
+                Log.e(TAG, "failed to finalize session on destroy", e)
+                writeFallbackFinalRecord()
+            } finally {
                     releaseWakeLock()
                     serviceScope.cancel()
                 }
@@ -215,6 +216,7 @@ class SleepRecordingService : Service() {
                 finalizeCurrentSession()
             } catch (e: Exception) {
                 Log.e(TAG, "failed to finish recording session", e)
+                writeFallbackFinalRecord()
             } finally {
                 releaseWakeLock()
                 _recordingState.value = RecordingRuntimeState()
@@ -247,6 +249,43 @@ class SleepRecordingService : Service() {
             preferencesRepository.settings.first()
         }
         if (settings?.autoCleanEnabled == true) cleanOldData()
+    }
+
+    private suspend fun writeFallbackFinalRecord() {
+        val recordId = currentRecordId ?: return
+        runCatching {
+            val endTime = System.currentTimeMillis()
+            val events = getCurrentSessionEvents(recordId)
+            val durationMs = max(1L, endTime - sessionStartTime)
+            val snoreDurationMs = events.sumOf { it.durationMs.toLong() }
+            val durationSummary = recordingDurationSummary(durationMs, snoreDurationMs)
+            repository.updateRecord(
+                SleepRecordEntity(
+                    id = recordId,
+                    startTime = sessionStartTime,
+                    endTime = endTime,
+                    sleepDurationMin = durationSummary.sleepDurationMin,
+                    snoreScore = 0,
+                    severity = Severity.GOOD.name,
+                    estAHI = 0f,
+                    snoreDurationMin = durationSummary.snoreDurationMin,
+                    snoreRatio = (snoreDurationMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f),
+                    avgDb = if (events.isEmpty()) 0f else events.map { it.avgDb }.average().toFloat(),
+                    maxDb = events.maxOfOrNull { it.peakDb } ?: 0f,
+                    snoreEventCount = events.size,
+                    apneaEventCount = 0,
+                    longestApneaSec = 0,
+                    snoreTypeDistribution = buildTypeDistribution(events),
+                    hourlyDistribution = buildHourlyDistribution(events),
+                    aiSummary = "录音已结束，但完整报告生成失败",
+                    aiEvaluation = "完整报告生成失败，已保留本次录音片段和基础统计。",
+                    aiSuggestions = "[]",
+                    createdAt = sessionStartTime
+                )
+            )
+        }.onFailure {
+            Log.e(TAG, "failed to write fallback final record", it)
+        }
     }
 
     private fun ensureServiceScope() {
@@ -429,13 +468,18 @@ class SleepRecordingService : Service() {
                             audioFileSizeBytes = audioFile.length(),
                             aiTypeLabel = features.aiTypeLabel
                         )
-                        runCatching {
-                            val savedId = repository.insertEvent(event)
-                            synchronized(pendingEvents) { pendingEvents.add(event.copy(id = savedId)) }
-                            updateNotification()
-                        }.onFailure {
+                        val savedId = runCatching {
+                            repository.insertEvent(event)
+                        }.getOrElse {
                             Log.w(TAG, "failed to persist snore event; deleting orphan audio file", it)
                             runCatching { audioFile.delete() }
+                            return@launch
+                        }
+                        synchronized(pendingEvents) { pendingEvents.add(event.copy(id = savedId)) }
+                        runCatching {
+                            updateNotification()
+                        }.onFailure {
+                            Log.w(TAG, "snore event saved but notification update failed", it)
                         }
                     }
                     job.invokeOnCompletion {
@@ -494,6 +538,8 @@ class SleepRecordingService : Service() {
             if (!restarted) {
                 Log.e(TAG, "failed to restart snore detector; finishing session")
                 finishSessionAndStop()
+            } else {
+                detectorRestartAttempts = 0
             }
         }
     }

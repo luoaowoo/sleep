@@ -543,15 +543,15 @@ fun colorSchemeForCustomColor(accentArgb: Int, darkTheme: Boolean): ColorScheme 
     return if (darkTheme) {
         darkColorScheme(
             primary = blend(seed, Color.White, 0.42f),
-            onPrimary = Color(0xFF111111),
+            onPrimary = readableOn(blend(seed, Color.White, 0.42f)),
             primaryContainer = blend(seed, Color.Black, 0.35f),
             onPrimaryContainer = readableOn(blend(seed, Color.Black, 0.35f)),
             secondary = blend(seed, Color.White, 0.28f),
-            onSecondary = Color(0xFF111111),
+            onSecondary = readableOn(blend(seed, Color.White, 0.28f)),
             secondaryContainer = blend(seed, Color.Black, 0.48f),
             onSecondaryContainer = readableOn(blend(seed, Color.Black, 0.48f)),
             tertiary = rotateApprox(seed, 0.16f, darkTheme = true),
-            onTertiary = Color(0xFF111111),
+            onTertiary = readableOn(rotateApprox(seed, 0.16f, darkTheme = true)),
             tertiaryContainer = blend(rotateApprox(seed, 0.16f, darkTheme = true), Color.Black, 0.5f),
             onTertiaryContainer = readableOn(blend(rotateApprox(seed, 0.16f, darkTheme = true), Color.Black, 0.5f)),
             background = Color(0xFF121416),
@@ -610,8 +610,30 @@ private fun blend(start: Color, end: Color, amount: Float): Color {
 }
 
 private fun readableOn(background: Color): Color {
-    val brightness = background.red * 0.299f + background.green * 0.587f + background.blue * 0.114f
-    return if (brightness > 0.56f) Color(0xFF111111) else Color.White
+    return if (contrastRatio(Color.Black, background) >= contrastRatio(Color.White, background)) {
+        Color.Black
+    } else {
+        Color.White
+    }
+}
+
+internal fun contrastRatio(foreground: Color, background: Color): Float {
+    val foregroundLuminance = relativeLuminance(foreground)
+    val backgroundLuminance = relativeLuminance(background)
+    val lighter = maxOf(foregroundLuminance, backgroundLuminance)
+    val darker = minOf(foregroundLuminance, backgroundLuminance)
+    return (lighter + 0.05f) / (darker + 0.05f)
+}
+
+private fun relativeLuminance(color: Color): Float {
+    fun channel(value: Float): Float {
+        return if (value <= 0.03928f) {
+            value / 12.92f
+        } else {
+            Math.pow(((value + 0.055f) / 1.055f).toDouble(), 2.4).toFloat()
+        }
+    }
+    return 0.2126f * channel(color.red) + 0.7152f * channel(color.green) + 0.0722f * channel(color.blue)
 }
 
 private fun rotateApprox(seed: Color, amount: Float, darkTheme: Boolean): Color {
