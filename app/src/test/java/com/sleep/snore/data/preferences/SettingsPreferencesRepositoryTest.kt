@@ -84,10 +84,10 @@ class SettingsPreferencesRepositoryTest {
         val repository = createFixture().repository
 
         repository.setWearableSleepTriggerStatus("正在检查最近睡眠记录", checkedAtMillis = 1234L)
-        repository.setWearableSleepTriggerMessage("手环自动检测已关闭")
+        repository.setWearableSleepTriggerMessage("Health Connect 周期检查已关闭")
 
         val settings = repository.settings.first()
-        assertThat(settings.wearableSleepTriggerStatus).isEqualTo("手环自动检测已关闭")
+        assertThat(settings.wearableSleepTriggerStatus).isEqualTo("Health Connect 周期检查已关闭")
         assertThat(settings.wearableSleepTriggerLastCheckMillis).isEqualTo(1234L)
     }
 

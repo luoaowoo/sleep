@@ -132,7 +132,7 @@ class WearableSleepStandbyService : Service() {
     private suspend fun pollOnce(): Boolean {
         val settings = settingsRepository.settings.first()
         if (!settings.wearableSleepTriggerEnabled) {
-            stopStandby("手环自动检测已关闭，睡前待命停止")
+            stopStandby("Health Connect 周期检查已关闭，兼容待命停止")
             return true
         }
 

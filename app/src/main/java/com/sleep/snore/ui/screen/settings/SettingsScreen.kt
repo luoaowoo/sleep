@@ -328,8 +328,8 @@ fun SettingsScreen(
             Card(shape = MaterialTheme.shapes.extraLarge) {
                 Column(modifier = Modifier.padding(uiPreferences.cardPadding)) {
                     SettingSwitchRow(
-                        title = "Health Connect 睡眠触发",
-                        supportingText = "小米运动健康同步到 Health Connect 后，本应用按系统调度读取睡眠会话；它不是实时手环直连，睡前待命会先开启前台鼾声检测，再用手环记录自动停止/校准。",
+                        title = "Health Connect 周期检查",
+                        supportingText = "小米运动健康同步到 Health Connect 后，本应用按系统调度读取睡眠会话；它不是实时手环直连。此开关只负责周期检查，睡前请点击下方按钮开启前台鼾声检测。",
                         checked = uiState.wearableSleepTriggerEnabled,
                         onCheckedChange = viewModel::onWearableSleepTriggerChange
                     )
@@ -342,7 +342,7 @@ fun SettingsScreen(
                     )
                     Spacer(Modifier.height(Spacing.xs))
                     Text(
-                        "需要授予 Health Connect 睡眠读取和后台读取权限。Android 可能阻止纯后台启动麦克风，所以睡前待命会先合法启动前台麦克风检测。",
+                        "需要授予 Health Connect 睡眠读取和后台读取权限。Android 可能阻止纯后台启动麦克风，所以睡前前台检测会先合法启动麦克风服务。",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -380,8 +380,8 @@ fun SettingsScreen(
                     if (wearableSleepDetectionActive) {
                         Text(
                             standbyState.statusText.takeIf { standbyState.isActive }
-                                ?.let { "待命状态：运行中，$it" }
-                                ?: "待命状态：录音服务正在前台检测，并低频检查睡眠结束",
+                                ?.let { "检测状态：运行中，$it" }
+                                ?: "检测状态：录音服务正在前台检测，并低频检查睡眠结束",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.primary
                         )
@@ -412,7 +412,7 @@ fun SettingsScreen(
                             }
                         }
                     ) {
-                        Text(if (wearableSleepDetectionActive) "停止手环待命" else "睡前开启手环待命")
+                        Text(if (wearableSleepDetectionActive) "停止睡前前台检测" else "睡前开启前台检测")
                     }
                     Spacer(Modifier.height(Spacing.sm))
                     TextButton(

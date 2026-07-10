@@ -56,7 +56,7 @@ class SettingsViewModelWearableStandbyTest {
         assertThat(recordingController.stoppedSources)
             .containsExactly(HealthConnectSleepTriggerSource.SOURCE)
         assertThat(repository.settingsSnapshot().wearableSleepTriggerEnabled).isFalse()
-        assertThat(repository.settingsSnapshot().wearableSleepTriggerStatus).isEqualTo("手环自动检测已关闭")
+        assertThat(repository.settingsSnapshot().wearableSleepTriggerStatus).isEqualTo("Health Connect 周期检查已关闭")
     }
 
     private fun createRepository(): SettingsPreferencesRepository {
