@@ -13,6 +13,8 @@ import com.sleep.snore.data.model.CardCornerStyle
 import com.sleep.snore.data.model.FontScale
 import com.sleep.snore.data.preferences.SecretTextCipher
 import com.sleep.snore.data.preferences.SettingsPreferencesRepository
+import com.sleep.snore.recording.RecordingController
+import com.sleep.snore.recording.RecordingStartResult
 import com.sleep.snore.ui.theme.LocalUiPreferences
 import com.sleep.snore.ui.theme.SleepSnoreTheme
 import com.sleep.snore.ui.theme.UiPreferences
@@ -42,7 +44,7 @@ class SettingsScreenTest {
             repository.setFontScale(fontScale)
             repository.setCompactModeEnabled(compactMode)
         }
-        return SettingsViewModel(context, repository)
+        return SettingsViewModel(context, repository, FakeRecordingController)
     }
 
     @Test
@@ -107,5 +109,15 @@ class SettingsScreenTest {
     private object FakeSecretTextCipher : SecretTextCipher {
         override fun encrypt(plainText: String): String = "enc:$plainText"
         override fun decrypt(cipherText: String): String? = cipherText.removePrefix("enc:")
+    }
+
+    private object FakeRecordingController : RecordingController {
+        override suspend fun startFromSleepTrigger(source: String): RecordingStartResult {
+            return RecordingStartResult.Confirmed("started")
+        }
+
+        override suspend fun stopFromSleepTrigger(source: String): Boolean = true
+
+        override fun isRecordingActive(): Boolean = false
     }
 }

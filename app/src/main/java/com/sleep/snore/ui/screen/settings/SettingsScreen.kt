@@ -327,7 +327,7 @@ fun SettingsScreen(
                 Column(modifier = Modifier.padding(uiPreferences.cardPadding)) {
                     SettingSwitchRow(
                         title = "Health Connect 睡眠触发",
-                        supportingText = "小米运动健康同步到 Health Connect 后，本应用按系统调度读取睡眠会话；它不是实时手环直连，睡前请先开启前台检测最稳。",
+                        supportingText = "小米运动健康同步到 Health Connect 后，本应用按系统调度读取睡眠会话；它不是实时手环直连，睡前待命会先开启前台鼾声检测，再用手环记录自动停止/校准。",
                         checked = uiState.wearableSleepTriggerEnabled,
                         onCheckedChange = viewModel::onWearableSleepTriggerChange
                     )
@@ -340,7 +340,7 @@ fun SettingsScreen(
                     )
                     Spacer(Modifier.height(Spacing.xs))
                     Text(
-                        "需要授予 Health Connect 睡眠读取和后台读取权限。Android 可能阻止纯后台启动麦克风，所以手环触发更适合做辅助校准/自动停止。",
+                        "需要授予 Health Connect 睡眠读取和后台读取权限。Android 可能阻止纯后台启动麦克风，所以睡前待命会先合法启动前台麦克风检测。",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

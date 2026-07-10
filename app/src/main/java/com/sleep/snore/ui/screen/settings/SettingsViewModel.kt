@@ -14,6 +14,7 @@ import com.sleep.snore.data.model.FontScale
 import com.sleep.snore.data.model.Sensitivity
 import com.sleep.snore.data.preferences.SettingsPreferencesRepository
 import com.sleep.snore.data.preferences.defaultArgb
+import com.sleep.snore.recording.RecordingController
 import com.sleep.snore.sleeptrigger.HealthConnectSleepTriggerSource
 import com.sleep.snore.sleeptrigger.HealthConnectSleepTriggerWorker
 import com.sleep.snore.sleeptrigger.WearableSleepStandbyService
@@ -57,7 +58,8 @@ data class SettingsUiState(
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val preferencesRepository: SettingsPreferencesRepository
+    private val preferencesRepository: SettingsPreferencesRepository,
+    private val recordingController: RecordingController
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -311,13 +313,24 @@ class SettingsViewModel @Inject constructor(
             }
             preferencesRepository.setWearableSleepTriggerEnabled(true)
             preferencesRepository.setWearableSleepTriggerStatus("睡前待命已开启，正在等待手环/Health Connect 睡眠记录")
+            val recordingStartResult = recordingController.startFromSleepTrigger(
+                HealthConnectSleepTriggerSource.SOURCE
+            )
+            if (!recordingStartResult.confirmed) {
+                _uiState.update { state ->
+                    state.copy(wearableSleepTriggerStatus = recordingStartResult.statusText)
+                }
+                preferencesRepository.setWearableSleepTriggerStatus(recordingStartResult.statusText)
+                return@launch
+            }
             runCatching {
                 ContextCompat.startForegroundService(
                     context,
                     WearableSleepStandbyService.startIntent(context)
                 )
             }.onFailure {
-                val status = "睡前待命启动失败，请检查通知/后台运行权限"
+                val status = "鼾声检测已开启，但手环待命启动失败；请检查通知/后台运行权限"
+                recordingController.stopFromSleepTrigger(HealthConnectSleepTriggerSource.SOURCE)
                 _uiState.update { state -> state.copy(wearableSleepTriggerStatus = status) }
                 preferencesRepository.setWearableSleepTriggerStatus(status)
             }
@@ -325,7 +338,21 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun stopWearableSleepStandby() {
-        context.startService(WearableSleepStandbyService.stopIntent(context))
+        runCatching {
+            context.startService(WearableSleepStandbyService.stopIntent(context))
+        }
+        viewModelScope.launch {
+            val stoppedRecording = recordingController.stopFromSleepTrigger(
+                HealthConnectSleepTriggerSource.SOURCE
+            )
+            val status = if (stoppedRecording) {
+                "手环待命已停止，前台鼾声检测也已请求停止"
+            } else {
+                "手环待命已停止"
+            }
+            _uiState.update { it.copy(wearableSleepTriggerStatus = status) }
+            preferencesRepository.setWearableSleepTriggerMessage(status)
+        }
     }
 
     private suspend fun wearableStandbyStartBlocker(): String? {
