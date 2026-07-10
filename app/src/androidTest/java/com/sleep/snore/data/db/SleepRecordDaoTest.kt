@@ -7,6 +7,7 @@ import com.sleep.snore.data.db.dao.SleepRecordDao
 import com.sleep.snore.data.db.dao.SnoreEventDao
 import com.sleep.snore.data.db.entity.SleepRecordEntity
 import com.sleep.snore.data.db.entity.SnoreEventEntity
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -58,6 +59,27 @@ class SleepRecordDaoTest {
         assertNotNull(result)
         assertEquals(activeId, result!!.id)
         assertEquals(1_000L, result.startTime)
+    }
+
+    @Test
+    fun getAllRecords_excludesActiveRecordingRecord() = runTest {
+        val activeRecord = buildRecord(
+            startTime = 2_000L,
+            endTime = 2_000L,
+            aiEvaluation = ""
+        )
+        val completedRecord = buildRecord(
+            startTime = 1_000L,
+            endTime = 2_000L,
+            aiEvaluation = "done"
+        )
+        sleepRecordDao.insert(activeRecord)
+        val completedId = sleepRecordDao.insert(completedRecord)
+
+        val records = sleepRecordDao.getAllRecords().first()
+
+        assertEquals(1, records.size)
+        assertEquals(completedId, records.single().id)
     }
 
     @Test

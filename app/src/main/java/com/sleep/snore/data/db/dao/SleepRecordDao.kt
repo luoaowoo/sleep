@@ -17,7 +17,7 @@ interface SleepRecordDao {
     @Update
     suspend fun update(record: SleepRecordEntity)
 
-    @Query("SELECT * FROM sleep_records ORDER BY start_time DESC")
+    @Query("SELECT * FROM sleep_records WHERE NOT (end_time = start_time AND ai_evaluation = '') ORDER BY start_time DESC")
     fun getAllRecords(): Flow<List<SleepRecordEntity>>
 
     @Query("SELECT * FROM sleep_records WHERE id = :id")
@@ -26,19 +26,19 @@ interface SleepRecordDao {
     @Query("SELECT * FROM sleep_records WHERE end_time = start_time AND ai_evaluation = '' ORDER BY start_time DESC LIMIT 1")
     suspend fun getActiveRecordingRecord(): SleepRecordEntity?
 
-    @Query("SELECT * FROM sleep_records ORDER BY start_time DESC LIMIT 1")
+    @Query("SELECT * FROM sleep_records WHERE NOT (end_time = start_time AND ai_evaluation = '') ORDER BY start_time DESC LIMIT 1")
     suspend fun getLatest(): SleepRecordEntity?
 
-    @Query("SELECT * FROM sleep_records ORDER BY start_time DESC LIMIT 1")
+    @Query("SELECT * FROM sleep_records WHERE NOT (end_time = start_time AND ai_evaluation = '') ORDER BY start_time DESC LIMIT 1")
     fun getLatestFlow(): Flow<SleepRecordEntity?>
 
-    @Query("SELECT * FROM sleep_records ORDER BY start_time DESC LIMIT :limit")
+    @Query("SELECT * FROM sleep_records WHERE NOT (end_time = start_time AND ai_evaluation = '') ORDER BY start_time DESC LIMIT :limit")
     fun getRecent(limit: Int): Flow<List<SleepRecordEntity>>
 
-    @Query("SELECT * FROM sleep_records WHERE start_time >= :since ORDER BY start_time DESC")
+    @Query("SELECT * FROM sleep_records WHERE start_time >= :since AND NOT (end_time = start_time AND ai_evaluation = '') ORDER BY start_time DESC")
     fun getRecordsSince(since: Long): Flow<List<SleepRecordEntity>>
 
-    @Query("SELECT * FROM sleep_records WHERE start_time BETWEEN :start AND :end ORDER BY start_time DESC")
+    @Query("SELECT * FROM sleep_records WHERE start_time BETWEEN :start AND :end AND NOT (end_time = start_time AND ai_evaluation = '') ORDER BY start_time DESC")
     fun getRecordsBetween(start: Long, end: Long): Flow<List<SleepRecordEntity>>
 
     @Query("DELETE FROM sleep_records WHERE id = :id")

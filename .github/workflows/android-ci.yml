@@ -27,7 +27,7 @@ jobs:
 
       - name: Run lint, tests, debug, and release build
         shell: pwsh
-        run: ./gradlew :app:lintDebug :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease :app:compileDebugAndroidTestKotlin --no-daemon --console=plain
+        run: ./gradlew :app:lintDebug :app:lintRelease :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease :app:compileDebugAndroidTestKotlin --no-daemon --console=plain
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
