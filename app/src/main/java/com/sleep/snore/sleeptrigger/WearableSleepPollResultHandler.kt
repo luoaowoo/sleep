@@ -5,6 +5,7 @@ import com.sleep.snore.data.preferences.SettingsPreferencesRepository
 internal data class WearableSleepPollHandleResult(
     val statusText: String,
     val emittedSleepStart: Boolean = false,
+    val emittedSleepEnd: Boolean = false,
     val eventHandled: Boolean = false
 )
 
@@ -32,6 +33,7 @@ internal suspend fun handleWearableSleepPollResult(
     return WearableSleepPollHandleResult(
         statusText = result.statusText ?: pollResult.toWearableSleepStatusText(requireBackgroundRead),
         emittedSleepStart = pollResult.event is SleepTriggerEvent.SleepStarted,
+        emittedSleepEnd = pollResult.event is SleepTriggerEvent.SleepEnded,
         eventHandled = result.handled
     )
 }

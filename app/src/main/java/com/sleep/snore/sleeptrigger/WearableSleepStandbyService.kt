@@ -115,7 +115,6 @@ class WearableSleepStandbyService : Service() {
                 }
                 val shouldStop = pollOnce()
                 if (shouldStop) {
-                    stopStandby("已检测到睡眠并请求开启鼾声检测")
                     return@launch
                 }
                 delay(POLL_INTERVAL_MS)
@@ -133,7 +132,10 @@ class WearableSleepStandbyService : Service() {
         val pollResult = runCatching {
             healthConnectSleepTriggerSource.pollLatestSleepSession(
                 requireBackgroundRead = true,
-                ignoreEventsBefore = Instant.ofEpochMilli(standbyStartedAtMillis)
+                ignoreEventsBefore = sleepEventIgnoreEventsBefore(
+                    settings = settings,
+                    fallbackMillis = standbyStartedAtMillis
+                )
             )
         }.getOrElse { throwable ->
             val status = "睡前待命检查失败：${throwable.message.orEmpty()}".trimEnd('：')
@@ -152,7 +154,12 @@ class WearableSleepStandbyService : Service() {
         val status = handleResult.statusText
         persistStandbyStatus(status)
         updateStandbyStatus(status)
-        return handleResult.emittedSleepStart && handleResult.eventHandled
+        return if (handleResult.emittedSleepEnd && handleResult.eventHandled) {
+            stopStandby("已检测到睡眠结束并请求停止鼾声检测")
+            true
+        } else {
+            false
+        }
     }
 
     private fun stopStandby(status: String) {

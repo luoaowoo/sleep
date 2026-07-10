@@ -33,6 +33,7 @@ class WearableSleepPollResultHandlerTest {
 
         assertThat(result.statusText).isEqualTo("started")
         assertThat(result.emittedSleepStart).isTrue()
+        assertThat(result.emittedSleepEnd).isFalse()
         assertThat(result.eventHandled).isTrue()
         coVerify { settingsRepository.setLastWearableSleepEventKey("SleepStarted:1:1") }
     }
@@ -58,6 +59,7 @@ class WearableSleepPollResultHandlerTest {
 
         assertThat(result.statusText).isEqualTo("missing permission")
         assertThat(result.emittedSleepStart).isTrue()
+        assertThat(result.emittedSleepEnd).isFalse()
         assertThat(result.eventHandled).isFalse()
         coVerify(exactly = 0) { settingsRepository.setLastWearableSleepEventKey(any()) }
     }
@@ -74,7 +76,31 @@ class WearableSleepPollResultHandlerTest {
 
         assertThat(result.statusText).isEqualTo("缺少 Health Connect 睡眠读取权限")
         assertThat(result.emittedSleepStart).isFalse()
+        assertThat(result.emittedSleepEnd).isFalse()
         assertThat(result.eventHandled).isFalse()
+    }
+
+    @Test
+    fun handleWearableSleepPollResult_marksHandledSleepEnd() = runTest {
+        val settingsRepository = mockk<SettingsPreferencesRepository>(relaxed = true)
+        val coordinator = AutoSnoreDetectionCoordinator(FakeRecordingController())
+        val pollResult = HealthConnectSleepTriggerSource.PollResult.EventEmitted(
+            event = SleepTriggerEvent.SleepEnded("health_connect_sleep", timestamp = 2L),
+            eventKey = "SleepEnded:2:1"
+        )
+
+        val result = handleWearableSleepPollResult(
+            pollResult = pollResult,
+            stopOnSleepEnd = true,
+            coordinator = coordinator,
+            settingsRepository = settingsRepository,
+            requireBackgroundRead = true
+        )
+
+        assertThat(result.emittedSleepStart).isFalse()
+        assertThat(result.emittedSleepEnd).isTrue()
+        assertThat(result.eventHandled).isTrue()
+        coVerify { settingsRepository.setLastWearableSleepEventKey("SleepEnded:2:1") }
     }
 
     private class FakeRecordingController(
