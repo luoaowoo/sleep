@@ -80,6 +80,18 @@ class SettingsPreferencesRepositoryTest {
     }
 
     @Test
+    fun wearableSleepTriggerMessage_doesNotChangeLastCheckTime() = runTest {
+        val repository = createFixture().repository
+
+        repository.setWearableSleepTriggerStatus("正在检查最近睡眠记录", checkedAtMillis = 1234L)
+        repository.setWearableSleepTriggerMessage("手环自动检测已关闭")
+
+        val settings = repository.settings.first()
+        assertThat(settings.wearableSleepTriggerStatus).isEqualTo("手环自动检测已关闭")
+        assertThat(settings.wearableSleepTriggerLastCheckMillis).isEqualTo(1234L)
+    }
+
+    @Test
     fun wearableSleepEventKey_persistsForDuplicateDetection() = runTest {
         val repository = createFixture().repository
 
