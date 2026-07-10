@@ -247,6 +247,10 @@ class SettingsViewModel @Inject constructor(
                 preferencesRepository.setWearableSleepTriggerStatus("已开启手环自动检测，正在检查最近睡眠记录")
                 HealthConnectSleepTriggerWorker.enqueueNow(context)
             } else {
+                runCatching {
+                    context.startService(WearableSleepStandbyService.stopIntent(context))
+                }
+                recordingController.stopFromSleepTrigger(HealthConnectSleepTriggerSource.SOURCE)
                 preferencesRepository.setWearableSleepTriggerMessage("手环自动检测已关闭")
             }
         }

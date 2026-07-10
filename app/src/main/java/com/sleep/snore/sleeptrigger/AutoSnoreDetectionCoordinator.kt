@@ -17,11 +17,11 @@ sealed interface AutoSnoreDetectionResult {
     }
 
     data class SleepEnd(override val handled: Boolean) : AutoSnoreDetectionResult {
-        override val shouldRememberEvent: Boolean = true
+        override val shouldRememberEvent: Boolean = handled
         override val statusText: String = if (handled) {
             "检测到睡眠结束，已请求停止鼾声检测"
         } else {
-            "检测到睡眠结束，无需停止"
+            "检测到睡眠结束，但未能停止鼾声检测；将继续重试"
         }
     }
 

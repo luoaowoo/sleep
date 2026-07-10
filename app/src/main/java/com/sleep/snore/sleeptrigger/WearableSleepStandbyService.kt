@@ -14,6 +14,7 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.sleep.snore.MainActivity
 import com.sleep.snore.data.preferences.SettingsPreferencesRepository
+import com.sleep.snore.recording.RecordingController
 import dagger.hilt.android.AndroidEntryPoint
 import java.time.Instant
 import javax.inject.Inject
@@ -45,6 +46,7 @@ class WearableSleepStandbyService : Service() {
     @Inject lateinit var settingsRepository: SettingsPreferencesRepository
     @Inject lateinit var healthConnectSleepTriggerSource: HealthConnectSleepTriggerSource
     @Inject lateinit var coordinator: AutoSnoreDetectionCoordinator
+    @Inject lateinit var recordingController: RecordingController
 
     private var serviceJob = SupervisorJob()
     private var serviceScope = CoroutineScope(Dispatchers.IO + serviceJob)
@@ -59,10 +61,15 @@ class WearableSleepStandbyService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         return when (intent?.action) {
             ACTION_STOP -> {
-                stopStandby("睡前待命已停止")
+                stopPreStartedRecordingAsync()
+                stopStandby("睡前待命已停止，前台鼾声检测也已请求停止")
                 START_NOT_STICKY
             }
             ACTION_START -> {
+                startStandbyIfNeeded()
+                START_STICKY
+            }
+            null -> {
                 startStandbyIfNeeded()
                 START_STICKY
             }
@@ -181,6 +188,12 @@ class WearableSleepStandbyService : Service() {
     private fun persistStandbyMessageAsync(status: String) {
         CoroutineScope(Dispatchers.IO).launch {
             settingsRepository.setWearableSleepTriggerMessage(status)
+        }
+    }
+
+    private fun stopPreStartedRecordingAsync() {
+        CoroutineScope(Dispatchers.IO).launch {
+            recordingController.stopFromSleepTrigger(HealthConnectSleepTriggerSource.SOURCE)
         }
     }
 
