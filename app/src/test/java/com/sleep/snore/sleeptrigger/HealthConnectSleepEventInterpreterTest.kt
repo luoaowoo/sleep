@@ -100,6 +100,34 @@ class HealthConnectSleepEventInterpreterTest {
     }
 
     @Test
+    fun interpret_ignoresFinishedSessionBeforeArmedTime() {
+        val result = HealthConnectSleepEventInterpreter.interpret(
+            session = SleepSessionSnapshot(
+                startTime = Instant.parse("2026-07-10T23:00:00Z"),
+                endTime = Instant.parse("2026-07-11T06:00:00Z")
+            ),
+            now = Instant.parse("2026-07-11T22:00:00Z"),
+            ignoreEventsBefore = Instant.parse("2026-07-11T21:55:00Z")
+        )
+
+        assertThat(result).isNull()
+    }
+
+    @Test
+    fun interpret_keepsFinishedSessionAfterArmedTime() {
+        val result = HealthConnectSleepEventInterpreter.interpret(
+            session = SleepSessionSnapshot(
+                startTime = Instant.parse("2026-07-11T22:00:00Z"),
+                endTime = Instant.parse("2026-07-12T06:00:00Z")
+            ),
+            now = Instant.parse("2026-07-12T06:05:00Z"),
+            ignoreEventsBefore = Instant.parse("2026-07-11T21:55:00Z")
+        )
+
+        assertThat(result?.event).isInstanceOf(SleepTriggerEvent.SleepEnded::class.java)
+    }
+
+    @Test
     fun interpret_treatsEndEqualNowAsFinished() {
         val now = Instant.parse("2026-07-11T08:00:00Z")
         val result = HealthConnectSleepEventInterpreter.interpret(

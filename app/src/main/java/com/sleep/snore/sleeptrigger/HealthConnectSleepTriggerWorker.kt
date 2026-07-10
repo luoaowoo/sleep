@@ -13,6 +13,7 @@ import androidx.work.WorkerParameters
 import com.sleep.snore.data.preferences.SettingsPreferencesRepository
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import java.time.Instant
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.flow.first
 
@@ -31,7 +32,10 @@ class HealthConnectSleepTriggerWorker @AssistedInject constructor(
 
         val pollResult = runCatching {
             healthConnectSleepTriggerSource.pollLatestSleepSession(
-                requireBackgroundRead = inputData.getBoolean(KEY_REQUIRE_BACKGROUND_READ, true)
+                requireBackgroundRead = inputData.getBoolean(KEY_REQUIRE_BACKGROUND_READ, true),
+                ignoreEventsBefore = settings.activeRecordingTriggerStartedAtMillis
+                    .takeIf { it > 0L && settings.activeRecordingTriggerSource == HealthConnectSleepTriggerSource.SOURCE }
+                    ?.let { Instant.ofEpochMilli(it) }
             )
         }.getOrElse { throwable ->
             settingsRepository.setWearableSleepTriggerStatus(

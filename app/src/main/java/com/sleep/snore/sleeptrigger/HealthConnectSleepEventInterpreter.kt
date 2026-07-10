@@ -25,6 +25,7 @@ object HealthConnectSleepEventInterpreter {
     fun interpret(
         session: SleepSessionSnapshot,
         now: Instant,
+        ignoreEventsBefore: Instant? = null,
         source: String = HealthConnectSleepTriggerSource.SOURCE,
         confidence: Float = HealthConnectSleepTriggerSource.HEALTH_CONNECT_CONFIDENCE
     ): InterpretedSleepEvent? {
@@ -38,6 +39,9 @@ object HealthConnectSleepEventInterpreter {
                 confidence = confidence
             )
         } else {
+            if (ignoreEventsBefore != null && session.endTime.isBefore(ignoreEventsBefore)) {
+                return null
+            }
             eventType = EVENT_TYPE_SLEEP_ENDED
             SleepTriggerEvent.SleepEnded(
                 source = source,

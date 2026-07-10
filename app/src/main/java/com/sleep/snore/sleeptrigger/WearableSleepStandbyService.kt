@@ -15,6 +15,7 @@ import androidx.core.app.NotificationCompat
 import com.sleep.snore.MainActivity
 import com.sleep.snore.data.preferences.SettingsPreferencesRepository
 import dagger.hilt.android.AndroidEntryPoint
+import java.time.Instant
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -131,7 +132,8 @@ class WearableSleepStandbyService : Service() {
 
         val pollResult = runCatching {
             healthConnectSleepTriggerSource.pollLatestSleepSession(
-                requireBackgroundRead = true
+                requireBackgroundRead = true,
+                ignoreEventsBefore = Instant.ofEpochMilli(standbyStartedAtMillis)
             )
         }.getOrElse { throwable ->
             val status = "睡前待命检查失败：${throwable.message.orEmpty()}".trimEnd('：')

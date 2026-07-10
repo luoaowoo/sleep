@@ -27,7 +27,8 @@ class HealthConnectSleepTriggerSource @Inject constructor(
 
     suspend fun pollLatestSleepSession(
         now: Instant = Instant.now(),
-        requireBackgroundRead: Boolean = true
+        requireBackgroundRead: Boolean = true,
+        ignoreEventsBefore: Instant? = null
     ): PollResult {
         if (HealthConnectClient.getSdkStatus(context) != HealthConnectClient.SDK_AVAILABLE) {
             return PollResult.HealthConnectUnavailable
@@ -69,7 +70,8 @@ class HealthConnectSleepTriggerSource @Inject constructor(
 
         val interpretedEvent = HealthConnectSleepEventInterpreter.interpret(
             session = latestSession,
-            now = now
+            now = now,
+            ignoreEventsBefore = ignoreEventsBefore
         ) ?: return PollResult.NoRecentSleep
         if (interpretedEvent.eventKey == settingsRepository.getLastWearableSleepEventKey()) {
             return PollResult.DuplicateEvent
