@@ -10,6 +10,7 @@ class WearableReadinessSummaryTest {
         val summary = wearableReadinessSummary(
             hasRecordAudioPermission = true,
             hasNotificationPermission = true,
+            hasHealthConnectPermission = true,
             isIgnoringBatteryOptimizations = true,
             hasXiaomiCompanion = true,
             periodicCheckEnabled = true
@@ -24,6 +25,7 @@ class WearableReadinessSummaryTest {
         val summary = wearableReadinessSummary(
             hasRecordAudioPermission = false,
             hasNotificationPermission = false,
+            hasHealthConnectPermission = false,
             isIgnoringBatteryOptimizations = false,
             hasXiaomiCompanion = false,
             periodicCheckEnabled = false
@@ -31,6 +33,7 @@ class WearableReadinessSummaryTest {
 
         assertThat(summary).contains("麦克风权限")
         assertThat(summary).contains("通知权限")
+        assertThat(summary).contains("Health Connect 授权")
         assertThat(summary).contains("电池优化放行")
         assertThat(summary).contains("小米伴侣 App")
         assertThat(summary).contains("Health Connect 周期检查")

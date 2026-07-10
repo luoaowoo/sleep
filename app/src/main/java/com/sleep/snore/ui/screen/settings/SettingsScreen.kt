@@ -10,6 +10,7 @@ import android.os.PowerManager
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.PermissionController
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -51,6 +52,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -133,6 +135,16 @@ fun SettingsScreen(
                 context,
                 Manifest.permission.POST_NOTIFICATIONS
             ) == PackageManager.PERMISSION_GRANTED
+    }
+    var hasHealthConnectPermission by remember(context) { mutableStateOf(false) }
+    LaunchedEffect(context, permissionRefreshTick) {
+        hasHealthConnectPermission = runCatching {
+            HealthConnectClient.getSdkStatus(context) == HealthConnectClient.SDK_AVAILABLE &&
+                HealthConnectClient.getOrCreate(context)
+                    .permissionController
+                    .getGrantedPermissions()
+                    .containsAll(HealthConnectSleepTriggerSource.BACKGROUND_REQUIRED_PERMISSIONS)
+        }.getOrDefault(false)
     }
 
     Scaffold(
@@ -331,6 +343,7 @@ fun SettingsScreen(
                         wearableReadinessSummary(
                             hasRecordAudioPermission = hasRecordAudioPermission,
                             hasNotificationPermission = hasNotificationPermission,
+                            hasHealthConnectPermission = hasHealthConnectPermission,
                             isIgnoringBatteryOptimizations = isIgnoringBatteryOptimizations,
                             hasXiaomiCompanion = installedXiaomiCompanion != null,
                             periodicCheckEnabled = uiState.wearableSleepTriggerEnabled
@@ -339,6 +352,7 @@ fun SettingsScreen(
                         color = if (
                             hasRecordAudioPermission &&
                             hasNotificationPermission &&
+                            hasHealthConnectPermission &&
                             isIgnoringBatteryOptimizations &&
                             installedXiaomiCompanion != null &&
                             uiState.wearableSleepTriggerEnabled
