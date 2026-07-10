@@ -32,10 +32,6 @@ class AndroidRecordingController @Inject constructor(
 
     override suspend fun stopFromSleepTrigger(source: String): Boolean {
         if (settingsRepository.getActiveRecordingTriggerSource() != source) return false
-        if (!isRecordingActive()) {
-            settingsRepository.clearActiveRecordingTriggerSource()
-            return false
-        }
         return runCatching {
             context.startService(SleepRecordingService.stopIntent(context))
             true

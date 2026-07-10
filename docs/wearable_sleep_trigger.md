@@ -25,6 +25,7 @@
    - 成功处理后持久化睡眠事件 key，避免 App 进程重启后重复触发；如果后台开麦失败则保留重试机会。
    - 设置页展示最近轮询状态和检查时间，便于排查 Health Connect 授权/同步问题。
    - 前台录音服务在检测真正启动后持久化触发来源，进程重启后仍可让睡眠结束事件停止手环自动开启的录音，同时避免误停用户手动录音。
+   - 开机或应用更新后通过 `WearableSleepTriggerBootReceiver` 恢复周期轮询，并立即执行一次检查。
    - 当前工程使用已验证可构建的 `androidx.health.connect:connect-client:1.1.0-alpha11`；后续网络/缓存稳定后可按 AndroidX 发布节奏升级。
 3. 如果小米官方发布可用 SDK，再新增 `XiaomiSleepTriggerSource`，保持对上层接口不变。
 4. 后台保活策略：
