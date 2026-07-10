@@ -40,10 +40,7 @@ class SleepSnoreApp : Application() {
                     HealthConnectSleepTriggerWorker.enqueue(this@SleepSnoreApp)
                     HealthConnectSleepTriggerWorker.enqueueNow(this@SleepSnoreApp)
                 } else {
-                    WorkManager.getInstance(this@SleepSnoreApp)
-                        .cancelUniqueWork(HealthConnectSleepTriggerWorker.WORK_NAME)
-                    WorkManager.getInstance(this@SleepSnoreApp)
-                        .cancelUniqueWork(HealthConnectSleepTriggerWorker.ONE_TIME_WORK_NAME)
+                    HealthConnectSleepTriggerWorker.cancel(this@SleepSnoreApp)
                 }
             }
         }

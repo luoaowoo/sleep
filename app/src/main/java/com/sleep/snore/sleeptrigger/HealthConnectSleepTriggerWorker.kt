@@ -83,6 +83,12 @@ class HealthConnectSleepTriggerWorker @AssistedInject constructor(
             )
         }
 
+        fun cancel(context: Context) {
+            val workManager = WorkManager.getInstance(context)
+            workManager.cancelUniqueWork(WORK_NAME)
+            workManager.cancelUniqueWork(ONE_TIME_WORK_NAME)
+        }
+
         private const val KEY_REQUIRE_BACKGROUND_READ = "require_background_read"
     }
 }
