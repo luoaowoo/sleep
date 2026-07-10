@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.sleep.snore.data.model.AccentColor
 import com.sleep.snore.data.model.CardCornerStyle
@@ -17,6 +18,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 
@@ -34,7 +36,9 @@ data class SettingsPreferences(
     val deepSeekModelName: String = SettingsPreferencesRepository.DEFAULT_DEEPSEEK_MODEL_NAME,
     val aiCustomInfo: String = "",
     val wearableSleepTriggerEnabled: Boolean = SettingsPreferencesRepository.DEFAULT_WEARABLE_SLEEP_TRIGGER_ENABLED,
-    val wearableStopOnSleepEndEnabled: Boolean = SettingsPreferencesRepository.DEFAULT_WEARABLE_STOP_ON_SLEEP_END_ENABLED
+    val wearableStopOnSleepEndEnabled: Boolean = SettingsPreferencesRepository.DEFAULT_WEARABLE_STOP_ON_SLEEP_END_ENABLED,
+    val wearableSleepTriggerStatus: String = SettingsPreferencesRepository.DEFAULT_WEARABLE_SLEEP_TRIGGER_STATUS,
+    val wearableSleepTriggerLastCheckMillis: Long = 0L
 )
 
 @Singleton
@@ -85,7 +89,11 @@ class SettingsPreferencesRepository @Inject constructor(
                 wearableSleepTriggerEnabled = preferences[Keys.WEARABLE_SLEEP_TRIGGER_ENABLED]
                     ?: DEFAULT_WEARABLE_SLEEP_TRIGGER_ENABLED,
                 wearableStopOnSleepEndEnabled = preferences[Keys.WEARABLE_STOP_ON_SLEEP_END_ENABLED]
-                    ?: DEFAULT_WEARABLE_STOP_ON_SLEEP_END_ENABLED
+                    ?: DEFAULT_WEARABLE_STOP_ON_SLEEP_END_ENABLED,
+                wearableSleepTriggerStatus = preferences[Keys.WEARABLE_SLEEP_TRIGGER_STATUS]
+                    ?: DEFAULT_WEARABLE_SLEEP_TRIGGER_STATUS,
+                wearableSleepTriggerLastCheckMillis = preferences[Keys.WEARABLE_SLEEP_TRIGGER_LAST_CHECK_MILLIS]
+                    ?: 0L
             )
         }
 
@@ -231,6 +239,25 @@ class SettingsPreferencesRepository @Inject constructor(
         }
     }
 
+    suspend fun getLastWearableSleepEventKey(): String? {
+        return safePreferences.map { preferences ->
+            preferences[Keys.WEARABLE_LAST_SLEEP_EVENT_KEY]
+        }.firstOrNull()
+    }
+
+    suspend fun setLastWearableSleepEventKey(eventKey: String) {
+        dataStore.edit { preferences ->
+            preferences[Keys.WEARABLE_LAST_SLEEP_EVENT_KEY] = eventKey
+        }
+    }
+
+    suspend fun setWearableSleepTriggerStatus(status: String, checkedAtMillis: Long = System.currentTimeMillis()) {
+        dataStore.edit { preferences ->
+            preferences[Keys.WEARABLE_SLEEP_TRIGGER_STATUS] = status
+            preferences[Keys.WEARABLE_SLEEP_TRIGGER_LAST_CHECK_MILLIS] = checkedAtMillis
+        }
+    }
+
     suspend fun setFontScale(value: FontScale) {
         dataStore.edit { preferences ->
             preferences[Keys.FONT_SCALE] = value.name
@@ -284,6 +311,9 @@ class SettingsPreferencesRepository @Inject constructor(
         val AI_CUSTOM_INFO = stringPreferencesKey("ai_custom_info")
         val WEARABLE_SLEEP_TRIGGER_ENABLED = booleanPreferencesKey("wearable_sleep_trigger_enabled")
         val WEARABLE_STOP_ON_SLEEP_END_ENABLED = booleanPreferencesKey("wearable_stop_on_sleep_end_enabled")
+        val WEARABLE_LAST_SLEEP_EVENT_KEY = stringPreferencesKey("wearable_last_sleep_event_key")
+        val WEARABLE_SLEEP_TRIGGER_STATUS = stringPreferencesKey("wearable_sleep_trigger_status")
+        val WEARABLE_SLEEP_TRIGGER_LAST_CHECK_MILLIS = longPreferencesKey("wearable_sleep_trigger_last_check_millis")
         val FONT_SCALE = stringPreferencesKey("font_scale")
         val CARD_CORNER_STYLE = stringPreferencesKey("card_corner_style")
         val SENSITIVITY = stringPreferencesKey("sensitivity")
@@ -309,6 +339,7 @@ class SettingsPreferencesRepository @Inject constructor(
         const val DEFAULT_DEEPSEEK_MODEL_NAME = "deepseek-chat"
         const val DEFAULT_WEARABLE_SLEEP_TRIGGER_ENABLED = false
         const val DEFAULT_WEARABLE_STOP_ON_SLEEP_END_ENABLED = true
+        const val DEFAULT_WEARABLE_SLEEP_TRIGGER_STATUS = "未检查"
         private const val ALPHA_MASK = -0x1000000
     }
 }

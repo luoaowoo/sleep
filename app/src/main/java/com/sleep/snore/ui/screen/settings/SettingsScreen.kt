@@ -271,6 +271,17 @@ fun SettingsScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(Modifier.height(Spacing.sm))
+                    Text(
+                        "最近状态：${uiState.wearableSleepTriggerStatus}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        "最近检查：${uiState.wearableSleepTriggerLastCheckText}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(Spacing.sm))
                     Button(
                         onClick = {
                             healthConnectPermissionLauncher.launch(

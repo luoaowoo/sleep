@@ -6,6 +6,7 @@ import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.SleepSessionRecord
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
+import com.sleep.snore.data.preferences.SettingsPreferencesRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.time.Instant
 import java.time.temporal.ChronoUnit
@@ -17,12 +18,12 @@ import kotlinx.coroutines.flow.asSharedFlow
 
 @Singleton
 class HealthConnectSleepTriggerSource @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val settingsRepository: SettingsPreferencesRepository
 ) : SleepTriggerSource {
 
     private val mutableEvents = MutableSharedFlow<SleepTriggerEvent>(extraBufferCapacity = 8)
     override val events: Flow<SleepTriggerEvent> = mutableEvents.asSharedFlow()
-    private var lastEmittedEventKey: String? = null
 
     suspend fun pollLatestSleepSession(now: Instant = Instant.now()): PollResult {
         if (HealthConnectClient.getSdkStatus(context) != HealthConnectClient.SDK_AVAILABLE) {
@@ -62,10 +63,11 @@ class HealthConnectSleepTriggerSource @Inject constructor(
             )
         }
         val eventKey = "${event::class.simpleName}:${event.timestamp}:${latestSession.startTime.toEpochMilli()}"
-        if (eventKey == lastEmittedEventKey) return PollResult.DuplicateEvent
-        lastEmittedEventKey = eventKey
+        if (eventKey == settingsRepository.getLastWearableSleepEventKey()) {
+            return PollResult.DuplicateEvent
+        }
         mutableEvents.tryEmit(event)
-        return PollResult.EventEmitted(event)
+        return PollResult.EventEmitted(event, eventKey)
     }
 
     sealed interface PollResult {
@@ -74,7 +76,7 @@ class HealthConnectSleepTriggerSource @Inject constructor(
         data object NoRecentSleep : PollResult
         data object DuplicateEvent : PollResult
         data object ReadFailed : PollResult
-        data class EventEmitted(val event: SleepTriggerEvent) : PollResult
+        data class EventEmitted(val event: SleepTriggerEvent, val eventKey: String) : PollResult
     }
 
     companion object {

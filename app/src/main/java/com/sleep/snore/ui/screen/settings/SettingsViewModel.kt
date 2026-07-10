@@ -12,6 +12,8 @@ import com.sleep.snore.data.preferences.defaultArgb
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
@@ -39,6 +41,8 @@ data class SettingsUiState(
     val aiCustomInfo: String = "",
     val wearableSleepTriggerEnabled: Boolean = SettingsPreferencesRepository.DEFAULT_WEARABLE_SLEEP_TRIGGER_ENABLED,
     val wearableStopOnSleepEndEnabled: Boolean = SettingsPreferencesRepository.DEFAULT_WEARABLE_STOP_ON_SLEEP_END_ENABLED,
+    val wearableSleepTriggerStatus: String = SettingsPreferencesRepository.DEFAULT_WEARABLE_SLEEP_TRIGGER_STATUS,
+    val wearableSleepTriggerLastCheckText: String = "尚未检查",
     val storageUsageText: String = "计算中..."
 )
 
@@ -88,7 +92,9 @@ class SettingsViewModel @Inject constructor(
                         deepSeekModelName = settings.deepSeekModelName,
                         aiCustomInfo = settings.aiCustomInfo,
                         wearableSleepTriggerEnabled = settings.wearableSleepTriggerEnabled,
-                        wearableStopOnSleepEndEnabled = settings.wearableStopOnSleepEndEnabled
+                        wearableStopOnSleepEndEnabled = settings.wearableStopOnSleepEndEnabled,
+                        wearableSleepTriggerStatus = settings.wearableSleepTriggerStatus,
+                        wearableSleepTriggerLastCheckText = settings.wearableSleepTriggerLastCheckMillis.toLastCheckText()
                     )
                 }
             }
@@ -263,6 +269,11 @@ class SettingsViewModel @Inject constructor(
         if (!exists()) return 0L
         if (isFile) return length()
         return walkTopDown().filter { it.isFile }.sumOf { it.length() }
+    }
+
+    private fun Long.toLastCheckText(): String {
+        if (this <= 0L) return "尚未检查"
+        return SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(this))
     }
 
     private companion object {

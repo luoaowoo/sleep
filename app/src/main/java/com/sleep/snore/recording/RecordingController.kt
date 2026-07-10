@@ -18,18 +18,22 @@ class AndroidRecordingController @Inject constructor(
     @ApplicationContext private val context: Context
 ) : RecordingController {
 
+    private var startedFromSleepTrigger = false
+
     override fun startFromSleepTrigger(source: String): Boolean {
         if (isRecordingActive()) return true
         return runCatching {
             ContextCompat.startForegroundService(context, SleepRecordingService.startIntent(context))
+            startedFromSleepTrigger = true
             true
         }.getOrDefault(false)
     }
 
     override fun stopFromSleepTrigger(source: String): Boolean {
-        if (!isRecordingActive()) return true
+        if (!isRecordingActive() || !startedFromSleepTrigger) return false
         return runCatching {
             context.startService(SleepRecordingService.stopIntent(context))
+            startedFromSleepTrigger = false
             true
         }.getOrDefault(false)
     }

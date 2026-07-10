@@ -14,20 +14,21 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
 @HiltAndroidApp
-class SleepSnoreApp : Application(), Configuration.Provider {
+class SleepSnoreApp : Application() {
 
     @Inject lateinit var workerFactory: HiltWorkerFactory
     @Inject lateinit var settingsPreferencesRepository: SettingsPreferencesRepository
 
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
-    override val workManagerConfiguration: Configuration
-        get() = Configuration.Builder()
-            .setWorkerFactory(workerFactory)
-            .build()
-
     override fun onCreate() {
         super.onCreate()
+        WorkManager.initialize(
+            this,
+            Configuration.Builder()
+                .setWorkerFactory(workerFactory)
+                .build()
+        )
         appScope.launch {
             settingsPreferencesRepository.settings.collect { settings ->
                 if (settings.wearableSleepTriggerEnabled) {

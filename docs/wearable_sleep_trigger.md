@@ -22,6 +22,8 @@
    - 读取最近睡眠记录，转换为 `SleepTriggerEvent.SleepStarted/SleepEnded`。
    - 对非实时同步加 UI 说明，避免用户误以为是即时唤醒。
    - 读取失败或授权缺失时安全退出 Worker，避免后台静默崩溃。
+   - 成功处理后持久化睡眠事件 key，避免 App 进程重启后重复触发；如果后台开麦失败则保留重试机会。
+   - 设置页展示最近轮询状态和检查时间，便于排查 Health Connect 授权/同步问题。
    - 当前工程使用已验证可构建的 `androidx.health.connect:connect-client:1.1.0-alpha11`；后续网络/缓存稳定后可按 AndroidX 发布节奏升级。
 3. 如果小米官方发布可用 SDK，再新增 `XiaomiSleepTriggerSource`，保持对上层接口不变。
 4. 后台保活策略：

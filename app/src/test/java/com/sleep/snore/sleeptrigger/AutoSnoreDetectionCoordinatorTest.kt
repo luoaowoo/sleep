@@ -38,7 +38,7 @@ class AutoSnoreDetectionCoordinatorTest {
 
     @Test
     fun handleEvent_stopsRecordingWhenSleepEnds() {
-        val controller = FakeRecordingController(active = true)
+        val controller = FakeRecordingController(active = true, startedFromSleepTrigger = true)
         val coordinator = AutoSnoreDetectionCoordinator(controller)
 
         val handled = coordinator.handleEvent(
@@ -51,8 +51,25 @@ class AutoSnoreDetectionCoordinatorTest {
         assertThat(controller.stopped).isTrue()
     }
 
+    @Test
+    fun handleEvent_doesNotStopManualRecordingWhenSleepEnds() {
+        val controller = FakeRecordingController(active = true, startedFromSleepTrigger = false)
+        val coordinator = AutoSnoreDetectionCoordinator(controller)
+
+        val handled = coordinator.handleEvent(
+            event = SleepTriggerEvent.SleepEnded("health_connect", timestamp = 2L),
+            enabled = true,
+            stopOnSleepEnd = true
+        )
+
+        assertThat(handled).isFalse()
+        assertThat(controller.stopped).isFalse()
+        assertThat(controller.isRecordingActive()).isTrue()
+    }
+
     private class FakeRecordingController(
-        private var active: Boolean = false
+        private var active: Boolean = false,
+        private var startedFromSleepTrigger: Boolean = false
     ) : RecordingController {
         var started = false
             private set
@@ -61,12 +78,15 @@ class AutoSnoreDetectionCoordinatorTest {
 
         override fun startFromSleepTrigger(source: String): Boolean {
             started = true
+            startedFromSleepTrigger = true
             active = true
             return true
         }
 
         override fun stopFromSleepTrigger(source: String): Boolean {
+            if (!active || !startedFromSleepTrigger) return false
             stopped = true
+            startedFromSleepTrigger = false
             active = false
             return true
         }

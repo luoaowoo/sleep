@@ -68,6 +68,26 @@ class SettingsPreferencesRepositoryTest {
         assertThat(preferences[stringPreferencesKey("deepseek_api_key_encrypted")]).isEqualTo("enc:legacy-key")
     }
 
+    @Test
+    fun wearableSleepTriggerStatus_persistsStatusAndLastCheckTime() = runTest {
+        val repository = createFixture().repository
+
+        repository.setWearableSleepTriggerStatus("缺少 Health Connect 权限", checkedAtMillis = 1234L)
+
+        val settings = repository.settings.first()
+        assertThat(settings.wearableSleepTriggerStatus).isEqualTo("缺少 Health Connect 权限")
+        assertThat(settings.wearableSleepTriggerLastCheckMillis).isEqualTo(1234L)
+    }
+
+    @Test
+    fun wearableSleepEventKey_persistsForDuplicateDetection() = runTest {
+        val repository = createFixture().repository
+
+        repository.setLastWearableSleepEventKey("SleepEnded:2:1")
+
+        assertThat(repository.getLastWearableSleepEventKey()).isEqualTo("SleepEnded:2:1")
+    }
+
     private fun createFixture(): RepositoryFixture {
         val dataStoreFile = File.createTempFile("sleep-settings", ".preferences_pb").apply {
             delete()
