@@ -7,6 +7,65 @@ import org.junit.Test
 class HealthConnectSleepEventInterpreterTest {
 
     @Test
+    fun latestValidSession_ignoresFutureSessionAndReturnsMostRecentValidOne() {
+        val now = Instant.parse("2026-07-11T09:00:00Z")
+        val older = SleepSessionSnapshot(
+            startTime = Instant.parse("2026-07-10T23:00:00Z"),
+            endTime = Instant.parse("2026-07-11T06:00:00Z")
+        )
+        val latestValid = SleepSessionSnapshot(
+            startTime = Instant.parse("2026-07-11T01:00:00Z"),
+            endTime = Instant.parse("2026-07-11T08:00:00Z")
+        )
+        val future = SleepSessionSnapshot(
+            startTime = Instant.parse("2026-07-12T01:00:00Z"),
+            endTime = Instant.parse("2026-07-12T08:00:00Z")
+        )
+
+        val result = HealthConnectSleepEventInterpreter.latestValidSession(
+            sessions = listOf(older, future, latestValid),
+            now = now
+        )
+
+        assertThat(result).isEqualTo(latestValid)
+    }
+
+    @Test
+    fun latestValidSession_returnsNullWhenOnlyFutureSessionsExist() {
+        val result = HealthConnectSleepEventInterpreter.latestValidSession(
+            sessions = listOf(
+                SleepSessionSnapshot(
+                    startTime = Instant.parse("2026-07-12T01:00:00Z"),
+                    endTime = Instant.parse("2026-07-12T08:00:00Z")
+                )
+            ),
+            now = Instant.parse("2026-07-11T09:00:00Z")
+        )
+
+        assertThat(result).isNull()
+    }
+
+    @Test
+    fun latestValidSession_ignoresInvalidSessionAndReturnsMostRecentValidOne() {
+        val now = Instant.parse("2026-07-11T09:00:00Z")
+        val valid = SleepSessionSnapshot(
+            startTime = Instant.parse("2026-07-11T01:00:00Z"),
+            endTime = Instant.parse("2026-07-11T08:00:00Z")
+        )
+        val invalid = SleepSessionSnapshot(
+            startTime = Instant.parse("2026-07-11T02:00:00Z"),
+            endTime = Instant.parse("2026-07-11T01:30:00Z")
+        )
+
+        val result = HealthConnectSleepEventInterpreter.latestValidSession(
+            sessions = listOf(valid, invalid),
+            now = now
+        )
+
+        assertThat(result).isEqualTo(valid)
+    }
+
+    @Test
     fun interpret_returnsSleepStartedForOngoingSession() {
         val now = Instant.parse("2026-07-11T02:00:00Z")
         val result = HealthConnectSleepEventInterpreter.interpret(

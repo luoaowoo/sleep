@@ -13,6 +13,15 @@ data class InterpretedSleepEvent(
 )
 
 object HealthConnectSleepEventInterpreter {
+    fun latestValidSession(
+        sessions: List<SleepSessionSnapshot>,
+        now: Instant
+    ): SleepSessionSnapshot? {
+        return sessions
+            .filter { !it.startTime.isAfter(now) && !it.endTime.isBefore(it.startTime) }
+            .maxByOrNull { it.startTime }
+    }
+
     fun interpret(
         session: SleepSessionSnapshot,
         now: Instant,

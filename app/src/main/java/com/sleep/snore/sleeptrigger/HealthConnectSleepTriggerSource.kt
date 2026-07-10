@@ -44,12 +44,21 @@ class HealthConnectSleepTriggerSource @Inject constructor(
         }
 
         val latestSession = runCatching {
-            client.readRecords(
+            val records = client.readRecords(
                 ReadRecordsRequest(
                     recordType = SleepSessionRecord::class,
                     timeRangeFilter = TimeRangeFilter.between(now.minus(36, ChronoUnit.HOURS), now)
                 )
-            ).records.maxByOrNull { it.startTime }
+            ).records
+            HealthConnectSleepEventInterpreter.latestValidSession(
+                sessions = records.map { record ->
+                    SleepSessionSnapshot(
+                        startTime = record.startTime,
+                        endTime = record.endTime
+                    )
+                },
+                now = now
+            )
         }.getOrElse { throwable ->
             return if (throwable is SecurityException) {
                 PollResult.PermissionMissing
@@ -59,10 +68,7 @@ class HealthConnectSleepTriggerSource @Inject constructor(
         } ?: return PollResult.NoRecentSleep
 
         val interpretedEvent = HealthConnectSleepEventInterpreter.interpret(
-            session = SleepSessionSnapshot(
-                startTime = latestSession.startTime,
-                endTime = latestSession.endTime
-            ),
+            session = latestSession,
             now = now
         ) ?: return PollResult.NoRecentSleep
         if (interpretedEvent.eventKey == settingsRepository.getLastWearableSleepEventKey()) {
