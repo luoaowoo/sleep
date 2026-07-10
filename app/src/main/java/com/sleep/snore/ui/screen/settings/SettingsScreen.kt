@@ -111,6 +111,7 @@ fun SettingsScreen(
     val lifecycleOwner = LocalLifecycleOwner.current
     var permissionRefreshTick by remember { mutableStateOf(0) }
     var healthConnectPermissionRefreshTick by remember { mutableStateOf(0) }
+    var powerStateRefreshTick by remember { mutableStateOf(0) }
     val healthConnectPermissionLauncher = rememberLauncherForActivityResult(
         PermissionController.createRequestPermissionResultContract()
     ) { grantedPermissions ->
@@ -127,7 +128,7 @@ fun SettingsScreen(
     ) {
         permissionRefreshTick++
     }
-    val isIgnoringBatteryOptimizations = remember(context) {
+    val isIgnoringBatteryOptimizations = remember(context, powerStateRefreshTick) {
         powerManager?.isIgnoringBatteryOptimizations(context.packageName) == true
     }
     val hasRecordAudioPermission = remember(context, permissionRefreshTick) {
@@ -157,6 +158,7 @@ fun SettingsScreen(
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 healthConnectPermissionRefreshTick++
+                powerStateRefreshTick++
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -299,6 +301,7 @@ fun SettingsScreen(
                         modifier = Modifier
                             .heightIn(min = Spacing.touchTargetMin)
                             .clickable(role = Role.Button) {
+                                powerStateRefreshTick++
                                 runCatching {
                                     context.startActivity(
                                         Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
