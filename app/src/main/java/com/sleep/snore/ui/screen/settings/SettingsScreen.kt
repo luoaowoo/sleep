@@ -327,6 +327,28 @@ fun SettingsScreen(
             Text("手环自动检测", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
             Card(shape = MaterialTheme.shapes.extraLarge) {
                 Column(modifier = Modifier.padding(uiPreferences.cardPadding)) {
+                    Text(
+                        wearableReadinessSummary(
+                            hasRecordAudioPermission = hasRecordAudioPermission,
+                            hasNotificationPermission = hasNotificationPermission,
+                            isIgnoringBatteryOptimizations = isIgnoringBatteryOptimizations,
+                            hasXiaomiCompanion = installedXiaomiCompanion != null,
+                            periodicCheckEnabled = uiState.wearableSleepTriggerEnabled
+                        ),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (
+                            hasRecordAudioPermission &&
+                            hasNotificationPermission &&
+                            isIgnoringBatteryOptimizations &&
+                            installedXiaomiCompanion != null &&
+                            uiState.wearableSleepTriggerEnabled
+                        ) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.error
+                        }
+                    )
+                    Spacer(Modifier.height(Spacing.sm))
                     SettingSwitchRow(
                         title = "Health Connect 周期检查",
                         supportingText = "小米运动健康同步到 Health Connect 后，本应用按系统调度读取睡眠会话；它不是实时手环直连。此开关只负责周期检查，睡前请点击下方按钮开启前台鼾声检测。",
