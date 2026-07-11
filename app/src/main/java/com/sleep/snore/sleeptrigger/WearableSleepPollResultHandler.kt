@@ -21,7 +21,8 @@ internal suspend fun handleWearableSleepPollResult(
         settingsRepository.setLatestWearableSleepSession(
             startMillis = session.startTime.toEpochMilli(),
             endMillis = session.endTime.toEpochMilli(),
-            status = pollResult.toLatestWearableSleepSessionStatus()
+            status = pollResult.toLatestWearableSleepSessionStatus(),
+            sourcePackage = session.dataOriginPackageName
         )
     }
     if (pollResult !is HealthConnectSleepTriggerSource.PollResult.EventEmitted) {

@@ -516,6 +516,11 @@ fun SettingsScreen(
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    Text(
+                        "最近睡眠来源：${uiState.latestWearableSleepSessionSourcePackage.ifBlank { "未知" }}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                     if (wearableSleepDetectionActive) {
                         Text(
                             standbyState.statusText.takeIf { standbyState.isActive }
@@ -550,7 +555,7 @@ fun SettingsScreen(
                     Button(
                         onClick = viewModel::checkWearableSleepNow
                     ) {
-                        Text("只检查睡眠记录")
+                        Text("立即检查睡眠记录（不录音）")
                     }
                     Text(
                         "只读取最近同步睡眠；不会开始录音，但会开启 Health Connect 周期检查。",
@@ -600,6 +605,8 @@ fun SettingsScreen(
                                         latestWearableSleepSessionStartMillis = uiState.latestWearableSleepSessionStartMillis,
                                         latestWearableSleepSessionEndMillis = uiState.latestWearableSleepSessionEndMillis,
                                         latestWearableSleepSessionStatus = uiState.latestWearableSleepSessionStatus,
+                                        latestWearableSleepSessionSourcePackage =
+                                            uiState.latestWearableSleepSessionSourcePackage,
                                         workManagerDiagnosticsText = workDiagnostics,
                                         databaseDiagnosticsText = databaseDiagnostics
                                     )

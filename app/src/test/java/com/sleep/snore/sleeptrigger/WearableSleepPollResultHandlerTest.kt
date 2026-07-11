@@ -87,7 +87,8 @@ class WearableSleepPollResultHandlerTest {
         val settingsRepository = mockk<SettingsPreferencesRepository>(relaxed = true)
         val session = SleepSessionSnapshot(
             startTime = Instant.ofEpochMilli(1_000L),
-            endTime = Instant.ofEpochMilli(8_000L)
+            endTime = Instant.ofEpochMilli(8_000L),
+            dataOriginPackageName = "com.xiaomi.wearable"
         )
 
         val result = handleWearableSleepPollResult(
@@ -104,7 +105,8 @@ class WearableSleepPollResultHandlerTest {
             settingsRepository.setLatestWearableSleepSession(
                 startMillis = 1_000L,
                 endMillis = 8_000L,
-                status = "已处理"
+                status = "已处理",
+                sourcePackage = "com.xiaomi.wearable"
             )
         }
     }
@@ -114,7 +116,8 @@ class WearableSleepPollResultHandlerTest {
         val settingsRepository = mockk<SettingsPreferencesRepository>(relaxed = true)
         val session = SleepSessionSnapshot(
             startTime = Instant.ofEpochMilli(1_000L),
-            endTime = Instant.ofEpochMilli(8_000L)
+            endTime = Instant.ofEpochMilli(8_000L),
+            dataOriginPackageName = "com.xiaomi.wearable"
         )
 
         val result = handleWearableSleepPollResult(
@@ -134,7 +137,8 @@ class WearableSleepPollResultHandlerTest {
             settingsRepository.setLatestWearableSleepSession(
                 startMillis = 1_000L,
                 endMillis = 8_000L,
-                status = "早于本次检测，已忽略"
+                status = "早于本次检测，已忽略",
+                sourcePackage = "com.xiaomi.wearable"
             )
         }
     }
@@ -144,7 +148,8 @@ class WearableSleepPollResultHandlerTest {
         val settingsRepository = mockk<SettingsPreferencesRepository>(relaxed = true)
         val session = SleepSessionSnapshot(
             startTime = Instant.ofEpochMilli(1_000L),
-            endTime = Instant.ofEpochMilli(8_000L)
+            endTime = Instant.ofEpochMilli(8_000L),
+            dataOriginPackageName = "com.xiaomi.wearable"
         )
 
         val result = handleWearableSleepPollResult(
@@ -165,7 +170,8 @@ class WearableSleepPollResultHandlerTest {
             settingsRepository.setLatestWearableSleepSession(
                 startMillis = 1_000L,
                 endMillis = 8_000L,
-                status = "与本次检测重叠过短，已忽略"
+                status = "与本次检测重叠过短，已忽略",
+                sourcePackage = "com.xiaomi.wearable"
             )
         }
     }

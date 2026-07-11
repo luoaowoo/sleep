@@ -5,7 +5,8 @@ import java.time.temporal.ChronoUnit
 
 data class SleepSessionSnapshot(
     val startTime: Instant,
-    val endTime: Instant
+    val endTime: Instant,
+    val dataOriginPackageName: String = ""
 )
 
 data class InterpretedSleepEvent(

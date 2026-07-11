@@ -44,6 +44,7 @@ data class SettingsPreferences(
     val latestWearableSleepSessionStartMillis: Long = 0L,
     val latestWearableSleepSessionEndMillis: Long = 0L,
     val latestWearableSleepSessionStatus: String = "",
+    val latestWearableSleepSessionSourcePackage: String = "",
     val activeRecordingTriggerSource: String = "",
     val activeRecordingTriggerStartedAtMillis: Long = 0L
 )
@@ -111,6 +112,9 @@ class SettingsPreferencesRepository @Inject constructor(
                 latestWearableSleepSessionEndMillis = preferences[Keys.LATEST_WEARABLE_SLEEP_SESSION_END_MILLIS]
                     ?: 0L,
                 latestWearableSleepSessionStatus = preferences[Keys.LATEST_WEARABLE_SLEEP_SESSION_STATUS].orEmpty(),
+                latestWearableSleepSessionSourcePackage = preferences[
+                    Keys.LATEST_WEARABLE_SLEEP_SESSION_SOURCE_PACKAGE
+                ].orEmpty(),
                 activeRecordingTriggerSource = preferences[Keys.ACTIVE_RECORDING_TRIGGER_SOURCE].orEmpty(),
                 activeRecordingTriggerStartedAtMillis = preferences[Keys.ACTIVE_RECORDING_TRIGGER_STARTED_AT_MILLIS]
                     ?: 0L
@@ -302,12 +306,14 @@ class SettingsPreferencesRepository @Inject constructor(
     suspend fun setLatestWearableSleepSession(
         startMillis: Long,
         endMillis: Long,
-        status: String
+        status: String,
+        sourcePackage: String = ""
     ) {
         dataStore.edit { preferences ->
             preferences[Keys.LATEST_WEARABLE_SLEEP_SESSION_START_MILLIS] = startMillis
             preferences[Keys.LATEST_WEARABLE_SLEEP_SESSION_END_MILLIS] = endMillis
             preferences[Keys.LATEST_WEARABLE_SLEEP_SESSION_STATUS] = status
+            preferences[Keys.LATEST_WEARABLE_SLEEP_SESSION_SOURCE_PACKAGE] = sourcePackage
         }
     }
 
@@ -392,6 +398,8 @@ class SettingsPreferencesRepository @Inject constructor(
         val LATEST_WEARABLE_SLEEP_SESSION_START_MILLIS = longPreferencesKey("latest_wearable_sleep_session_start_millis")
         val LATEST_WEARABLE_SLEEP_SESSION_END_MILLIS = longPreferencesKey("latest_wearable_sleep_session_end_millis")
         val LATEST_WEARABLE_SLEEP_SESSION_STATUS = stringPreferencesKey("latest_wearable_sleep_session_status")
+        val LATEST_WEARABLE_SLEEP_SESSION_SOURCE_PACKAGE =
+            stringPreferencesKey("latest_wearable_sleep_session_source_package")
         val ACTIVE_RECORDING_TRIGGER_SOURCE = stringPreferencesKey("active_recording_trigger_source")
         val ACTIVE_RECORDING_TRIGGER_STARTED_AT_MILLIS = longPreferencesKey("active_recording_trigger_started_at_millis")
         val FONT_SCALE = stringPreferencesKey("font_scale")

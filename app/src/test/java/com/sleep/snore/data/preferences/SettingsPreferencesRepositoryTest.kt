@@ -107,13 +107,15 @@ class SettingsPreferencesRepositoryTest {
         repository.setLatestWearableSleepSession(
             startMillis = 1_000L,
             endMillis = 8_000L,
-            status = "已处理"
+            status = "已处理",
+            sourcePackage = "com.xiaomi.wearable"
         )
 
         val settings = repository.settings.first()
         assertThat(settings.latestWearableSleepSessionStartMillis).isEqualTo(1_000L)
         assertThat(settings.latestWearableSleepSessionEndMillis).isEqualTo(8_000L)
         assertThat(settings.latestWearableSleepSessionStatus).isEqualTo("已处理")
+        assertThat(settings.latestWearableSleepSessionSourcePackage).isEqualTo("com.xiaomi.wearable")
     }
 
     @Test

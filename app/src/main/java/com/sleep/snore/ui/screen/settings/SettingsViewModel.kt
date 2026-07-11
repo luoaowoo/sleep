@@ -56,6 +56,7 @@ data class SettingsUiState(
     val latestWearableSleepSessionStartMillis: Long = 0L,
     val latestWearableSleepSessionEndMillis: Long = 0L,
     val latestWearableSleepSessionStatus: String = "",
+    val latestWearableSleepSessionSourcePackage: String = "",
     val activeRecordingTriggerSource: String = "",
     val activeRecordingTriggerStartedAtText: String = "无",
     val activeRecordingTriggerStartedAtMillis: Long = 0L,
@@ -125,6 +126,7 @@ class SettingsViewModel @Inject constructor(
                         latestWearableSleepSessionStartMillis = settings.latestWearableSleepSessionStartMillis,
                         latestWearableSleepSessionEndMillis = settings.latestWearableSleepSessionEndMillis,
                         latestWearableSleepSessionStatus = settings.latestWearableSleepSessionStatus,
+                        latestWearableSleepSessionSourcePackage = settings.latestWearableSleepSessionSourcePackage,
                         activeRecordingTriggerSource = settings.activeRecordingTriggerSource,
                         activeRecordingTriggerStartedAtText = settings.activeRecordingTriggerStartedAtMillis.toTriggerStartText(),
                         activeRecordingTriggerStartedAtMillis = settings.activeRecordingTriggerStartedAtMillis

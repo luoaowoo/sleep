@@ -31,6 +31,7 @@ internal data class WearableDiagnosticReportInput(
     val latestWearableSleepSessionStartMillis: Long,
     val latestWearableSleepSessionEndMillis: Long,
     val latestWearableSleepSessionStatus: String,
+    val latestWearableSleepSessionSourcePackage: String,
     val workManagerDiagnosticsText: String,
     val databaseDiagnosticsText: String
 )
@@ -75,6 +76,7 @@ internal fun wearableDiagnosticReport(input: WearableDiagnosticReportInput): Str
         appendLine("最近睡眠开始毫秒：${input.latestWearableSleepSessionStartMillis}")
         appendLine("最近睡眠结束毫秒：${input.latestWearableSleepSessionEndMillis}")
         appendLine("最近睡眠状态：${input.latestWearableSleepSessionStatus.ifBlank { "无" }}")
+        appendLine("最近睡眠来源：${input.latestWearableSleepSessionSourcePackage.ifBlank { "未知" }}")
         appendLine("最近睡眠时长分钟：${sleepDurationMinutes(input.latestWearableSleepSessionStartMillis, input.latestWearableSleepSessionEndMillis) ?: "未知"}")
         appendLine(
             "最近睡眠与触发重叠分钟：${

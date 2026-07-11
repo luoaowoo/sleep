@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.SleepSessionRecord
+import androidx.health.connect.client.records.metadata.DataOrigin
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
 import com.sleep.snore.data.preferences.SettingsPreferencesRepository
@@ -43,18 +44,18 @@ class HealthConnectSleepTriggerSource @Inject constructor(
         }
 
         val sessions = runCatching {
-            val records = client.readRecords(
-                ReadRecordsRequest(
-                    recordType = SleepSessionRecord::class,
-                    timeRangeFilter = TimeRangeFilter.between(now.minus(36, ChronoUnit.HOURS), now)
+            val timeRangeFilter = TimeRangeFilter.between(now.minus(36, ChronoUnit.HOURS), now)
+            readSleepSessions(
+                client = client,
+                timeRangeFilter = timeRangeFilter,
+                dataOriginFilter = XIAOMI_SLEEP_DATA_ORIGINS
+            ).ifEmpty {
+                readSleepSessions(
+                    client = client,
+                    timeRangeFilter = timeRangeFilter,
+                    dataOriginFilter = emptySet()
                 )
-            ).records
-            records.map { record ->
-                    SleepSessionSnapshot(
-                        startTime = record.startTime,
-                        endTime = record.endTime
-                    )
-                }
+            }
         }.getOrElse { throwable ->
             return if (throwable is SecurityException) {
                 PollResult.PermissionMissing
@@ -119,11 +120,38 @@ class HealthConnectSleepTriggerSource @Inject constructor(
     companion object {
         const val SOURCE = "health_connect_sleep"
         const val HEALTH_CONNECT_CONFIDENCE = 0.8f
+        val XIAOMI_SLEEP_SOURCE_PACKAGE_NAMES: Set<String> = setOf(
+            "com.xiaomi.wearable",
+            "com.xiaomi.hm.health"
+        )
         val READ_SLEEP_PERMISSION: String = HealthPermission.getReadPermission(SleepSessionRecord::class)
         val BACKGROUND_READ_PERMISSION: String = HealthPermission.PERMISSION_READ_HEALTH_DATA_IN_BACKGROUND
         val FOREGROUND_REQUIRED_PERMISSIONS: Set<String> = setOf(READ_SLEEP_PERMISSION)
         val BACKGROUND_REQUIRED_PERMISSIONS: Set<String> = setOf(READ_SLEEP_PERMISSION, BACKGROUND_READ_PERMISSION)
         val REQUIRED_PERMISSIONS: Set<String> = BACKGROUND_REQUIRED_PERMISSIONS
+        private val XIAOMI_SLEEP_DATA_ORIGINS: Set<DataOrigin> = XIAOMI_SLEEP_SOURCE_PACKAGE_NAMES
+            .map { DataOrigin(it) }
+            .toSet()
+    }
+}
+
+private suspend fun readSleepSessions(
+    client: HealthConnectClient,
+    timeRangeFilter: TimeRangeFilter,
+    dataOriginFilter: Set<DataOrigin>
+): List<SleepSessionSnapshot> {
+    return client.readRecords(
+        ReadRecordsRequest(
+            recordType = SleepSessionRecord::class,
+            timeRangeFilter = timeRangeFilter,
+            dataOriginFilter = dataOriginFilter
+        )
+    ).records.map { record ->
+        SleepSessionSnapshot(
+            startTime = record.startTime,
+            endTime = record.endTime,
+            dataOriginPackageName = record.metadata.dataOrigin.packageName
+        )
     }
 }
 

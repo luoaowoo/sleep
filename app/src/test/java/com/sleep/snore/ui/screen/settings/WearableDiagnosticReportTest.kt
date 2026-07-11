@@ -40,6 +40,7 @@ class WearableDiagnosticReportTest {
                 latestWearableSleepSessionStartMillis = 1_000_000L,
                 latestWearableSleepSessionEndMillis = 26_200_000L,
                 latestWearableSleepSessionStatus = "已读取睡眠结束",
+                latestWearableSleepSessionSourcePackage = "com.xiaomi.wearable",
                 workManagerDiagnosticsText = "health_connect_sleep_trigger: ENQUEUED(attempt=0)",
                 databaseDiagnosticsText = "activeRecord: id=9, start=1000000, end=1000000, active=true, events=3"
             )
@@ -68,6 +69,7 @@ class WearableDiagnosticReportTest {
         assertThat(report).contains("最近睡眠开始毫秒：1000000")
         assertThat(report).contains("最近睡眠结束毫秒：26200000")
         assertThat(report).contains("最近睡眠状态：已读取睡眠结束")
+        assertThat(report).contains("最近睡眠来源：com.xiaomi.wearable")
         assertThat(report).contains("最近睡眠时长分钟：420")
         assertThat(report).contains("最近睡眠与触发重叠分钟：420")
         assertThat(report).contains("最近睡眠自动停录规则判断：满足自动停录时间规则")

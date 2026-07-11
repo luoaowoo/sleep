@@ -221,7 +221,8 @@ class SettingsViewModelWearableStandbyTest {
         repository.setLatestWearableSleepSession(
             startMillis = 1_000L,
             endMillis = 8_000L,
-            status = "已读取睡眠结束"
+            status = "已读取睡眠结束",
+            sourcePackage = "com.xiaomi.wearable"
         )
         advanceUntilIdle()
 
@@ -229,6 +230,7 @@ class SettingsViewModelWearableStandbyTest {
         assertThat(state.latestWearableSleepSessionStartMillis).isEqualTo(1_000L)
         assertThat(state.latestWearableSleepSessionEndMillis).isEqualTo(8_000L)
         assertThat(state.latestWearableSleepSessionStatus).isEqualTo("已读取睡眠结束")
+        assertThat(state.latestWearableSleepSessionSourcePackage).isEqualTo("com.xiaomi.wearable")
         assertThat(state.latestWearableSleepSessionText).contains("已读取睡眠结束")
     }
 
