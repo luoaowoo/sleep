@@ -69,6 +69,7 @@ class AndroidRecordingControllerTest {
         val startedService = shadowOf(context).nextStartedService
         assertThat(startedService.component?.className).isEqualTo(SleepRecordingService::class.java.name)
         assertThat(startedService.action).isEqualTo(SleepRecordingService.ACTION_START)
+        assertThat(startedService.getStringExtra("trigger_source")).isEqualTo("health_connect_sleep")
     }
 
     @Test

@@ -203,6 +203,24 @@ class SettingsScreenTest {
         composeRule.onNodeWithText("不会后台自动开麦", substring = true).assertExists()
     }
 
+    @Test
+    fun healthConnectSection_clarifiesNoRealtimeXiaomiSleepApi() {
+        val viewModel = createViewModel()
+        composeRule.setContent {
+            SleepSnoreTheme(dynamicColor = false) {
+                SettingsScreen(
+                    navController = rememberNavController(),
+                    viewModel = viewModel
+                )
+            }
+        }
+
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText("没有可靠公开的实时小米睡眠 API", substring = true).assertExists()
+        composeRule.onNodeWithText("不是实时手环直连", substring = true).assertExists()
+    }
+
     private fun createSleepRepository(): SleepRepository {
         val database = Room.inMemoryDatabaseBuilder(
             context,

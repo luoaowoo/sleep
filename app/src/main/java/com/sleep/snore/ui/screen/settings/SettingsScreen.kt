@@ -439,7 +439,7 @@ fun SettingsScreen(
                     Spacer(Modifier.height(Spacing.sm))
                     SettingSwitchRow(
                         title = "Health Connect 周期检查",
-                        supportingText = "小米运动健康同步到 Health Connect 后，本应用按系统调度读取睡眠会话；它不是实时手环直连。此开关只负责周期检查，睡前请点击下方按钮开启前台鼾声检测。",
+                        supportingText = "小米运动健康同步到 Health Connect 后，本应用按系统调度读取睡眠会话；当前没有可靠公开的实时小米睡眠 API，也不是实时手环直连。此开关只负责周期检查，睡前请点击下方按钮开启前台鼾声检测。",
                         checked = uiState.wearableSleepTriggerEnabled,
                         onCheckedChange = viewModel::onWearableSleepTriggerChange
                     )
