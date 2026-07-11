@@ -120,10 +120,7 @@ class HealthConnectSleepTriggerSource @Inject constructor(
     companion object {
         const val SOURCE = "health_connect_sleep"
         const val HEALTH_CONNECT_CONFIDENCE = 0.8f
-        val XIAOMI_SLEEP_SOURCE_PACKAGE_NAMES: Set<String> = setOf(
-            "com.xiaomi.wearable",
-            "com.xiaomi.hm.health"
-        )
+        val XIAOMI_SLEEP_SOURCE_PACKAGE_NAMES: Set<String> = XiaomiSleepCompanionApps.packageNames
         val READ_SLEEP_PERMISSION: String = HealthPermission.getReadPermission(SleepSessionRecord::class)
         val BACKGROUND_READ_PERMISSION: String = HealthPermission.PERMISSION_READ_HEALTH_DATA_IN_BACKGROUND
         val FOREGROUND_REQUIRED_PERMISSIONS: Set<String> = setOf(READ_SLEEP_PERMISSION)

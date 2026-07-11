@@ -88,6 +88,7 @@ import com.sleep.snore.service.SleepRecordingService
 import com.sleep.snore.sleeptrigger.HealthConnectSleepTriggerSource
 import com.sleep.snore.sleeptrigger.HealthConnectSleepTriggerWorker
 import com.sleep.snore.sleeptrigger.WearableSleepStandbyService
+import com.sleep.snore.sleeptrigger.XiaomiSleepCompanionApps
 import com.sleep.snore.ui.theme.LocalUiPreferences
 import com.sleep.snore.ui.theme.Spacing
 import kotlin.math.atan2
@@ -488,7 +489,10 @@ fun SettingsScreen(
                     Spacer(Modifier.height(Spacing.sm))
                     ListItem(
                         headlineContent = {
-                            Text(installedXiaomiCompanion?.let { "已检测到 ${it.label}" } ?: "未检测到 Mi Fitness / Zepp Life")
+                            Text(
+                                installedXiaomiCompanion?.let { "已检测到 ${it.label}" }
+                                    ?: "未检测到 ${XiaomiSleepCompanionApps.displayNames}"
+                            )
                         },
                         supportingContent = {
                             Text("打开小米伴侣 App 后，若该版本提供 Health Connect 入口，请在个人资料/设置中开启同步睡眠数据。旧设备可能使用 Zepp Life。")
@@ -586,7 +590,7 @@ fun SettingsScreen(
                                         isIgnoringBatteryOptimizations = isIgnoringBatteryOptimizations,
                                         xiaomiCompanionText = installedXiaomiCompanion?.let {
                                             "${it.label} (${it.packageName})"
-                                        } ?: "未检测到 Mi Fitness / Zepp Life",
+                                        } ?: "未检测到 ${XiaomiSleepCompanionApps.displayNames}",
                                         periodicCheckEnabled = uiState.wearableSleepTriggerEnabled,
                                         stopOnSleepEndEnabled = uiState.wearableStopOnSleepEndEnabled,
                                         bedtimeReminderEnabled = uiState.bedtimeReminderEnabled,
@@ -1067,18 +1071,8 @@ private fun pointerHue(position: Offset, width: Int, height: Int): Float {
     return (degrees + 360f) % 360f
 }
 
-private data class XiaomiCompanionApp(
-    val label: String,
-    val packageName: String
-)
-
-private val XiaomiCompanionApps = listOf(
-    XiaomiCompanionApp("Mi Fitness", "com.xiaomi.wearable"),
-    XiaomiCompanionApp("Zepp Life", "com.xiaomi.hm.health")
-)
-
-private fun findInstalledXiaomiCompanion(context: android.content.Context): XiaomiCompanionApp? {
-    return XiaomiCompanionApps.firstOrNull { app ->
+private fun findInstalledXiaomiCompanion(context: android.content.Context): com.sleep.snore.sleeptrigger.XiaomiSleepCompanionApp? {
+    return XiaomiSleepCompanionApps.all.firstOrNull { app ->
         context.packageManager.getLaunchIntentForPackage(app.packageName) != null
     }
 }
@@ -1122,9 +1116,9 @@ private fun recordingRuntimeText(recordingState: com.sleep.snore.service.Recordi
 
 private fun openXiaomiCompanionOrStore(
     context: android.content.Context,
-    app: XiaomiCompanionApp?
+    app: com.sleep.snore.sleeptrigger.XiaomiSleepCompanionApp?
 ) {
-    val packageName = app?.packageName ?: XiaomiCompanionApps.first().packageName
+    val packageName = app?.packageName ?: XiaomiSleepCompanionApps.all.first().packageName
     val launchIntent = context.packageManager.getLaunchIntentForPackage(packageName)
     if (launchIntent != null) {
         context.startActivity(launchIntent)

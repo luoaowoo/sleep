@@ -1,6 +1,7 @@
 package com.sleep.snore.manifest
 
 import com.google.common.truth.Truth.assertThat
+import com.sleep.snore.sleeptrigger.XiaomiSleepCompanionApps
 import java.io.File
 import javax.xml.parsers.DocumentBuilderFactory
 import org.junit.Test
@@ -14,8 +15,7 @@ class AndroidManifestQueriesTest {
             .mapNotNull { it.attributes.getNamedItem("android:name")?.nodeValue }
             .toSet()
 
-        assertThat(packages).contains("com.xiaomi.wearable")
-        assertThat(packages).contains("com.xiaomi.hm.health")
+        assertThat(packages).containsAtLeastElementsIn(XiaomiSleepCompanionApps.packageNames)
         assertThat(packages).contains("com.miui.securitycenter")
         assertThat(packages).contains("com.miui.powerkeeper")
     }
