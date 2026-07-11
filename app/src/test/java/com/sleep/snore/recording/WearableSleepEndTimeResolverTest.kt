@@ -78,6 +78,42 @@ class WearableSleepEndTimeResolverTest {
         assertThat(poller.called).isFalse()
     }
 
+    @Test
+    fun resolveResult_reportsPermissionMissing() = runTest {
+        val settingsRepository = settingsRepository(
+            SettingsPreferences(activeRecordingTriggerSource = HealthConnectSleepTriggerSource.SOURCE)
+        )
+        val poller = FakeSleepSessionPoller(HealthConnectSleepTriggerSource.PollResult.PermissionMissing)
+
+        val result = WearableSleepEndTimeResolver(settingsRepository, poller).resolveResult(activeRecord())
+
+        assertThat(result).isEqualTo(WearableSleepEndResolveResult.PermissionMissing)
+    }
+
+    @Test
+    fun resolveResult_reportsReadFailed() = runTest {
+        val settingsRepository = settingsRepository(
+            SettingsPreferences(activeRecordingTriggerSource = HealthConnectSleepTriggerSource.SOURCE)
+        )
+        val poller = FakeSleepSessionPoller(HealthConnectSleepTriggerSource.PollResult.ReadFailed)
+
+        val result = WearableSleepEndTimeResolver(settingsRepository, poller).resolveResult(activeRecord())
+
+        assertThat(result).isEqualTo(WearableSleepEndResolveResult.ReadFailed)
+    }
+
+    @Test
+    fun resolveResult_reportsWaitingForSyncForNonActionableSleep() = runTest {
+        val settingsRepository = settingsRepository(
+            SettingsPreferences(activeRecordingTriggerSource = HealthConnectSleepTriggerSource.SOURCE)
+        )
+        val poller = FakeSleepSessionPoller(HealthConnectSleepTriggerSource.PollResult.NoRecentSleep)
+
+        val result = WearableSleepEndTimeResolver(settingsRepository, poller).resolveResult(activeRecord())
+
+        assertThat(result).isEqualTo(WearableSleepEndResolveResult.WaitingForSync)
+    }
+
     private fun settingsRepository(settings: SettingsPreferences): SettingsPreferencesRepository {
         return mockk {
             every { this@mockk.settings } returns flowOf(settings)

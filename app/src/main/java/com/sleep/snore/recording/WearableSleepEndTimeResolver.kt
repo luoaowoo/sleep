@@ -15,6 +15,14 @@ data class ResolvedWearableSleepEnd(
     val eventKey: String
 )
 
+sealed interface WearableSleepEndResolveResult {
+    data class Resolved(val sleepEnd: ResolvedWearableSleepEnd) : WearableSleepEndResolveResult
+    data object WaitingForSync : WearableSleepEndResolveResult
+    data object PermissionMissing : WearableSleepEndResolveResult
+    data object ReadFailed : WearableSleepEndResolveResult
+    data object NotWearableRecording : WearableSleepEndResolveResult
+}
+
 @Singleton
 class WearableSleepEndTimeResolver @Inject constructor(
     private val settingsRepository: SettingsPreferencesRepository,
@@ -22,9 +30,13 @@ class WearableSleepEndTimeResolver @Inject constructor(
 ) {
 
     suspend fun resolve(activeRecord: SleepRecordEntity): ResolvedWearableSleepEnd? {
+        return (resolveResult(activeRecord) as? WearableSleepEndResolveResult.Resolved)?.sleepEnd
+    }
+
+    suspend fun resolveResult(activeRecord: SleepRecordEntity): WearableSleepEndResolveResult {
         val settings = settingsRepository.settings.first()
         if (settings.activeRecordingTriggerSource != HealthConnectSleepTriggerSource.SOURCE) {
-            return null
+            return WearableSleepEndResolveResult.NotWearableRecording
         }
         val ignoreEventsBeforeMillis = settings.activeRecordingTriggerStartedAtMillis
             .takeIf { it > 0L }
@@ -35,13 +47,28 @@ class WearableSleepEndTimeResolver @Inject constructor(
                 requireBackgroundRead = true,
                 ignoreEventsBefore = Instant.ofEpochMilli(ignoreEventsBeforeMillis)
             )
-        }.getOrNull()
-        val emittedEvent = pollResult as? HealthConnectSleepTriggerSource.PollResult.EventEmitted
-            ?: return null
-        val sleepEnded = emittedEvent.event as? SleepTriggerEvent.SleepEnded ?: return null
-        return ResolvedWearableSleepEnd(
-            endTimeMillis = sleepEnded.timestamp,
-            eventKey = emittedEvent.eventKey
-        )
+        }.getOrElse {
+            return WearableSleepEndResolveResult.ReadFailed
+        }
+        return when (pollResult) {
+            HealthConnectSleepTriggerSource.PollResult.PermissionMissing -> {
+                WearableSleepEndResolveResult.PermissionMissing
+            }
+            HealthConnectSleepTriggerSource.PollResult.ReadFailed,
+            HealthConnectSleepTriggerSource.PollResult.HealthConnectUnavailable -> {
+                WearableSleepEndResolveResult.ReadFailed
+            }
+            is HealthConnectSleepTriggerSource.PollResult.EventEmitted -> {
+                val sleepEnded = pollResult.event as? SleepTriggerEvent.SleepEnded
+                    ?: return WearableSleepEndResolveResult.WaitingForSync
+                WearableSleepEndResolveResult.Resolved(
+                    ResolvedWearableSleepEnd(
+                        endTimeMillis = sleepEnded.timestamp,
+                        eventKey = pollResult.eventKey
+                    )
+                )
+            }
+            else -> WearableSleepEndResolveResult.WaitingForSync
+        }
     }
 }

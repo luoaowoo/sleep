@@ -41,26 +41,29 @@ class ActiveRecordingFinalizerWorker @AssistedInject constructor(
         ) {
             return Result.success()
         }
-        val resolvedWearableSleepEnd = if (
+        val wearableSleepEndResolveResult = if (
             expectedSource == HealthConnectSleepTriggerSource.SOURCE &&
             activeRecord != null &&
             inputSleepEndTimeMillis == null
         ) {
-            wearableSleepEndTimeResolver.resolve(activeRecord)
+            wearableSleepEndTimeResolver.resolveResult(activeRecord)
         } else {
             null
         }
+        val resolvedWearableSleepEnd =
+            (wearableSleepEndResolveResult as? WearableSleepEndResolveResult.Resolved)?.sleepEnd
         if (
             shouldRetryWearableFinalizer(
                 expectedSource = expectedSource,
                 activeRecordExists = activeRecord != null,
                 inputSleepEndTimeMillis = inputSleepEndTimeMillis,
                 resolvedWearableSleepEnd = resolvedWearableSleepEnd,
+                resolveResult = wearableSleepEndResolveResult,
                 runAttemptCount = runAttemptCount
             )
         ) {
             settingsRepository.setWearableSleepTriggerStatus(
-                "尚未读取到 Health Connect 睡眠结束时间，将继续等待同步后兜底结算"
+                wearableFinalizerRetryStatus(wearableSleepEndResolveResult)
             )
             return Result.retry()
         }
@@ -133,13 +136,36 @@ internal fun shouldRetryWearableFinalizer(
     activeRecordExists: Boolean,
     inputSleepEndTimeMillis: Long?,
     resolvedWearableSleepEnd: ResolvedWearableSleepEnd?,
+    resolveResult: WearableSleepEndResolveResult? = null,
     runAttemptCount: Int
 ): Boolean {
-    return expectedSource == HealthConnectSleepTriggerSource.SOURCE &&
-        activeRecordExists &&
-        inputSleepEndTimeMillis == null &&
-        resolvedWearableSleepEnd == null &&
-        runAttemptCount < MAX_HEALTH_CONNECT_RESOLVE_ATTEMPTS
+    if (
+        expectedSource != HealthConnectSleepTriggerSource.SOURCE ||
+        !activeRecordExists ||
+        inputSleepEndTimeMillis != null ||
+        resolvedWearableSleepEnd != null
+    ) {
+        return false
+    }
+    if (
+        resolveResult == WearableSleepEndResolveResult.PermissionMissing ||
+        resolveResult == WearableSleepEndResolveResult.ReadFailed
+    ) {
+        return true
+    }
+    return runAttemptCount < MAX_HEALTH_CONNECT_RESOLVE_ATTEMPTS
+}
+
+internal fun wearableFinalizerRetryStatus(resolveResult: WearableSleepEndResolveResult?): String {
+    return when (resolveResult) {
+        WearableSleepEndResolveResult.PermissionMissing -> {
+            "缺少 Health Connect 睡眠/后台读取权限，恢复授权后继续等待同步兜底结算"
+        }
+        WearableSleepEndResolveResult.ReadFailed -> {
+            "Health Connect 读取失败，将继续等待同步后兜底结算"
+        }
+        else -> "尚未读取到 Health Connect 睡眠结束时间，将继续等待同步后兜底结算"
+    }
 }
 
 internal fun activeRecordingFinalizerExistingWorkPolicy(
