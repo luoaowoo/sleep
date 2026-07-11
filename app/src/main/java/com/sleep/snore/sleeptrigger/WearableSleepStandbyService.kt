@@ -157,7 +157,8 @@ class WearableSleepStandbyService : Service() {
             stopOnSleepEnd = settings.wearableStopOnSleepEndEnabled,
             coordinator = coordinator,
             settingsRepository = settingsRepository,
-            requireBackgroundRead = true
+            requireBackgroundRead = true,
+            allowSleepStartRecording = allowSleepStartRecordingFromBackgroundCheck()
         )
         val status = handleResult.statusText
         persistStandbyStatus(status)

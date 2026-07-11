@@ -247,6 +247,7 @@ class SettingsViewModel @Inject constructor(
             preferencesRepository.setWearableSleepTriggerEnabled(enabled)
             if (enabled) {
                 preferencesRepository.setWearableSleepTriggerStatus("已开启 Health Connect 周期检查；睡前请开启前台检测以保证夜间录音")
+                HealthConnectSleepTriggerWorker.enqueue(context)
                 HealthConnectSleepTriggerWorker.enqueueNow(context)
             } else {
                 runCatching { HealthConnectSleepTriggerWorker.cancel(context) }
@@ -287,6 +288,7 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             preferencesRepository.setWearableSleepTriggerEnabled(true)
             preferencesRepository.setWearableSleepTriggerStatus(status)
+            HealthConnectSleepTriggerWorker.enqueue(context)
             HealthConnectSleepTriggerWorker.enqueueNow(context)
         }
     }

@@ -4,7 +4,7 @@
 
 - 不直接依赖民间小米手环私有协议作为主链路；不同固件和 App 版本容易失效。
 - 当前优先走 Android 官方生态：Mi Fitness/小米运动健康同步睡眠到 Health Connect，本应用读取睡眠会话。
-- Health Connect 睡眠记录通常不是秒级实时数据，适合自动停止、校准和辅助触发；要提高“睡着后自动开录”的成功率，需要用户睡前开启前台检测，入口会先启动前台鼾声检测，再用手环/Health Connect 记录做自动停止和校准。
+- Health Connect 睡眠记录通常不是秒级实时数据，适合自动停止、校准和辅助提示；可靠的整晚录音方式是用户睡前开启前台检测，入口会先启动前台鼾声检测，再用手环/Health Connect 记录做自动停止和校准。
 
 ## 当前实现
 
@@ -34,7 +34,7 @@
 
 - 周期轮询使用 WorkManager，适合恢复、自动停止和辅助状态提示，不承诺实时，也不会在后台直接开麦。
 - 睡前前台检测会先启动前台麦克风检测，降低 MIUI/Android 限制纯后台麦克风启动导致的失败和误报成功。
-- 当前录音如果由手环/Health Connect 触发，`SleepRecordingService` 会在前台麦克风服务内低频轮询 Health Connect 睡眠结束事件；这样不依赖 `dataSync` 待命服务整晚占用前台服务额度。
+- 当前录音如果由睡前前台检测以手环/Health Connect 来源启动，`SleepRecordingService` 会在前台麦克风服务内低频轮询 Health Connect 睡眠结束事件；这样不依赖 `dataSync` 待命服务整晚占用前台服务额度。
 - 用户点击“停止睡前前台检测”时，会同时请求停止由睡前入口预开启的前台鼾声检测，避免用户误以为只停了轮询但录音仍在运行。
 - `WearableSleepStandbyService` 不是无限后台服务：Android 15 会限制 `dataSync` 前台服务累计时长，因此该兼容服务会在接近 6 小时限制前自停并提示用户重新开启。
 - 真正录音仍由 `SleepRecordingService` 以前台麦克风服务运行，并持有有限时长 WakeLock。

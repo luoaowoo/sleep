@@ -338,7 +338,7 @@ fun SettingsScreen(
                     HorizontalDivider()
                     ListItem(
                         headlineContent = { Text(if (hasRecordAudioPermission) "麦克风权限已授权" else "缺少麦克风权限") },
-                        supportingContent = { Text("手环自动触发录音前必须已有麦克风权限；未授权时不会后台开麦。点此授权。") },
+                        supportingContent = { Text("睡前前台检测必须已有麦克风权限；未授权时不会后台开麦。点此授权。") },
                         modifier = Modifier
                             .heightIn(min = Spacing.touchTargetMin)
                             .clickable(enabled = !hasRecordAudioPermission, role = Role.Button) {
@@ -409,14 +409,14 @@ fun SettingsScreen(
                     )
                     Spacer(Modifier.height(Spacing.xs))
                     Text(
-                        "小米接入步骤：在 Mi Fitness/小米运动健康中开启 Health Connect 同步，并勾选睡眠；再回到本页授权本应用读取睡眠。",
+                        "小米接入步骤：在 Mi Fitness/小米运动健康或 Zepp Life 中开启 Health Connect 同步，并勾选睡眠；再回到本页授权本应用读取睡眠。",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(Modifier.height(Spacing.sm))
                     ListItem(
                         headlineContent = {
-                            Text(installedXiaomiCompanion?.let { "已检测到 ${it.label}" } ?: "未检测到 Mi Fitness")
+                            Text(installedXiaomiCompanion?.let { "已检测到 ${it.label}" } ?: "未检测到 Mi Fitness / Zepp Life")
                         },
                         supportingContent = {
                             Text("打开小米伴侣 App 后，在个人资料/设置中开启 Health Connect，同步睡眠数据。旧设备可能使用 Zepp Life。")
