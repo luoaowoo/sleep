@@ -324,14 +324,16 @@ fun SettingsScreen(
                     HorizontalDivider()
                     ListItem(
                         headlineContent = { Text("小米/MIUI 后台权限") },
-                        supportingContent = { Text("在应用详情中手动开启自启动、后台运行和省电策略“不限制”，可降低夜间待命/录音被杀概率。") },
+                        supportingContent = { Text("小米/红米/POCO 会优先打开 MIUI 自启动/省电入口；若进入列表页，请找到本应用并开启自启动、后台运行和省电“不限制”。") },
                         modifier = Modifier
                             .heightIn(min = Spacing.touchTargetMin)
                             .clickable(role = Role.Button) {
-                                context.startActivity(
-                                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                                        data = Uri.parse("package:${context.packageName}")
-                                    }
+                                openFirstAvailableSettingsIntent(
+                                    context = context,
+                                    intents = backgroundPermissionIntents(
+                                        packageName = context.packageName,
+                                        packageLabel = context.applicationInfo.loadLabel(context.packageManager).toString()
+                                    )
                                 )
                             }
                     )
