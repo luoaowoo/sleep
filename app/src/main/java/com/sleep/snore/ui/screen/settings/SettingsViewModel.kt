@@ -47,6 +47,7 @@ data class SettingsUiState(
     val wearableStopOnSleepEndEnabled: Boolean = SettingsPreferencesRepository.DEFAULT_WEARABLE_STOP_ON_SLEEP_END_ENABLED,
     val wearableSleepTriggerStatus: String = SettingsPreferencesRepository.DEFAULT_WEARABLE_SLEEP_TRIGGER_STATUS,
     val wearableSleepTriggerLastCheckText: String = "尚未检查",
+    val latestWearableSleepSessionText: String = "尚未发现同步睡眠记录",
     val activeRecordingTriggerSource: String = "",
     val storageUsageText: String = "计算中..."
 )
@@ -102,6 +103,11 @@ class SettingsViewModel @Inject constructor(
                         wearableStopOnSleepEndEnabled = settings.wearableStopOnSleepEndEnabled,
                         wearableSleepTriggerStatus = settings.wearableSleepTriggerStatus,
                         wearableSleepTriggerLastCheckText = settings.wearableSleepTriggerLastCheckMillis.toLastCheckText(),
+                        latestWearableSleepSessionText = toSleepSessionText(
+                            startMillis = settings.latestWearableSleepSessionStartMillis,
+                            endMillis = settings.latestWearableSleepSessionEndMillis,
+                            status = settings.latestWearableSleepSessionStatus
+                        ),
                         activeRecordingTriggerSource = settings.activeRecordingTriggerSource
                     )
                 }
@@ -383,6 +389,18 @@ class SettingsViewModel @Inject constructor(
     private fun Long.toLastCheckText(): String {
         if (this <= 0L) return "尚未检查"
         return SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(this))
+    }
+
+    private fun toSleepSessionText(startMillis: Long, endMillis: Long, status: String): String {
+        if (startMillis <= 0L || endMillis <= 0L) return "尚未发现同步睡眠记录"
+        val formatter = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault())
+        val startText = formatter.format(Date(startMillis))
+        val endText = formatter.format(Date(endMillis))
+        return if (status.isBlank()) {
+            "$startText - $endText"
+        } else {
+            "$startText - $endText（$status）"
+        }
     }
 
     private companion object {

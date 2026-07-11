@@ -22,6 +22,9 @@ import kotlinx.coroutines.runBlocking
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 private val Context.testSettingsDataStore by preferencesDataStore(name = "test_settings")
 
@@ -36,13 +39,21 @@ class SettingsScreenTest {
     private fun createViewModel(
         cardCornerStyle: CardCornerStyle = CardCornerStyle.STANDARD,
         fontScale: FontScale = FontScale.STANDARD,
-        compactMode: Boolean = false
+        compactMode: Boolean = false,
+        latestWearableSleepSession: Triple<Long, Long, String>? = null
     ): SettingsViewModel {
         val repository = SettingsPreferencesRepository(context.testSettingsDataStore, FakeSecretTextCipher)
         runBlocking {
             repository.setCardCornerStyle(cardCornerStyle)
             repository.setFontScale(fontScale)
             repository.setCompactModeEnabled(compactMode)
+            latestWearableSleepSession?.let { (startMillis, endMillis, status) ->
+                repository.setLatestWearableSleepSession(
+                    startMillis = startMillis,
+                    endMillis = endMillis,
+                    status = status
+                )
+            }
         }
         return SettingsViewModel(
             context,
@@ -111,6 +122,29 @@ class SettingsScreenTest {
         }
         composeRule.waitForIdle()
         composeRule.onNodeWithText("大").assertIsSelected()
+    }
+
+    @Test
+    fun wearableLatestSleepSession_visibleWhenSynced() {
+        val startMillis = 1_000L
+        val endMillis = 8_000L
+        val viewModel = createViewModel(
+            latestWearableSleepSession = Triple(startMillis, endMillis, "已处理")
+        )
+        composeRule.setContent {
+            SleepSnoreTheme(dynamicColor = false) {
+                SettingsScreen(
+                    navController = rememberNavController(),
+                    viewModel = viewModel
+                )
+            }
+        }
+
+        composeRule.waitForIdle()
+
+        val formatter = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault())
+        val expectedText = "最近同步睡眠：${formatter.format(Date(startMillis))} - ${formatter.format(Date(endMillis))}（已处理）"
+        composeRule.onNodeWithText(expectedText).assertExists()
     }
 
     private object FakeSecretTextCipher : SecretTextCipher {

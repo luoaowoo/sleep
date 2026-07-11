@@ -5,6 +5,7 @@ import com.sleep.snore.data.preferences.SettingsPreferencesRepository
 import com.sleep.snore.recording.RecordingController
 import com.sleep.snore.recording.RecordingStartResult
 import io.mockk.coVerify
+import java.time.Instant
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
@@ -79,6 +80,63 @@ class WearableSleepPollResultHandlerTest {
         assertThat(result.emittedSleepStart).isFalse()
         assertThat(result.emittedSleepEnd).isFalse()
         assertThat(result.eventHandled).isFalse()
+    }
+
+    @Test
+    fun handleWearableSleepPollResult_savesObservedSleepSessionForDuplicateEvent() = runTest {
+        val settingsRepository = mockk<SettingsPreferencesRepository>(relaxed = true)
+        val session = SleepSessionSnapshot(
+            startTime = Instant.ofEpochMilli(1_000L),
+            endTime = Instant.ofEpochMilli(8_000L)
+        )
+
+        val result = handleWearableSleepPollResult(
+            pollResult = HealthConnectSleepTriggerSource.PollResult.DuplicateEvent(session),
+            stopOnSleepEnd = true,
+            coordinator = AutoSnoreDetectionCoordinator(FakeRecordingController()),
+            settingsRepository = settingsRepository,
+            requireBackgroundRead = true
+        )
+
+        assertThat(result.statusText).isEqualTo("最近睡眠记录已处理，等待新记录")
+        assertThat(result.eventHandled).isFalse()
+        coVerify {
+            settingsRepository.setLatestWearableSleepSession(
+                startMillis = 1_000L,
+                endMillis = 8_000L,
+                status = "已处理"
+            )
+        }
+    }
+
+    @Test
+    fun handleWearableSleepPollResult_savesObservedSleepSessionForOldRecord() = runTest {
+        val settingsRepository = mockk<SettingsPreferencesRepository>(relaxed = true)
+        val session = SleepSessionSnapshot(
+            startTime = Instant.ofEpochMilli(1_000L),
+            endTime = Instant.ofEpochMilli(8_000L)
+        )
+
+        val result = handleWearableSleepPollResult(
+            pollResult = HealthConnectSleepTriggerSource.PollResult.NoActionableSleep(
+                observedSession = session,
+                reason = HealthConnectSleepTriggerSource.PollResult.NoActionableSleepReason.BEFORE_ACTIVE_RECORDING
+            ),
+            stopOnSleepEnd = true,
+            coordinator = AutoSnoreDetectionCoordinator(FakeRecordingController()),
+            settingsRepository = settingsRepository,
+            requireBackgroundRead = true
+        )
+
+        assertThat(result.statusText).contains("早于本次睡前前台检测")
+        assertThat(result.eventHandled).isFalse()
+        coVerify {
+            settingsRepository.setLatestWearableSleepSession(
+                startMillis = 1_000L,
+                endMillis = 8_000L,
+                status = "早于本次检测，已忽略"
+            )
+        }
     }
 
     @Test

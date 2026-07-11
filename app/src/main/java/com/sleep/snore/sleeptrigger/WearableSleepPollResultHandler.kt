@@ -17,6 +17,13 @@ internal suspend fun handleWearableSleepPollResult(
     requireBackgroundRead: Boolean,
     allowSleepStartRecording: Boolean = false
 ): WearableSleepPollHandleResult {
+    pollResult.observedSession?.let { session ->
+        settingsRepository.setLatestWearableSleepSession(
+            startMillis = session.startTime.toEpochMilli(),
+            endMillis = session.endTime.toEpochMilli(),
+            status = pollResult.toLatestWearableSleepSessionStatus()
+        )
+    }
     if (pollResult !is HealthConnectSleepTriggerSource.PollResult.EventEmitted) {
         return WearableSleepPollHandleResult(
             statusText = pollResult.toWearableSleepStatusText(requireBackgroundRead)
@@ -45,6 +52,24 @@ internal suspend fun handleWearableSleepPollResult(
     )
 }
 
+private fun HealthConnectSleepTriggerSource.PollResult.toLatestWearableSleepSessionStatus(): String {
+    return when (this) {
+        HealthConnectSleepTriggerSource.PollResult.HealthConnectUnavailable -> "Health Connect 不可用"
+        HealthConnectSleepTriggerSource.PollResult.PermissionMissing -> "缺少授权"
+        HealthConnectSleepTriggerSource.PollResult.NoRecentSleep -> "未发现记录"
+        is HealthConnectSleepTriggerSource.PollResult.NoActionableSleep -> when (this.reason) {
+            HealthConnectSleepTriggerSource.PollResult.NoActionableSleepReason.ONGOING -> "同步中，等待结束时间"
+            HealthConnectSleepTriggerSource.PollResult.NoActionableSleepReason.BEFORE_ACTIVE_RECORDING -> "早于本次检测，已忽略"
+        }
+        is HealthConnectSleepTriggerSource.PollResult.DuplicateEvent -> "已处理"
+        HealthConnectSleepTriggerSource.PollResult.ReadFailed -> "读取失败"
+        is HealthConnectSleepTriggerSource.PollResult.EventEmitted -> when (this.event) {
+            is SleepTriggerEvent.SleepEnded -> "已读取睡眠结束"
+            is SleepTriggerEvent.SleepStarted -> "已读取睡眠开始"
+        }
+    }
+}
+
 internal fun HealthConnectSleepTriggerSource.PollResult.toWearableSleepStatusText(
     requireBackgroundRead: Boolean
 ): String {
@@ -56,7 +81,15 @@ internal fun HealthConnectSleepTriggerSource.PollResult.toWearableSleepStatusTex
             "缺少 Health Connect 睡眠读取权限"
         }
         HealthConnectSleepTriggerSource.PollResult.NoRecentSleep -> "未发现最近睡眠记录"
-        HealthConnectSleepTriggerSource.PollResult.DuplicateEvent -> "最近睡眠记录已处理，等待新记录"
+        is HealthConnectSleepTriggerSource.PollResult.NoActionableSleep -> when (this.reason) {
+            HealthConnectSleepTriggerSource.PollResult.NoActionableSleepReason.ONGOING -> {
+                "发现同步中的睡眠记录，等待 Health Connect 写入结束时间"
+            }
+            HealthConnectSleepTriggerSource.PollResult.NoActionableSleepReason.BEFORE_ACTIVE_RECORDING -> {
+                "发现睡眠记录，但早于本次睡前前台检测，已忽略"
+            }
+        }
+        is HealthConnectSleepTriggerSource.PollResult.DuplicateEvent -> "最近睡眠记录已处理，等待新记录"
         HealthConnectSleepTriggerSource.PollResult.ReadFailed -> "Health Connect 读取失败"
         is HealthConnectSleepTriggerSource.PollResult.EventEmitted -> "已处理睡眠事件"
     }

@@ -39,6 +39,9 @@ data class SettingsPreferences(
     val wearableStopOnSleepEndEnabled: Boolean = SettingsPreferencesRepository.DEFAULT_WEARABLE_STOP_ON_SLEEP_END_ENABLED,
     val wearableSleepTriggerStatus: String = SettingsPreferencesRepository.DEFAULT_WEARABLE_SLEEP_TRIGGER_STATUS,
     val wearableSleepTriggerLastCheckMillis: Long = 0L,
+    val latestWearableSleepSessionStartMillis: Long = 0L,
+    val latestWearableSleepSessionEndMillis: Long = 0L,
+    val latestWearableSleepSessionStatus: String = "",
     val activeRecordingTriggerSource: String = "",
     val activeRecordingTriggerStartedAtMillis: Long = 0L
 )
@@ -96,6 +99,11 @@ class SettingsPreferencesRepository @Inject constructor(
                     ?: DEFAULT_WEARABLE_SLEEP_TRIGGER_STATUS,
                 wearableSleepTriggerLastCheckMillis = preferences[Keys.WEARABLE_SLEEP_TRIGGER_LAST_CHECK_MILLIS]
                     ?: 0L,
+                latestWearableSleepSessionStartMillis = preferences[Keys.LATEST_WEARABLE_SLEEP_SESSION_START_MILLIS]
+                    ?: 0L,
+                latestWearableSleepSessionEndMillis = preferences[Keys.LATEST_WEARABLE_SLEEP_SESSION_END_MILLIS]
+                    ?: 0L,
+                latestWearableSleepSessionStatus = preferences[Keys.LATEST_WEARABLE_SLEEP_SESSION_STATUS].orEmpty(),
                 activeRecordingTriggerSource = preferences[Keys.ACTIVE_RECORDING_TRIGGER_SOURCE].orEmpty(),
                 activeRecordingTriggerStartedAtMillis = preferences[Keys.ACTIVE_RECORDING_TRIGGER_STARTED_AT_MILLIS]
                     ?: 0L
@@ -269,6 +277,18 @@ class SettingsPreferencesRepository @Inject constructor(
         }
     }
 
+    suspend fun setLatestWearableSleepSession(
+        startMillis: Long,
+        endMillis: Long,
+        status: String
+    ) {
+        dataStore.edit { preferences ->
+            preferences[Keys.LATEST_WEARABLE_SLEEP_SESSION_START_MILLIS] = startMillis
+            preferences[Keys.LATEST_WEARABLE_SLEEP_SESSION_END_MILLIS] = endMillis
+            preferences[Keys.LATEST_WEARABLE_SLEEP_SESSION_STATUS] = status
+        }
+    }
+
     suspend fun getActiveRecordingTriggerSource(): String? {
         return safePreferences.map { preferences ->
             preferences[Keys.ACTIVE_RECORDING_TRIGGER_SOURCE]?.takeIf { it.isNotBlank() }
@@ -345,6 +365,9 @@ class SettingsPreferencesRepository @Inject constructor(
         val WEARABLE_LAST_SLEEP_EVENT_KEY = stringPreferencesKey("wearable_last_sleep_event_key")
         val WEARABLE_SLEEP_TRIGGER_STATUS = stringPreferencesKey("wearable_sleep_trigger_status")
         val WEARABLE_SLEEP_TRIGGER_LAST_CHECK_MILLIS = longPreferencesKey("wearable_sleep_trigger_last_check_millis")
+        val LATEST_WEARABLE_SLEEP_SESSION_START_MILLIS = longPreferencesKey("latest_wearable_sleep_session_start_millis")
+        val LATEST_WEARABLE_SLEEP_SESSION_END_MILLIS = longPreferencesKey("latest_wearable_sleep_session_end_millis")
+        val LATEST_WEARABLE_SLEEP_SESSION_STATUS = stringPreferencesKey("latest_wearable_sleep_session_status")
         val ACTIVE_RECORDING_TRIGGER_SOURCE = stringPreferencesKey("active_recording_trigger_source")
         val ACTIVE_RECORDING_TRIGGER_STARTED_AT_MILLIS = longPreferencesKey("active_recording_trigger_started_at_millis")
         val FONT_SCALE = stringPreferencesKey("font_scale")

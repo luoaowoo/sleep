@@ -450,6 +450,11 @@ fun SettingsScreen(
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    Text(
+                        "最近同步睡眠：${uiState.latestWearableSleepSessionText}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                     if (wearableSleepDetectionActive) {
                         Text(
                             standbyState.statusText.takeIf { standbyState.isActive }

@@ -70,20 +70,45 @@ class HealthConnectSleepTriggerSource @Inject constructor(
             session = latestSession,
             now = now,
             ignoreEventsBefore = ignoreEventsBefore
-        ) ?: return PollResult.NoRecentSleep
+        ) ?: return PollResult.NoActionableSleep(
+            observedSession = latestSession,
+            reason = if (latestSession.endTime.isAfter(now)) {
+                PollResult.NoActionableSleepReason.ONGOING
+            } else {
+                PollResult.NoActionableSleepReason.BEFORE_ACTIVE_RECORDING
+            }
+        )
         if (interpretedEvent.eventKey == settingsRepository.getLastWearableSleepEventKey()) {
-            return PollResult.DuplicateEvent
+            return PollResult.DuplicateEvent(latestSession)
         }
-        return PollResult.EventEmitted(interpretedEvent.event, interpretedEvent.eventKey)
+        return PollResult.EventEmitted(interpretedEvent.event, interpretedEvent.eventKey, latestSession)
     }
 
     sealed interface PollResult {
+        val observedSession: SleepSessionSnapshot?
+            get() = null
+
         data object HealthConnectUnavailable : PollResult
         data object PermissionMissing : PollResult
         data object NoRecentSleep : PollResult
-        data object DuplicateEvent : PollResult
+        data class NoActionableSleep(
+            override val observedSession: SleepSessionSnapshot,
+            val reason: NoActionableSleepReason
+        ) : PollResult
+        data class DuplicateEvent(
+            override val observedSession: SleepSessionSnapshot
+        ) : PollResult
         data object ReadFailed : PollResult
-        data class EventEmitted(val event: SleepTriggerEvent, val eventKey: String) : PollResult
+        data class EventEmitted(
+            val event: SleepTriggerEvent,
+            val eventKey: String,
+            override val observedSession: SleepSessionSnapshot? = null
+        ) : PollResult
+
+        enum class NoActionableSleepReason {
+            ONGOING,
+            BEFORE_ACTIVE_RECORDING
+        }
     }
 
     companion object {
