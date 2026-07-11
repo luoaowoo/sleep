@@ -41,11 +41,10 @@ internal suspend fun handleWearableSleepPollResult(
     if (pollResult.event is SleepTriggerEvent.SleepEnded && stopOnSleepEnd) {
         val activeTriggerSource = settingsRepository.getActiveRecordingTriggerSource()
         if (activeTriggerSource != pollResult.event.source) {
-            settingsRepository.setLastWearableSleepEventKey(pollResult.eventKey)
             return WearableSleepPollHandleResult(
                 statusText = "检测到睡眠结束，但当前没有手环触发的前台鼾声检测；已作为诊断记录",
                 emittedSleepEnd = true,
-                eventHandled = true,
+                eventHandled = false,
                 eventKey = pollResult.eventKey
             )
         }

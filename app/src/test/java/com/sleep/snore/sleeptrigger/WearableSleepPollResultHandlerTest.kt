@@ -312,7 +312,7 @@ class WearableSleepPollResultHandlerTest {
     }
 
     @Test
-    fun handleWearableSleepPollResult_remembersSleepEndWithoutActiveWearableRecording() = runTest {
+    fun handleWearableSleepPollResult_doesNotRememberSleepEndWithoutActiveWearableRecording() = runTest {
         val settingsRepository = mockk<SettingsPreferencesRepository>(relaxed = true)
         coEvery { settingsRepository.getActiveRecordingTriggerSource() } returns null
         val controller = FakeRecordingController()
@@ -331,10 +331,10 @@ class WearableSleepPollResultHandlerTest {
         )
 
         assertThat(result.emittedSleepEnd).isTrue()
-        assertThat(result.eventHandled).isTrue()
+        assertThat(result.eventHandled).isFalse()
         assertThat(result.statusText).contains("已作为诊断记录")
         assertThat(controller.stoppedSource).isNull()
-        coVerify { settingsRepository.setLastWearableSleepEventKey("SleepEnded:2:1") }
+        coVerify(exactly = 0) { settingsRepository.setLastWearableSleepEventKey(any()) }
     }
 
     @Test

@@ -389,6 +389,9 @@ class SettingsViewModel @Inject constructor(
                 preferencesRepository.setWearableSleepTriggerStatus(recordingStartResult.statusText)
                 return@launch
             }
+            runCatching {
+                context.startService(WearableSleepStandbyService.startIntent(context))
+            }
             val status = if (_uiState.value.wearableStopOnSleepEndEnabled) {
                 "睡前前台检测已开启，录音服务将低频检查 Health Connect 睡眠结束"
             } else {
