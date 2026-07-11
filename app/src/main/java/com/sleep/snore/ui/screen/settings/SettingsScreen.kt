@@ -8,6 +8,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.health.connect.client.HealthConnectClient
@@ -501,7 +502,13 @@ fun SettingsScreen(
                             .heightIn(min = Spacing.touchTargetMin)
                             .clickable(role = Role.Button) {
                                 companionAppRefreshTick++
-                                openXiaomiCompanionOrStore(context, installedXiaomiCompanion)
+                                if (!openXiaomiCompanionOrStore(context, installedXiaomiCompanion)) {
+                                    Toast.makeText(
+                                        context,
+                                        "未找到可打开的小米伴侣或应用商店，请手动搜索 ${XiaomiSleepCompanionApps.displayNames}",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                }
                             }
                     )
                     Spacer(Modifier.height(Spacing.sm))
@@ -1096,12 +1103,6 @@ private fun pointerHue(position: Offset, width: Int, height: Int): Float {
     return (degrees + 360f) % 360f
 }
 
-private fun findInstalledXiaomiCompanion(context: android.content.Context): com.sleep.snore.sleeptrigger.XiaomiSleepCompanionApp? {
-    return XiaomiSleepCompanionApps.all.firstOrNull { app ->
-        context.packageManager.getLaunchIntentForPackage(app.packageName) != null
-    }
-}
-
 private fun appVersionText(context: android.content.Context): String {
     val packageInfo = runCatching {
         context.packageManager.getPackageInfo(context.packageName, 0)
@@ -1137,28 +1138,4 @@ private fun recordingRuntimeText(recordingState: com.sleep.snore.service.Recordi
         "未知"
     }
     return "运行中，开始 $startText，已运行 $elapsedText，事件数 ${recordingState.eventCount}"
-}
-
-private fun openXiaomiCompanionOrStore(
-    context: android.content.Context,
-    app: com.sleep.snore.sleeptrigger.XiaomiSleepCompanionApp?
-) {
-    val packageName = app?.packageName ?: XiaomiSleepCompanionApps.all.first().packageName
-    val launchIntent = context.packageManager.getLaunchIntentForPackage(packageName)
-    if (launchIntent != null) {
-        context.startActivity(launchIntent)
-        return
-    }
-
-    val marketIntent = Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=$packageName"))
-    runCatching {
-        context.startActivity(marketIntent)
-    }.onFailure {
-        context.startActivity(
-            Intent(
-                Intent.ACTION_VIEW,
-                Uri.parse("https://play.google.com/store/apps/details?id=$packageName")
-            )
-        )
-    }
 }
