@@ -32,6 +32,16 @@ internal fun bedtimeReminderStartupAction(
     }
 }
 
+internal fun WearableStartupAction.startsMicrophoneRecording(): Boolean {
+    return when (this) {
+        WearableStartupAction.EnqueuePeriodicSleepCheck,
+        WearableStartupAction.EnqueueImmediateSleepCheck,
+        WearableStartupAction.CancelPeriodicSleepCheck,
+        is WearableStartupAction.EnqueueBedtimeReminder,
+        WearableStartupAction.CancelBedtimeReminder -> false
+    }
+}
+
 internal fun applyWearableStartupAction(
     context: Context,
     action: WearableStartupAction

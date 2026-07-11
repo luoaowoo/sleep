@@ -147,6 +147,30 @@ class WearableSleepBootRecoveryTest {
             .isEqualTo(SettingsPreferences().wearableSleepTriggerStatus)
     }
 
+    @Test
+    fun recoverWearableRecordingAfterRestartIfNeeded_skipsWhenHealthConnectSourceHasNoActiveRecord() = runTest {
+        val settingsRepository = createSettingsRepository()
+        settingsRepository.setActiveRecordingTriggerSource(HealthConnectSleepTriggerSource.SOURCE, 1_000L)
+        val sleepRepository = mockk<SleepRepository>()
+        coEvery { sleepRepository.getActiveRecordingRecord() } returns null
+        val enqueuedSources = mutableListOf<String>()
+
+        val recovered = recoverWearableRecordingAfterRestartIfNeeded(
+            context = mockContext(),
+            settingsRepository = settingsRepository,
+            sleepRepository = sleepRepository,
+            entryPoint = WearableRestartRecoveryEntryPoint.AppStart,
+            enqueueFinalizer = { _, expectedSource, activeRecordingStartMillis ->
+                enqueuedSources += "$expectedSource:$activeRecordingStartMillis"
+            }
+        )
+
+        assertThat(recovered).isFalse()
+        assertThat(enqueuedSources).isEmpty()
+        assertThat(settingsRepository.settings.first().wearableSleepTriggerStatus)
+            .isEqualTo(SettingsPreferences().wearableSleepTriggerStatus)
+    }
+
     private fun createSettingsRepository(): SettingsPreferencesRepository {
         val dataStoreFile = File.createTempFile("wearable-boot-recovery", ".preferences_pb").apply {
             delete()

@@ -35,4 +35,15 @@ class WearableStartupActionsTest {
 
         assertThat(action).isEqualTo(WearableStartupAction.CancelBedtimeReminder)
     }
+
+    @Test
+    fun startupActions_neverStartMicrophoneRecording() {
+        val actions = wearableSleepCheckStartupActions(enabled = true) +
+            wearableSleepCheckStartupActions(enabled = false) +
+            bedtimeReminderStartupAction(enabled = true, minuteOfDay = 22 * 60 + 30) +
+            bedtimeReminderStartupAction(enabled = false, minuteOfDay = 22 * 60 + 30)
+
+        assertThat(actions.map { it.startsMicrophoneRecording() })
+            .containsExactly(false, false, false, false, false)
+    }
 }
