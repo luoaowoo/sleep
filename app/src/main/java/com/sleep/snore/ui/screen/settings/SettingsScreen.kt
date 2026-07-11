@@ -361,7 +361,7 @@ fun SettingsScreen(
                 }
             }
 
-            Text("手环自动检测", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+            Text("Health Connect 睡眠辅助", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
             Card(shape = MaterialTheme.shapes.extraLarge) {
                 Column(modifier = Modifier.padding(uiPreferences.cardPadding)) {
                     Text(
@@ -397,7 +397,7 @@ fun SettingsScreen(
                     HorizontalDivider(modifier = Modifier.padding(vertical = Spacing.sm))
                     SettingSwitchRow(
                         title = "睡眠结束后自动停止",
-                        supportingText = "读取到 Health Connect 睡眠结束事件后自动结束鼾声检测。",
+                        supportingText = "读取到同步到 Health Connect 的睡眠结束记录后，自动结束鼾声检测。",
                         checked = uiState.wearableStopOnSleepEndEnabled,
                         onCheckedChange = viewModel::onWearableStopOnSleepEndChange
                     )
@@ -409,7 +409,7 @@ fun SettingsScreen(
                     )
                     Spacer(Modifier.height(Spacing.xs))
                     Text(
-                        "小米接入步骤：在 Mi Fitness/小米运动健康或 Zepp Life 中开启 Health Connect 同步，并勾选睡眠；再回到本页授权本应用读取睡眠。",
+                        "小米接入步骤：若 Mi Fitness/小米运动健康或 Zepp Life 当前版本提供 Health Connect 入口，请开启同步并勾选睡眠；再回到本页授权本应用读取睡眠。",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -419,7 +419,7 @@ fun SettingsScreen(
                             Text(installedXiaomiCompanion?.let { "已检测到 ${it.label}" } ?: "未检测到 Mi Fitness / Zepp Life")
                         },
                         supportingContent = {
-                            Text("打开小米伴侣 App 后，在个人资料/设置中开启 Health Connect，同步睡眠数据。旧设备可能使用 Zepp Life。")
+                            Text("打开小米伴侣 App 后，若该版本提供 Health Connect 入口，请在个人资料/设置中开启同步睡眠数据。旧设备可能使用 Zepp Life。")
                         },
                         modifier = Modifier
                             .heightIn(min = Spacing.touchTargetMin)

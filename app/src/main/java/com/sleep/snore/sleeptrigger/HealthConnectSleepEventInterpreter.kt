@@ -26,34 +26,22 @@ object HealthConnectSleepEventInterpreter {
         session: SleepSessionSnapshot,
         now: Instant,
         ignoreEventsBefore: Instant? = null,
-        source: String = HealthConnectSleepTriggerSource.SOURCE,
-        confidence: Float = HealthConnectSleepTriggerSource.HEALTH_CONNECT_CONFIDENCE
+        source: String = HealthConnectSleepTriggerSource.SOURCE
     ): InterpretedSleepEvent? {
         if (session.startTime.isAfter(now)) return null
-        val eventType: String
-        val event = if (session.endTime.isAfter(now)) {
-            eventType = EVENT_TYPE_SLEEP_STARTED
-            SleepTriggerEvent.SleepStarted(
-                source = source,
-                timestamp = session.startTime.toEpochMilli(),
-                confidence = confidence
-            )
-        } else {
-            if (ignoreEventsBefore != null && session.endTime.isBefore(ignoreEventsBefore)) {
-                return null
-            }
-            eventType = EVENT_TYPE_SLEEP_ENDED
-            SleepTriggerEvent.SleepEnded(
-                source = source,
-                timestamp = session.endTime.toEpochMilli()
-            )
+        if (session.endTime.isAfter(now)) return null
+        if (ignoreEventsBefore != null && session.endTime.isBefore(ignoreEventsBefore)) {
+            return null
         }
+        val event = SleepTriggerEvent.SleepEnded(
+            source = source,
+            timestamp = session.endTime.toEpochMilli()
+        )
         return InterpretedSleepEvent(
             event = event,
-            eventKey = "$eventType:${event.timestamp}:${session.startTime.toEpochMilli()}"
+            eventKey = "$EVENT_TYPE_SLEEP_ENDED:${event.timestamp}:${session.startTime.toEpochMilli()}"
         )
     }
 
-    private const val EVENT_TYPE_SLEEP_STARTED = "SleepStarted"
     private const val EVENT_TYPE_SLEEP_ENDED = "SleepEnded"
 }

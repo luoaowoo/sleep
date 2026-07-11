@@ -100,6 +100,7 @@ dependencies {
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
     testImplementation("org.robolectric:robolectric:4.13")
     testImplementation("com.google.truth:truth:1.4.4")
+    testImplementation("androidx.work:work-testing:2.9.1")
     testImplementation("com.google.dagger:hilt-android-testing:2.52")
     kaptTest("com.google.dagger:hilt-android-compiler:2.52")
     androidTestImplementation("junit:junit:4.13.2")

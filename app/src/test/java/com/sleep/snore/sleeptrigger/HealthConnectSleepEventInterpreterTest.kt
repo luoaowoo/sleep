@@ -66,7 +66,7 @@ class HealthConnectSleepEventInterpreterTest {
     }
 
     @Test
-    fun interpret_returnsSleepStartedForOngoingSession() {
+    fun interpret_ignoresOngoingSessionBecauseHealthConnectIsNotRealtimeStartSignal() {
         val now = Instant.parse("2026-07-11T02:00:00Z")
         val result = HealthConnectSleepEventInterpreter.interpret(
             session = SleepSessionSnapshot(
@@ -76,11 +76,7 @@ class HealthConnectSleepEventInterpreterTest {
             now = now
         )
 
-        val event = result?.event as SleepTriggerEvent.SleepStarted
-        assertThat(event.source).isEqualTo(HealthConnectSleepTriggerSource.SOURCE)
-        assertThat(event.timestamp).isEqualTo(Instant.parse("2026-07-11T01:00:00Z").toEpochMilli())
-        assertThat(event.confidence).isEqualTo(HealthConnectSleepTriggerSource.HEALTH_CONNECT_CONFIDENCE)
-        assertThat(result.eventKey).isEqualTo("SleepStarted:${event.timestamp}:${event.timestamp}")
+        assertThat(result).isNull()
     }
 
     @Test
