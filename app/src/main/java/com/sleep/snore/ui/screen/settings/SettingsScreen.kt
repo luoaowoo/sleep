@@ -532,6 +532,48 @@ fun SettingsScreen(
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    val wearableDiagnosticInput = WearableDiagnosticReportInput(
+                        generatedAtText = "",
+                        appText = "",
+                        deviceText = "",
+                        healthConnectStatusText = healthConnectStatusText(healthConnectSdkStatus),
+                        healthConnectSdkStatusCode = healthConnectSdkStatus,
+                        healthConnectGrantedPermissionsText = healthConnectGrantedPermissionsText,
+                        hasRecordAudioPermission = hasRecordAudioPermission,
+                        hasNotificationPermission = hasNotificationPermission,
+                        hasHealthConnectSleepReadPermission = hasHealthConnectSleepReadPermission,
+                        hasHealthConnectBackgroundReadPermission = hasHealthConnectBackgroundReadPermission,
+                        isIgnoringBatteryOptimizations = isIgnoringBatteryOptimizations,
+                        xiaomiCompanionText = installedXiaomiCompanion?.let {
+                            "${it.label} (${it.packageName})"
+                        } ?: "未检测到 ${XiaomiSleepCompanionApps.displayNames}",
+                        periodicCheckEnabled = uiState.wearableSleepTriggerEnabled,
+                        stopOnSleepEndEnabled = uiState.wearableStopOnSleepEndEnabled,
+                        bedtimeReminderEnabled = uiState.bedtimeReminderEnabled,
+                        bedtimeReminderTimeText = uiState.bedtimeReminderTimeText,
+                        foregroundDetectionActive = wearableSleepDetectionActive,
+                        recordingRuntimeText = recordingRuntimeText(recordingState),
+                        recordingActive = recordingState.isActive,
+                        recordingStartTimeMillis = recordingState.startTime,
+                        recordingEventCount = recordingState.eventCount,
+                        activeRecordingTriggerSource = uiState.activeRecordingTriggerSource,
+                        activeRecordingTriggerStartedAtText = uiState.activeRecordingTriggerStartedAtText,
+                        activeRecordingTriggerStartedAtMillis = uiState.activeRecordingTriggerStartedAtMillis,
+                        wearableSleepTriggerStatus = uiState.wearableSleepTriggerStatus,
+                        wearableSleepTriggerLastCheckText = uiState.wearableSleepTriggerLastCheckText,
+                        latestWearableSleepSessionText = uiState.latestWearableSleepSessionText,
+                        latestWearableSleepSessionStartMillis = uiState.latestWearableSleepSessionStartMillis,
+                        latestWearableSleepSessionEndMillis = uiState.latestWearableSleepSessionEndMillis,
+                        latestWearableSleepSessionStatus = uiState.latestWearableSleepSessionStatus,
+                        latestWearableSleepSessionSourcePackage = uiState.latestWearableSleepSessionSourcePackage,
+                        workManagerDiagnosticsText = "",
+                        databaseDiagnosticsText = ""
+                    )
+                    Text(
+                        "下一步建议：${wearableDiagnosticNextStep(wearableDiagnosticInput)}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
                     val latestSleepAutoStopRuleText = sleepAutoStopRuleDiagnostic(
                         sleepStartMillis = uiState.latestWearableSleepSessionStartMillis,
                         sleepEndMillis = uiState.latestWearableSleepSessionEndMillis,

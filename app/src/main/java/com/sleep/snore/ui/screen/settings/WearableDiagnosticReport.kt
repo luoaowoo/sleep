@@ -104,12 +104,52 @@ internal fun wearableDiagnosticReport(input: WearableDiagnosticReportInput): Str
                 )
             }"
         )
+        appendLine("下一步建议：${wearableDiagnosticNextStep(input)}")
         appendLine("后台任务：")
         appendLine(input.workManagerDiagnosticsText.ifBlank { "无" })
         appendLine("数据库：")
         appendLine(input.databaseDiagnosticsText.ifBlank { "无" })
         appendLine("说明：Android 后台不能可靠直接开启麦克风；推荐睡前打开前台检测，睡醒后等待小米同步睡眠结束到 Health Connect 自动停录。")
     }.trimEnd()
+}
+
+internal fun wearableDiagnosticNextStep(input: WearableDiagnosticReportInput): String {
+    return when {
+        !input.hasRecordAudioPermission -> {
+            "先授予麦克风权限；睡前前台检测需要用户可见地启动麦克风。"
+        }
+        !input.hasNotificationPermission -> {
+            "先授予通知权限；前台检测依赖常驻通知保持稳定运行。"
+        }
+        !input.hasHealthConnectSleepReadPermission -> {
+            "先授权本应用读取 Health Connect 睡眠数据。"
+        }
+        !input.hasHealthConnectBackgroundReadPermission -> {
+            "补充授权 Health Connect 后台读取；否则周期检查和兜底停录会受限。"
+        }
+        input.xiaomiCompanionText.startsWith("未检测到") -> {
+            "安装或打开 Mi Fitness / 小米运动健康 / Zepp Life，并确认睡眠已同步到 Health Connect。"
+        }
+        !input.periodicCheckEnabled -> {
+            "开启 Health Connect 周期检查；它只读同步睡眠，不会后台开麦。"
+        }
+        !input.stopOnSleepEndEnabled -> {
+            "开启“睡眠结束后自动停止”，否则睡醒后需要手动停止前台检测。"
+        }
+        !input.recordingActive || input.activeRecordingTriggerSource != HealthConnectSleepTriggerSource.SOURCE -> {
+            "睡前点击“睡前开启前台检测”；手环/Health Connect 只负责睡醒后的停止和校准。"
+        }
+        input.latestWearableSleepSessionSourcePackage.isNotBlank() &&
+            input.latestWearableSleepSessionSourcePackage !in XiaomiSleepCompanionApps.packageNames -> {
+            "最近睡眠不是小米伴侣来源；打开小米伴侣确认睡眠同步到 Health Connect 后再立即检查。"
+        }
+        input.latestWearableSleepSessionEndMillis <= input.latestWearableSleepSessionStartMillis -> {
+            "等待小米伴侣把睡眠结束时间同步到 Health Connect；同步后会自动停录或可点立即检查。"
+        }
+        else -> {
+            "链路基本就绪；若真机仍异常，请连同本诊断报告和系统日志一起排查 Health Connect 同步延迟。"
+        }
+    }
 }
 
 internal fun sleepDurationMinutes(startMillis: Long, endMillis: Long): Long? {

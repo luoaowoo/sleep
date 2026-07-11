@@ -128,6 +128,39 @@ class HealthConnectSleepTriggerWorkerTest {
         }
     }
 
+    @Test
+    fun doWork_sleepEndedStopsRecordingAndRemembersEvent() = runTest {
+        val recordingController = FakeRecordingController()
+        val fixture = createFixture(
+            settings = SettingsPreferences(
+                wearableSleepTriggerEnabled = true,
+                wearableStopOnSleepEndEnabled = true
+            ),
+            recordingController = recordingController
+        )
+        coEvery {
+            fixture.source.pollLatestSleepSession(any(), any(), any())
+        } returns HealthConnectSleepTriggerSource.PollResult.EventEmitted(
+            event = SleepTriggerEvent.SleepEnded(
+                source = HealthConnectSleepTriggerSource.SOURCE,
+                timestamp = 8000L
+            ),
+            eventKey = "SleepEnded:8000:1000"
+        )
+
+        fixture.worker().doWork()
+
+        assertThat(recordingController.stopped).isTrue()
+        assertThat(recordingController.stopSource).isEqualTo(HealthConnectSleepTriggerSource.SOURCE)
+        assertThat(recordingController.stopSleepEndTimeMillis).isEqualTo(8000L)
+        coVerify {
+            fixture.settingsRepository.setLastWearableSleepEventKey("SleepEnded:8000:1000")
+        }
+        coVerify {
+            fixture.settingsRepository.setWearableSleepTriggerStatus(any(), any())
+        }
+    }
+
     private fun createFixture(
         settings: SettingsPreferences,
         inputRequireBackgroundRead: Boolean = true,
@@ -191,13 +224,24 @@ class HealthConnectSleepTriggerWorkerTest {
     private class FakeRecordingController : RecordingController {
         var started = false
             private set
+        var stopped = false
+            private set
+        var stopSource: String? = null
+            private set
+        var stopSleepEndTimeMillis: Long? = null
+            private set
 
         override suspend fun startFromSleepTrigger(source: String): RecordingStartResult {
             started = true
             return RecordingStartResult.Confirmed("started")
         }
 
-        override suspend fun stopFromSleepTrigger(source: String, sleepEndTimeMillis: Long?): Boolean = true
+        override suspend fun stopFromSleepTrigger(source: String, sleepEndTimeMillis: Long?): Boolean {
+            stopped = true
+            stopSource = source
+            stopSleepEndTimeMillis = sleepEndTimeMillis
+            return true
+        }
 
         override fun isRecordingActive(): Boolean = started
     }

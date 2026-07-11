@@ -264,6 +264,45 @@ class WearableDiagnosticReportTest {
     }
 
     @Test
+    fun wearableDiagnosticNextStep_prioritizesMissingMicrophonePermission() {
+        val nextStep = wearableDiagnosticNextStep(
+            diagnosticInput(hasRecordAudioPermission = false)
+        )
+
+        assertThat(nextStep).contains("麦克风权限")
+    }
+
+    @Test
+    fun wearableDiagnosticNextStep_guidesNonXiaomiSleepSource() {
+        val nextStep = wearableDiagnosticNextStep(
+            diagnosticInput(latestWearableSleepSessionSourcePackage = "com.example.sleep")
+        )
+
+        assertThat(nextStep).contains("不是小米伴侣来源")
+        assertThat(nextStep).contains("立即检查")
+    }
+
+    @Test
+    fun wearableDiagnosticNextStep_waitsForMissingSleepEndTime() {
+        val nextStep = wearableDiagnosticNextStep(
+            diagnosticInput(
+                latestWearableSleepSessionStartMillis = 1_000L,
+                latestWearableSleepSessionEndMillis = 1_000L
+            )
+        )
+
+        assertThat(nextStep).contains("睡眠结束时间")
+        assertThat(nextStep).contains("Health Connect")
+    }
+
+    @Test
+    fun wearableDiagnosticNextStep_reportsReadyWhenNoBlockerFound() {
+        val nextStep = wearableDiagnosticNextStep(diagnosticInput())
+
+        assertThat(nextStep).contains("链路基本就绪")
+    }
+
+    @Test
     fun wearableWorkDiagnosticsText_includesEmptyAndRetryStates() {
         val text = wearableWorkDiagnosticsText(
             listOf(
@@ -308,5 +347,56 @@ class WearableDiagnosticReportTest {
 
         assertThat(text).contains("activeRecord: 无")
         assertThat(text).contains("lastWearableSleepEventKey: 无")
+    }
+
+    private fun diagnosticInput(
+        hasRecordAudioPermission: Boolean = true,
+        hasNotificationPermission: Boolean = true,
+        hasHealthConnectSleepReadPermission: Boolean = true,
+        hasHealthConnectBackgroundReadPermission: Boolean = true,
+        xiaomiCompanionText: String = "Mi Fitness (com.xiaomi.wearable)",
+        periodicCheckEnabled: Boolean = true,
+        stopOnSleepEndEnabled: Boolean = true,
+        recordingActive: Boolean = true,
+        activeRecordingTriggerSource: String = "health_connect_sleep",
+        latestWearableSleepSessionStartMillis: Long = 1_000L,
+        latestWearableSleepSessionEndMillis: Long = 7_201_000L,
+        latestWearableSleepSessionSourcePackage: String = "com.xiaomi.wearable"
+    ): WearableDiagnosticReportInput {
+        return WearableDiagnosticReportInput(
+            generatedAtText = "2026-07-11 23:30:00",
+            appText = "com.sleep.snore / 1.0 (1)",
+            deviceText = "xiaomi Xiaomi 15 / Android 16 (SDK 35) / build/fingerprint",
+            healthConnectStatusText = "可用",
+            healthConnectSdkStatusCode = HealthConnectClient.SDK_AVAILABLE,
+            healthConnectGrantedPermissionsText = "android.permission.health.READ_SLEEP",
+            hasRecordAudioPermission = hasRecordAudioPermission,
+            hasNotificationPermission = hasNotificationPermission,
+            hasHealthConnectSleepReadPermission = hasHealthConnectSleepReadPermission,
+            hasHealthConnectBackgroundReadPermission = hasHealthConnectBackgroundReadPermission,
+            isIgnoringBatteryOptimizations = true,
+            xiaomiCompanionText = xiaomiCompanionText,
+            periodicCheckEnabled = periodicCheckEnabled,
+            stopOnSleepEndEnabled = stopOnSleepEndEnabled,
+            bedtimeReminderEnabled = true,
+            bedtimeReminderTimeText = "22:30",
+            foregroundDetectionActive = recordingActive,
+            recordingRuntimeText = "运行中",
+            recordingActive = recordingActive,
+            recordingStartTimeMillis = latestWearableSleepSessionStartMillis,
+            recordingEventCount = 1,
+            activeRecordingTriggerSource = activeRecordingTriggerSource,
+            activeRecordingTriggerStartedAtText = "07-11 23:00",
+            activeRecordingTriggerStartedAtMillis = latestWearableSleepSessionStartMillis,
+            wearableSleepTriggerStatus = "睡前前台检测已开启",
+            wearableSleepTriggerLastCheckText = "07-12 07:30",
+            latestWearableSleepSessionText = "07-11 23:00 - 07-12 07:00",
+            latestWearableSleepSessionStartMillis = latestWearableSleepSessionStartMillis,
+            latestWearableSleepSessionEndMillis = latestWearableSleepSessionEndMillis,
+            latestWearableSleepSessionStatus = "已读取睡眠结束",
+            latestWearableSleepSessionSourcePackage = latestWearableSleepSessionSourcePackage,
+            workManagerDiagnosticsText = "",
+            databaseDiagnosticsText = ""
+        )
     }
 }
