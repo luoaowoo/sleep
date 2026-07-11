@@ -13,7 +13,7 @@
 - `sleeptrigger/HealthConnectSleepEventInterpreter`：过滤未来/非法睡眠记录，再选择最新有效记录，避免错误事件抢占。
 - `sleeptrigger/HealthConnectSleepTriggerWorker`：15 分钟周期轮询；立即检查只要求前台睡眠读取权限，后台轮询要求后台读取权限。Worker 不会直接启动麦克风，只处理已结束睡眠和状态提示，避免触发 Android 后台麦克风前台服务限制。
 - Worker、录音服务兜底轮询和兼容待命服务都会按当前手环触发录音的开始时间过滤旧 `SleepEnded`；自动停录还会忽略短于 2 小时、或与本次前台检测重叠不足 30 分钟的睡眠记录，避免短午睡、延迟同步的旧记录误停当前录音。
-- `sleeptrigger/RecordingSleepEndFallbackPoller`：当前手环触发录音运行期间，由前台麦克风服务低频读取 Health Connect；该路径只要求前台睡眠读取权限，避免用户临时撤销后台读取后整晚前台检测无法自动停录。只处理 `SleepEnded`，不会因 `SleepStarted` 再次自触发启动录音。
+- `sleeptrigger/RecordingSleepEndFallbackPoller`：当前手环触发录音运行期间，由前台麦克风服务低频读取 Health Connect；当前实现同样要求 Health Connect 睡眠/后台读取权限，缺失时会提示并等待恢复授权，不能保证锁屏后自动停录。只处理 `SleepEnded`，不会因 `SleepStarted` 再次自触发启动录音。
 - `sleeptrigger/WearableSleepStandbyService`：保留为兼容的前台待命/停止入口；Android 15 对 `dataSync` 前台服务有 6 小时/24 小时额度，因此主链路不再依赖它整晚轮询，也不再用它在睡眠开始后拉起麦克风。
 - `ui/screen/settings/SettingsViewModel`：启动睡前待命前会硬性检查麦克风、通知、Health Connect 睡眠/后台读取权限；权限齐全后通过 `RecordingController` 合法启动前台麦克风检测，由录音服务承担睡眠结束兜底轮询。
 - `ui/screen/settings/SettingsScreen`：检测并打开 Mi Fitness（`com.xiaomi.wearable`）、小米运动健康/小米健康（`com.mi.health`）或 Zepp Life（`com.xiaomi.hm.health`），方便用户到小米伴侣 App 中开启 Health Connect 睡眠同步。
@@ -41,7 +41,7 @@
 - 真正录音仍由 `SleepRecordingService` 以前台麦克风服务运行，并持有有限时长 WakeLock。
 - 进程或服务状态丢失时，睡眠结束事件会尝试恢复数据库中的 active record 并完成结算，避免留下半截记录。
 - 睡眠结束停止请求会携带期望来源，录音服务会再次确认当前 active record 仍来自 Health Connect，避免旧的自动停止请求误停用户后来手动开启的录音。
-- 睡眠结束停止请求会额外排一个延迟兜底结算 Worker；若服务已经正常结算并清除 active record，Worker 会自动空跑；若仍有 active record，则优先按 Health Connect 睡眠结束时间结算。若小米同步暂未写入睡眠结束时间，Worker 会按 15 分钟线性退避最多等待 8 次，多次仍失败后才按当前时间截断兜底。
+- 睡眠结束停止请求会额外排一个延迟兜底结算 Worker；若服务已经正常结算并清除 active record，Worker 会自动空跑；若仍有 active record，则优先按 Health Connect 睡眠结束时间结算。若小米同步暂未写入睡眠结束时间，Worker 会按 15 分钟线性退避最多等待 8 次，多次仍失败后才按当前时间截断兜底，并且不会超过手环来源前台检测的 16 小时上限。
 - 如果兜底 Worker 发现 Health Connect 睡眠/后台读取权限缺失或读取失败，会继续重试并提示恢复授权/稍后重试，不会因为权限或临时读取问题直接按当前时间截断。
 - 如果小米伴侣 App 或 Health Connect 长时间没有同步睡眠结束，手环/Health Connect 来源的前台检测会在运行满 16 小时后按当前时间安全截断结算，避免前台服务和 active 记录无限等待；普通手动录音不受这个自动截断影响。
 - 设备重启、应用更新或系统结束前台服务后，如果系统不允许后台恢复麦克风前台服务，应用会保留手环来源 active 状态并优先交给 `ActiveRecordingFinalizerWorker` 等待 Health Connect 睡眠结束时间；多次仍未同步后才按当前时间截断兜底，避免过早生成很短记录。

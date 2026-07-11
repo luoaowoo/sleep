@@ -24,9 +24,17 @@ class ActiveRecordingFinalizer @Inject constructor(
 
     suspend fun finalizeIfActive(
         expectedTriggerSource: String? = null,
+        expectedActiveRecordingStartMillis: Long? = null,
         endTimeMillis: Long = System.currentTimeMillis()
     ): Boolean {
         val activeRecord = repository.getActiveRecordingRecord() ?: return false
+        if (
+            expectedActiveRecordingStartMillis != null &&
+            expectedActiveRecordingStartMillis > 0L &&
+            activeRecord.startTime != expectedActiveRecordingStartMillis
+        ) {
+            return false
+        }
         if (!expectedTriggerSource.isNullOrBlank() &&
             settingsRepository.getActiveRecordingTriggerSource() != expectedTriggerSource
         ) {

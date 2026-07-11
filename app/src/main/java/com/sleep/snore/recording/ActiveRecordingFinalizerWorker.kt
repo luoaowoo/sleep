@@ -72,10 +72,13 @@ class ActiveRecordingFinalizerWorker @AssistedInject constructor(
         }
         val finalized = activeRecordingFinalizer.finalizeIfActive(
             expectedTriggerSource = expectedSource,
+            expectedActiveRecordingStartMillis = expectedActiveRecordingStartMillis,
             endTimeMillis = wearableFallbackEndTimeMillis(
                 inputSleepEndTimeMillis = inputSleepEndTimeMillis,
                 resolvedSleepEndTimeMillis = resolvedWearableSleepEnd?.endTimeMillis,
-                fallbackNowMillis = System.currentTimeMillis()
+                fallbackNowMillis = System.currentTimeMillis(),
+                activeRecordingStartMillis = activeRecord?.startTime,
+                maxRecordingDurationMillis = MAX_WEARABLE_RECORDING_DURATION_MS
             )
         )
         if (finalized && expectedSource == HealthConnectSleepTriggerSource.SOURCE) {
@@ -133,6 +136,7 @@ class ActiveRecordingFinalizerWorker @AssistedInject constructor(
 
 internal const val MAX_HEALTH_CONNECT_RESOLVE_ATTEMPTS = 8
 internal const val HEALTH_CONNECT_RESOLVE_BACKOFF_MINUTES = 15L
+internal const val MAX_WEARABLE_RECORDING_DURATION_MS = 16L * 60L * 60L * 1000L
 
 internal fun shouldRetryWearableFinalizer(
     expectedSource: String?,
@@ -183,11 +187,20 @@ internal fun activeRecordingFinalizerExistingWorkPolicy(
 internal fun wearableFallbackEndTimeMillis(
     inputSleepEndTimeMillis: Long?,
     resolvedSleepEndTimeMillis: Long?,
-    fallbackNowMillis: Long
+    fallbackNowMillis: Long,
+    activeRecordingStartMillis: Long? = null,
+    maxRecordingDurationMillis: Long = MAX_WEARABLE_RECORDING_DURATION_MS
 ): Long {
-    return inputSleepEndTimeMillis
+    val selectedEndTime = inputSleepEndTimeMillis
         ?: resolvedSleepEndTimeMillis
         ?: fallbackNowMillis
+    if (activeRecordingStartMillis == null ||
+        activeRecordingStartMillis <= 0L ||
+        maxRecordingDurationMillis <= 0L
+    ) {
+        return selectedEndTime
+    }
+    return selectedEndTime.coerceAtMost(activeRecordingStartMillis + maxRecordingDurationMillis)
 }
 
 internal fun shouldSkipFinalizerForDifferentActiveRecording(

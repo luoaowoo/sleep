@@ -29,11 +29,13 @@ class ActiveRecordingFinalizerWorkerTest {
     fun doWork_prefersInputSleepEndTimeAndDoesNotResolveHealthConnectAgain() = runTest {
         val fixture = createFixture(
             inputSleepEndTimeMillis = 8_000L,
+            activeRecordingStartMillis = 1_000L,
             activeRecord = activeRecord()
         )
         coEvery {
             fixture.activeRecordingFinalizer.finalizeIfActive(
                 expectedTriggerSource = HealthConnectSleepTriggerSource.SOURCE,
+                expectedActiveRecordingStartMillis = 1_000L,
                 endTimeMillis = 8_000L
             )
         } returns true
@@ -53,7 +55,10 @@ class ActiveRecordingFinalizerWorkerTest {
 
     @Test
     fun doWork_usesResolvedHealthConnectEndTimeAndStoresEventKey() = runTest {
-        val fixture = createFixture(activeRecord = activeRecord())
+        val fixture = createFixture(
+            activeRecordingStartMillis = 1_000L,
+            activeRecord = activeRecord()
+        )
         coEvery {
             fixture.wearableSleepEndTimeResolver.resolveResult(any())
         } returns WearableSleepEndResolveResult.Resolved(
@@ -65,6 +70,7 @@ class ActiveRecordingFinalizerWorkerTest {
         coEvery {
             fixture.activeRecordingFinalizer.finalizeIfActive(
                 expectedTriggerSource = HealthConnectSleepTriggerSource.SOURCE,
+                expectedActiveRecordingStartMillis = 1_000L,
                 endTimeMillis = 9_000L
             )
         } returns true
@@ -94,7 +100,7 @@ class ActiveRecordingFinalizerWorkerTest {
             )
         )
         coEvery {
-            fixture.activeRecordingFinalizer.finalizeIfActive(any(), any())
+            fixture.activeRecordingFinalizer.finalizeIfActive(any(), any(), any())
         } returns false
 
         val result = fixture.worker().doWork()
@@ -115,7 +121,7 @@ class ActiveRecordingFinalizerWorkerTest {
 
         assertThat(result).isEqualTo(ListenableWorker.Result.retry())
         coVerify { fixture.wearableSleepEndTimeResolver.resolveResult(activeRecord()) }
-        coVerify(exactly = 0) { fixture.activeRecordingFinalizer.finalizeIfActive(any(), any()) }
+        coVerify(exactly = 0) { fixture.activeRecordingFinalizer.finalizeIfActive(any(), any(), any()) }
         coVerify {
             fixture.settingsRepository.setWearableSleepTriggerStatus(
                 match { it.contains("继续等待同步") },
@@ -135,7 +141,7 @@ class ActiveRecordingFinalizerWorkerTest {
 
         assertThat(result).isEqualTo(ListenableWorker.Result.success())
         coVerify { fixture.wearableSleepEndTimeResolver.resolveResult(activeRecord()) }
-        coVerify(exactly = 0) { fixture.activeRecordingFinalizer.finalizeIfActive(any(), any()) }
+        coVerify(exactly = 0) { fixture.activeRecordingFinalizer.finalizeIfActive(any(), any(), any()) }
         coVerify(exactly = 0) { fixture.settingsRepository.setWearableSleepTriggerStatus(any(), any()) }
     }
 
@@ -155,7 +161,7 @@ class ActiveRecordingFinalizerWorkerTest {
         val result = fixture.worker(runAttemptCount = MAX_HEALTH_CONNECT_RESOLVE_ATTEMPTS).doWork()
 
         assertThat(result).isEqualTo(ListenableWorker.Result.success())
-        coVerify { fixture.activeRecordingFinalizer.finalizeIfActive(HealthConnectSleepTriggerSource.SOURCE, any()) }
+        coVerify { fixture.activeRecordingFinalizer.finalizeIfActive(HealthConnectSleepTriggerSource.SOURCE, any(), any()) }
         coVerify {
             fixture.settingsRepository.setWearableSleepTriggerStatus(
                 match { it.contains("多次未能读取") && it.contains("当前时间") },
@@ -174,7 +180,7 @@ class ActiveRecordingFinalizerWorkerTest {
         val result = fixture.worker(runAttemptCount = MAX_HEALTH_CONNECT_RESOLVE_ATTEMPTS - 1).doWork()
 
         assertThat(result).isEqualTo(ListenableWorker.Result.retry())
-        coVerify(exactly = 0) { fixture.activeRecordingFinalizer.finalizeIfActive(any(), any()) }
+        coVerify(exactly = 0) { fixture.activeRecordingFinalizer.finalizeIfActive(any(), any(), any()) }
         coVerify {
             fixture.settingsRepository.setWearableSleepTriggerStatus(
                 match { it.contains("缺少 Health Connect") && it.contains("恢复授权") },
@@ -199,7 +205,7 @@ class ActiveRecordingFinalizerWorkerTest {
         val result = fixture.worker(runAttemptCount = MAX_HEALTH_CONNECT_RESOLVE_ATTEMPTS).doWork()
 
         assertThat(result).isEqualTo(ListenableWorker.Result.success())
-        coVerify { fixture.activeRecordingFinalizer.finalizeIfActive(HealthConnectSleepTriggerSource.SOURCE, any()) }
+        coVerify { fixture.activeRecordingFinalizer.finalizeIfActive(HealthConnectSleepTriggerSource.SOURCE, any(), any()) }
         coVerify {
             fixture.settingsRepository.setWearableSleepTriggerStatus(
                 match { it.contains("多次未能读取") && it.contains("当前时间") },
@@ -218,7 +224,7 @@ class ActiveRecordingFinalizerWorkerTest {
         val result = fixture.worker(runAttemptCount = MAX_HEALTH_CONNECT_RESOLVE_ATTEMPTS - 1).doWork()
 
         assertThat(result).isEqualTo(ListenableWorker.Result.retry())
-        coVerify(exactly = 0) { fixture.activeRecordingFinalizer.finalizeIfActive(any(), any()) }
+        coVerify(exactly = 0) { fixture.activeRecordingFinalizer.finalizeIfActive(any(), any(), any()) }
         coVerify {
             fixture.settingsRepository.setWearableSleepTriggerStatus(
                 match { it.contains("读取失败") && it.contains("继续等待") },
@@ -243,7 +249,7 @@ class ActiveRecordingFinalizerWorkerTest {
         val result = fixture.worker(runAttemptCount = MAX_HEALTH_CONNECT_RESOLVE_ATTEMPTS).doWork()
 
         assertThat(result).isEqualTo(ListenableWorker.Result.success())
-        coVerify { fixture.activeRecordingFinalizer.finalizeIfActive(HealthConnectSleepTriggerSource.SOURCE, any()) }
+        coVerify { fixture.activeRecordingFinalizer.finalizeIfActive(HealthConnectSleepTriggerSource.SOURCE, any(), any()) }
         coVerify {
             fixture.settingsRepository.setWearableSleepTriggerStatus(
                 match { it.contains("多次未能读取") && it.contains("当前时间") },
@@ -264,7 +270,7 @@ class ActiveRecordingFinalizerWorkerTest {
 
         assertThat(result).isEqualTo(ListenableWorker.Result.success())
         coVerify(exactly = 0) { fixture.wearableSleepEndTimeResolver.resolveResult(any()) }
-        coVerify(exactly = 0) { fixture.activeRecordingFinalizer.finalizeIfActive(any(), any()) }
+        coVerify(exactly = 0) { fixture.activeRecordingFinalizer.finalizeIfActive(any(), any(), any()) }
         coVerify(exactly = 0) { fixture.settingsRepository.setWearableSleepTriggerStatus(any(), any()) }
     }
 
@@ -381,6 +387,41 @@ class ActiveRecordingFinalizerWorkerTest {
     }
 
     @Test
+    fun wearableFallbackEndTimeMillis_capsFallbackNowAtMaxWearableDuration() {
+        val result = wearableFallbackEndTimeMillis(
+            inputSleepEndTimeMillis = null,
+            resolvedSleepEndTimeMillis = null,
+            fallbackNowMillis = 100_000L,
+            activeRecordingStartMillis = 1_000L,
+            maxRecordingDurationMillis = 10_000L
+        )
+
+        assertThat(result).isEqualTo(11_000L)
+    }
+
+    @Test
+    fun wearableFallbackEndTimeMillis_capsInputAndResolvedEndTimeAtMaxWearableDuration() {
+        assertThat(
+            wearableFallbackEndTimeMillis(
+                inputSleepEndTimeMillis = 100_000L,
+                resolvedSleepEndTimeMillis = 90_000L,
+                fallbackNowMillis = 80_000L,
+                activeRecordingStartMillis = 1_000L,
+                maxRecordingDurationMillis = 10_000L
+            )
+        ).isEqualTo(11_000L)
+        assertThat(
+            wearableFallbackEndTimeMillis(
+                inputSleepEndTimeMillis = null,
+                resolvedSleepEndTimeMillis = 90_000L,
+                fallbackNowMillis = 80_000L,
+                activeRecordingStartMillis = 1_000L,
+                maxRecordingDurationMillis = 10_000L
+            )
+        ).isEqualTo(11_000L)
+    }
+
+    @Test
     fun wearableFallbackEndTimeMillis_fallsBackToNowWhenHealthConnectMissing() {
         val result = wearableFallbackEndTimeMillis(
             inputSleepEndTimeMillis = null,
@@ -430,7 +471,7 @@ class ActiveRecordingFinalizerWorkerTest {
             wearableSleepEndTimeResolver.resolveResult(any())
         } returns WearableSleepEndResolveResult.WaitingForSync
         coEvery {
-            activeRecordingFinalizer.finalizeIfActive(any(), any())
+            activeRecordingFinalizer.finalizeIfActive(any(), any(), any())
         } returns true
         return WorkerFixture(
             expectedSource = expectedSource,

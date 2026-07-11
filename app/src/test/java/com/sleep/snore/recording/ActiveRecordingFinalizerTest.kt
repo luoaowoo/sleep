@@ -66,6 +66,25 @@ class ActiveRecordingFinalizerTest {
     }
 
     @Test
+    fun finalizeIfActive_skipsWhenActiveRecordingStartDoesNotMatch() = runTest {
+        val repository = mockk<SleepRepository>()
+        val settingsRepository = mockk<SettingsPreferencesRepository>()
+        val finalizer = ActiveRecordingFinalizer(repository, settingsRepository)
+        coEvery { repository.getActiveRecordingRecord() } returns activeRecord(startTime = 10_000L)
+
+        val finalized = finalizer.finalizeIfActive(
+            expectedTriggerSource = "health_connect_sleep",
+            expectedActiveRecordingStartMillis = 1_000L,
+            endTimeMillis = 60_000L
+        )
+
+        assertThat(finalized).isFalse()
+        coVerify(exactly = 0) { settingsRepository.getActiveRecordingTriggerSource() }
+        coVerify(exactly = 0) { repository.updateRecord(any()) }
+        coVerify(exactly = 0) { settingsRepository.clearActiveRecordingTriggerSource() }
+    }
+
+    @Test
     fun finalizeIfActive_clampsEndTimeAfterRecordStart() = runTest {
         val repository = mockk<SleepRepository>()
         val settingsRepository = mockk<SettingsPreferencesRepository>(relaxed = true)
