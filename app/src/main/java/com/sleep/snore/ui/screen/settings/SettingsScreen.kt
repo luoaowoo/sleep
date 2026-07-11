@@ -550,12 +550,13 @@ fun SettingsScreen(
                                     periodicCheckEnabled = uiState.wearableSleepTriggerEnabled,
                                     stopOnSleepEndEnabled = uiState.wearableStopOnSleepEndEnabled,
                                     foregroundDetectionActive = wearableSleepDetectionActive,
-                                    recordingRuntimeText = if (recordingState.isActive) {
-                                        "运行中，事件数 ${recordingState.eventCount}"
-                                    } else {
-                                        "未运行"
-                                    },
+                                    recordingRuntimeText = recordingRuntimeText(recordingState),
+                                    recordingActive = recordingState.isActive,
+                                    recordingStartTimeMillis = recordingState.startTime,
+                                    recordingEventCount = recordingState.eventCount,
                                     activeRecordingTriggerSource = uiState.activeRecordingTriggerSource,
+                                    activeRecordingTriggerStartedAtText = uiState.activeRecordingTriggerStartedAtText,
+                                    activeRecordingTriggerStartedAtMillis = uiState.activeRecordingTriggerStartedAtMillis,
                                     wearableSleepTriggerStatus = uiState.wearableSleepTriggerStatus,
                                     wearableSleepTriggerLastCheckText = uiState.wearableSleepTriggerLastCheckText,
                                     latestWearableSleepSessionText = uiState.latestWearableSleepSessionText
@@ -1044,6 +1045,24 @@ private fun appVersionText(context: android.content.Context): String {
         packageInfo?.versionCode?.toString()
     } ?: "unknown"
     return "${context.packageName} / $versionName ($versionCode)"
+}
+
+private fun recordingRuntimeText(recordingState: com.sleep.snore.service.RecordingRuntimeState): String {
+    if (!recordingState.isActive) return "未运行"
+    val startText = if (recordingState.startTime > 0L) {
+        java.text.SimpleDateFormat("MM-dd HH:mm", java.util.Locale.getDefault())
+            .format(java.util.Date(recordingState.startTime))
+    } else {
+        "未知"
+    }
+    val elapsedMillis = (System.currentTimeMillis() - recordingState.startTime).coerceAtLeast(0L)
+    val elapsedMinutes = elapsedMillis / 60_000L
+    val elapsedText = if (recordingState.startTime > 0L) {
+        "${elapsedMinutes / 60}小时${elapsedMinutes % 60}分钟"
+    } else {
+        "未知"
+    }
+    return "运行中，开始 $startText，已运行 $elapsedText，事件数 ${recordingState.eventCount}"
 }
 
 private fun openXiaomiCompanionOrStore(

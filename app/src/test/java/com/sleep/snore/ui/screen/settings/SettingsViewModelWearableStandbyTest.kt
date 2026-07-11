@@ -176,6 +176,28 @@ class SettingsViewModelWearableStandbyTest {
             .isEqualTo("等待录音服务确认")
     }
 
+    @Test
+    fun settingsUiState_formatsActiveRecordingTriggerStartTime() = runTest(dispatcher) {
+        val repository = createRepository()
+        val viewModel = SettingsViewModel(
+            context = RuntimeEnvironment.getApplication(),
+            preferencesRepository = repository,
+            recordingController = FakeRecordingController(),
+            wearableStandbyPrerequisiteChecker = FakeWearableStandbyPrerequisiteChecker()
+        )
+
+        repository.setActiveRecordingTriggerSource(
+            source = HealthConnectSleepTriggerSource.SOURCE,
+            startedAtMillis = 1_000L
+        )
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertThat(state.activeRecordingTriggerSource).isEqualTo(HealthConnectSleepTriggerSource.SOURCE)
+        assertThat(state.activeRecordingTriggerStartedAtMillis).isEqualTo(1_000L)
+        assertThat(state.activeRecordingTriggerStartedAtText).isNotEqualTo("无")
+    }
+
     private fun createRepository(): SettingsPreferencesRepository {
         val dataStoreFile = File.createTempFile("sleep-settings-view-model", ".preferences_pb").apply {
             delete()

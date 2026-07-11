@@ -15,7 +15,12 @@ internal data class WearableDiagnosticReportInput(
     val stopOnSleepEndEnabled: Boolean,
     val foregroundDetectionActive: Boolean,
     val recordingRuntimeText: String,
+    val recordingActive: Boolean,
+    val recordingStartTimeMillis: Long,
+    val recordingEventCount: Int,
     val activeRecordingTriggerSource: String,
+    val activeRecordingTriggerStartedAtText: String,
+    val activeRecordingTriggerStartedAtMillis: Long,
     val wearableSleepTriggerStatus: String,
     val wearableSleepTriggerLastCheckText: String,
     val latestWearableSleepSessionText: String
@@ -38,12 +43,33 @@ internal fun wearableDiagnosticReport(input: WearableDiagnosticReportInput): Str
         appendLine("睡眠结束自动停录：${input.stopOnSleepEndEnabled.toOnOff()}")
         appendLine("前台睡前检测：${input.foregroundDetectionActive.toActiveInactive()}")
         appendLine("录音运行态：${input.recordingRuntimeText}")
+        appendLine("录音运行中：${input.recordingActive.toYesNo()}")
+        appendLine("录音开始毫秒：${input.recordingStartTimeMillis}")
+        appendLine("录音事件数：${input.recordingEventCount}")
         appendLine("当前录音来源：${input.activeRecordingTriggerSource.ifBlank { "无" }}")
+        appendLine("当前录音触发时间：${input.activeRecordingTriggerStartedAtText}")
+        appendLine("当前录音触发毫秒：${input.activeRecordingTriggerStartedAtMillis}")
+        appendLine(
+            "录音开始-触发差值毫秒：${
+                recordingTriggerOffsetMillis(
+                    input.recordingStartTimeMillis,
+                    input.activeRecordingTriggerStartedAtMillis
+                )?.toString() ?: "未知"
+            }"
+        )
         appendLine("最近状态：${input.wearableSleepTriggerStatus}")
         appendLine("最近检查：${input.wearableSleepTriggerLastCheckText}")
         appendLine("最近同步睡眠：${input.latestWearableSleepSessionText}")
         appendLine("说明：Android 后台不能可靠直接开启麦克风；推荐睡前打开前台检测，睡醒后等待小米同步睡眠结束到 Health Connect 自动停录。")
     }.trimEnd()
+}
+
+internal fun recordingTriggerOffsetMillis(
+    recordingStartTimeMillis: Long,
+    triggerStartedAtMillis: Long
+): Long? {
+    if (recordingStartTimeMillis <= 0L || triggerStartedAtMillis <= 0L) return null
+    return recordingStartTimeMillis - triggerStartedAtMillis
 }
 
 internal fun healthConnectStatusText(sdkStatus: Int): String {

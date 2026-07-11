@@ -49,6 +49,8 @@ data class SettingsUiState(
     val wearableSleepTriggerLastCheckText: String = "尚未检查",
     val latestWearableSleepSessionText: String = "尚未发现同步睡眠记录",
     val activeRecordingTriggerSource: String = "",
+    val activeRecordingTriggerStartedAtText: String = "无",
+    val activeRecordingTriggerStartedAtMillis: Long = 0L,
     val storageUsageText: String = "计算中..."
 )
 
@@ -108,7 +110,9 @@ class SettingsViewModel @Inject constructor(
                             endMillis = settings.latestWearableSleepSessionEndMillis,
                             status = settings.latestWearableSleepSessionStatus
                         ),
-                        activeRecordingTriggerSource = settings.activeRecordingTriggerSource
+                        activeRecordingTriggerSource = settings.activeRecordingTriggerSource,
+                        activeRecordingTriggerStartedAtText = settings.activeRecordingTriggerStartedAtMillis.toTriggerStartText(),
+                        activeRecordingTriggerStartedAtMillis = settings.activeRecordingTriggerStartedAtMillis
                     )
                 }
             }
@@ -392,6 +396,11 @@ class SettingsViewModel @Inject constructor(
 
     private fun Long.toLastCheckText(): String {
         if (this <= 0L) return "尚未检查"
+        return SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(this))
+    }
+
+    private fun Long.toTriggerStartText(): String {
+        if (this <= 0L) return "无"
         return SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(this))
     }
 
