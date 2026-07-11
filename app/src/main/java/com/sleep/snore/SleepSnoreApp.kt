@@ -7,10 +7,11 @@ import androidx.work.WorkManager
 import com.sleep.snore.data.preferences.SettingsPreferencesRepository
 import com.sleep.snore.data.repository.SleepRepository
 import com.sleep.snore.recording.AppVisibilityTracker
-import com.sleep.snore.sleeptrigger.BedtimeDetectionReminderWorker
-import com.sleep.snore.sleeptrigger.HealthConnectSleepTriggerWorker
 import com.sleep.snore.sleeptrigger.WearableRestartRecoveryEntryPoint
+import com.sleep.snore.sleeptrigger.applyWearableStartupAction
+import com.sleep.snore.sleeptrigger.bedtimeReminderStartupAction
 import com.sleep.snore.sleeptrigger.recoverWearableRecordingAfterRestartIfNeeded
+import com.sleep.snore.sleeptrigger.wearableSleepCheckStartupActions
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
@@ -52,24 +53,20 @@ class SleepSnoreApp : Application() {
                 .map { it.wearableSleepTriggerEnabled }
                 .distinctUntilChanged()
                 .collect { enabled ->
-                if (enabled) {
-                    HealthConnectSleepTriggerWorker.enqueue(this@SleepSnoreApp)
-                    HealthConnectSleepTriggerWorker.enqueueNow(this@SleepSnoreApp)
-                } else {
-                    HealthConnectSleepTriggerWorker.cancel(this@SleepSnoreApp)
+                    wearableSleepCheckStartupActions(enabled).forEach { action ->
+                        applyWearableStartupAction(this@SleepSnoreApp, action)
+                    }
                 }
-            }
         }
         appScope.launch {
             settingsPreferencesRepository.settings
                 .map { it.bedtimeReminderEnabled to it.bedtimeReminderMinuteOfDay }
                 .distinctUntilChanged()
                 .collect { (enabled, minuteOfDay) ->
-                    if (enabled) {
-                        BedtimeDetectionReminderWorker.enqueueNext(this@SleepSnoreApp, minuteOfDay)
-                    } else {
-                        BedtimeDetectionReminderWorker.cancel(this@SleepSnoreApp)
-                    }
+                    applyWearableStartupAction(
+                        this@SleepSnoreApp,
+                        bedtimeReminderStartupAction(enabled, minuteOfDay)
+                    )
                 }
         }
     }

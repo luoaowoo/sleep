@@ -27,16 +27,16 @@ class WearableSleepTriggerBootReceiver : BroadcastReceiver() {
                     WearableSleepTriggerBootEntryPoint::class.java
                 )
                 val settings = entryPoint.settingsPreferencesRepository().settings.first()
-                if (settings.wearableSleepTriggerEnabled) {
-                    HealthConnectSleepTriggerWorker.enqueue(appContext)
-                    HealthConnectSleepTriggerWorker.enqueueNow(appContext)
+                wearableSleepCheckStartupActions(settings.wearableSleepTriggerEnabled).forEach { action ->
+                    applyWearableStartupAction(appContext, action)
                 }
-                if (settings.bedtimeReminderEnabled) {
-                    BedtimeDetectionReminderWorker.enqueueNext(
-                        context = appContext,
+                applyWearableStartupAction(
+                    appContext,
+                    bedtimeReminderStartupAction(
+                        enabled = settings.bedtimeReminderEnabled,
                         minuteOfDay = settings.bedtimeReminderMinuteOfDay
                     )
-                }
+                )
                 recoverWearableRecordingAfterRestartIfNeeded(
                     context = appContext,
                     settingsRepository = entryPoint.settingsPreferencesRepository(),
