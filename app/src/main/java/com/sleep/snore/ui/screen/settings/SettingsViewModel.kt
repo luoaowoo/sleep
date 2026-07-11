@@ -9,6 +9,7 @@ import com.sleep.snore.data.model.FontScale
 import com.sleep.snore.data.model.Sensitivity
 import com.sleep.snore.data.preferences.SettingsPreferencesRepository
 import com.sleep.snore.data.preferences.defaultArgb
+import com.sleep.snore.data.repository.SleepRepository
 import com.sleep.snore.recording.RecordingController
 import com.sleep.snore.sleeptrigger.HealthConnectSleepTriggerSource
 import com.sleep.snore.sleeptrigger.HealthConnectSleepTriggerWorker
@@ -58,6 +59,7 @@ data class SettingsUiState(
 class SettingsViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val preferencesRepository: SettingsPreferencesRepository,
+    private val sleepRepository: SleepRepository,
     private val recordingController: RecordingController,
     private val wearableStandbyPrerequisiteChecker: WearableStandbyPrerequisiteChecker
 ) : ViewModel() {
@@ -364,6 +366,13 @@ class SettingsViewModel @Inject constructor(
             _uiState.update { it.copy(wearableSleepTriggerStatus = status) }
             preferencesRepository.setWearableSleepTriggerMessage(status)
         }
+    }
+
+    suspend fun collectWearableDatabaseDiagnostics(): String {
+        return collectWearableDatabaseDiagnostics(
+            sleepRepository = sleepRepository,
+            settingsRepository = preferencesRepository
+        )
     }
 
     fun refreshStorageUsage() {

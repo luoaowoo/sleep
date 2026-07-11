@@ -33,7 +33,8 @@ class WearableDiagnosticReportTest {
                 wearableSleepTriggerStatus = "睡前前台检测已开启",
                 wearableSleepTriggerLastCheckText = "07-11 23:20",
                 latestWearableSleepSessionText = "07-11 01:00 - 07-11 08:00（已读取睡眠结束）",
-                workManagerDiagnosticsText = "health_connect_sleep_trigger: ENQUEUED(attempt=0)"
+                workManagerDiagnosticsText = "health_connect_sleep_trigger: ENQUEUED(attempt=0)",
+                databaseDiagnosticsText = "activeRecord: id=9, start=1000000, end=1000000, active=true, events=3"
             )
         )
 
@@ -56,6 +57,8 @@ class WearableDiagnosticReportTest {
         assertThat(report).contains("最近同步睡眠：07-11 01:00 - 07-11 08:00")
         assertThat(report).contains("后台任务：")
         assertThat(report).contains("health_connect_sleep_trigger: ENQUEUED(attempt=0)")
+        assertThat(report).contains("数据库：")
+        assertThat(report).contains("activeRecord: id=9")
         assertThat(report).contains("后台不能可靠直接开启麦克风")
         assertThat(report).doesNotContain("API Key")
         assertThat(report).doesNotContain("原始音频")
@@ -85,5 +88,39 @@ class WearableDiagnosticReportTest {
 
         assertThat(text).contains("health_connect_sleep_trigger: 无记录")
         assertThat(text).contains("active_recording_finalizer: RUNNING(attempt=2)")
+    }
+
+    @Test
+    fun wearableDatabaseDiagnosticsText_includesActiveRecordAndEventKey() {
+        val text = wearableDatabaseDiagnosticsText(
+            WearableDatabaseDiagnosticSnapshot(
+                activeRecordId = 9L,
+                activeRecordStartMillis = 1_000L,
+                activeRecordEndMillis = 1_000L,
+                activeRecordEventCount = 3,
+                lastWearableSleepEventKey = "SleepEnded:8000:1000"
+            )
+        )
+
+        assertThat(text).contains("activeRecord: id=9")
+        assertThat(text).contains("active=true")
+        assertThat(text).contains("events=3")
+        assertThat(text).contains("lastWearableSleepEventKey: SleepEnded:8000:1000")
+    }
+
+    @Test
+    fun wearableDatabaseDiagnosticsText_reportsMissingActiveRecord() {
+        val text = wearableDatabaseDiagnosticsText(
+            WearableDatabaseDiagnosticSnapshot(
+                activeRecordId = null,
+                activeRecordStartMillis = null,
+                activeRecordEndMillis = null,
+                activeRecordEventCount = null,
+                lastWearableSleepEventKey = null
+            )
+        )
+
+        assertThat(text).contains("activeRecord: 无")
+        assertThat(text).contains("lastWearableSleepEventKey: 无")
     }
 }

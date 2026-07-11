@@ -534,6 +534,8 @@ fun SettingsScreen(
                     TextButton(
                         onClick = {
                             coroutineScope.launch {
+                                val workDiagnostics = collectWearableWorkDiagnostics(context)
+                                val databaseDiagnostics = viewModel.collectWearableDatabaseDiagnostics()
                                 val report = wearableDiagnosticReport(
                                     WearableDiagnosticReportInput(
                                         generatedAtText = java.text.SimpleDateFormat(
@@ -564,7 +566,8 @@ fun SettingsScreen(
                                         wearableSleepTriggerStatus = uiState.wearableSleepTriggerStatus,
                                         wearableSleepTriggerLastCheckText = uiState.wearableSleepTriggerLastCheckText,
                                         latestWearableSleepSessionText = uiState.latestWearableSleepSessionText,
-                                        workManagerDiagnosticsText = collectWearableWorkDiagnostics(context)
+                                        workManagerDiagnosticsText = workDiagnostics,
+                                        databaseDiagnosticsText = databaseDiagnostics
                                     )
                                 )
                                 context.startActivity(

@@ -6,6 +6,7 @@ import androidx.work.testing.WorkManagerTestInitHelper
 import com.google.common.truth.Truth.assertThat
 import com.sleep.snore.data.preferences.SecretTextCipher
 import com.sleep.snore.data.preferences.SettingsPreferencesRepository
+import com.sleep.snore.data.repository.SleepRepository
 import com.sleep.snore.recording.RecordingController
 import com.sleep.snore.recording.RecordingStartResult
 import com.sleep.snore.sleeptrigger.HealthConnectSleepTriggerSource
@@ -19,6 +20,7 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import io.mockk.mockk
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
@@ -53,6 +55,7 @@ class SettingsViewModelWearableStandbyTest {
         val viewModel = SettingsViewModel(
             context = RuntimeEnvironment.getApplication(),
             preferencesRepository = repository,
+            sleepRepository = fakeSleepRepository(),
             recordingController = recordingController,
             wearableStandbyPrerequisiteChecker = FakeWearableStandbyPrerequisiteChecker()
         )
@@ -73,6 +76,7 @@ class SettingsViewModelWearableStandbyTest {
         val viewModel = SettingsViewModel(
             context = RuntimeEnvironment.getApplication(),
             preferencesRepository = repository,
+            sleepRepository = fakeSleepRepository(),
             recordingController = recordingController,
             wearableStandbyPrerequisiteChecker = FakeWearableStandbyPrerequisiteChecker()
         )
@@ -94,6 +98,7 @@ class SettingsViewModelWearableStandbyTest {
         val viewModel = SettingsViewModel(
             context = RuntimeEnvironment.getApplication(),
             preferencesRepository = repository,
+            sleepRepository = fakeSleepRepository(),
             recordingController = recordingController,
             wearableStandbyPrerequisiteChecker = FakeWearableStandbyPrerequisiteChecker(
                 blocker = "缺少 Health Connect 睡眠/后台读取权限，请先授权 Health Connect"
@@ -118,6 +123,7 @@ class SettingsViewModelWearableStandbyTest {
         val viewModel = SettingsViewModel(
             context = RuntimeEnvironment.getApplication(),
             preferencesRepository = repository,
+            sleepRepository = fakeSleepRepository(),
             recordingController = recordingController,
             wearableStandbyPrerequisiteChecker = FakeWearableStandbyPrerequisiteChecker()
         )
@@ -141,6 +147,7 @@ class SettingsViewModelWearableStandbyTest {
         val viewModel = SettingsViewModel(
             context = RuntimeEnvironment.getApplication(),
             preferencesRepository = repository,
+            sleepRepository = fakeSleepRepository(),
             recordingController = recordingController,
             wearableStandbyPrerequisiteChecker = FakeWearableStandbyPrerequisiteChecker()
         )
@@ -163,6 +170,7 @@ class SettingsViewModelWearableStandbyTest {
         val viewModel = SettingsViewModel(
             context = RuntimeEnvironment.getApplication(),
             preferencesRepository = repository,
+            sleepRepository = fakeSleepRepository(),
             recordingController = recordingController,
             wearableStandbyPrerequisiteChecker = FakeWearableStandbyPrerequisiteChecker()
         )
@@ -182,6 +190,7 @@ class SettingsViewModelWearableStandbyTest {
         val viewModel = SettingsViewModel(
             context = RuntimeEnvironment.getApplication(),
             preferencesRepository = repository,
+            sleepRepository = fakeSleepRepository(),
             recordingController = FakeRecordingController(),
             wearableStandbyPrerequisiteChecker = FakeWearableStandbyPrerequisiteChecker()
         )
@@ -197,6 +206,8 @@ class SettingsViewModelWearableStandbyTest {
         assertThat(state.activeRecordingTriggerStartedAtMillis).isEqualTo(1_000L)
         assertThat(state.activeRecordingTriggerStartedAtText).isNotEqualTo("无")
     }
+
+    private fun fakeSleepRepository(): SleepRepository = mockk(relaxed = true)
 
     private fun createRepository(): SettingsPreferencesRepository {
         val dataStoreFile = File.createTempFile("sleep-settings-view-model", ".preferences_pb").apply {
