@@ -536,12 +536,19 @@ fun SettingsScreen(
                         sleepStartMillis = uiState.latestWearableSleepSessionStartMillis,
                         sleepEndMillis = uiState.latestWearableSleepSessionEndMillis,
                         triggerStartedAtMillis = uiState.activeRecordingTriggerStartedAtMillis,
-                        sourcePackage = uiState.latestWearableSleepSessionSourcePackage
+                        sourcePackage = uiState.latestWearableSleepSessionSourcePackage,
+                        stopOnSleepEndEnabled = uiState.wearableStopOnSleepEndEnabled,
+                        recordingActive = recordingState.isActive,
+                        activeRecordingTriggerSource = uiState.activeRecordingTriggerSource,
+                        hasHealthConnectSleepReadPermission = hasHealthConnectSleepReadPermission
                     )
                     Text(
                         "自动停录判断：$latestSleepAutoStopRuleText",
                         style = MaterialTheme.typography.labelSmall,
-                        color = if (latestSleepAutoStopRuleText.startsWith("会被忽略")) {
+                        color = if (
+                            latestSleepAutoStopRuleText.startsWith("会被忽略") ||
+                            latestSleepAutoStopRuleText.startsWith("不会自动停录")
+                        ) {
                             MaterialTheme.colorScheme.error
                         } else {
                             MaterialTheme.colorScheme.onSurfaceVariant

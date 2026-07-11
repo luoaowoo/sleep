@@ -154,6 +154,58 @@ class WearableDiagnosticReportTest {
     }
 
     @Test
+    fun sleepAutoStopRuleDiagnostic_reportsDisabledStopOnSleepEndBeforeTimeRules() {
+        val diagnostic = sleepAutoStopRuleDiagnostic(
+            sleepStartMillis = 1_000L,
+            sleepEndMillis = 7_201_000L,
+            triggerStartedAtMillis = 1_000L,
+            stopOnSleepEndEnabled = false
+        )
+
+        assertThat(diagnostic).contains("自动停录开关已关闭")
+        assertThat(diagnostic).doesNotContain("满足自动停录")
+    }
+
+    @Test
+    fun sleepAutoStopRuleDiagnostic_reportsNoActiveForegroundRecordingBeforeTimeRules() {
+        val diagnostic = sleepAutoStopRuleDiagnostic(
+            sleepStartMillis = 1_000L,
+            sleepEndMillis = 7_201_000L,
+            triggerStartedAtMillis = 1_000L,
+            recordingActive = false
+        )
+
+        assertThat(diagnostic).contains("当前没有正在运行")
+        assertThat(diagnostic).doesNotContain("满足自动停录")
+    }
+
+    @Test
+    fun sleepAutoStopRuleDiagnostic_reportsManualRecordingSourceBeforeTimeRules() {
+        val diagnostic = sleepAutoStopRuleDiagnostic(
+            sleepStartMillis = 1_000L,
+            sleepEndMillis = 7_201_000L,
+            triggerStartedAtMillis = 1_000L,
+            activeRecordingTriggerSource = "manual"
+        )
+
+        assertThat(diagnostic).contains("不是睡前前台检测")
+        assertThat(diagnostic).doesNotContain("满足自动停录")
+    }
+
+    @Test
+    fun sleepAutoStopRuleDiagnostic_reportsMissingSleepReadPermissionBeforeTimeRules() {
+        val diagnostic = sleepAutoStopRuleDiagnostic(
+            sleepStartMillis = 1_000L,
+            sleepEndMillis = 7_201_000L,
+            triggerStartedAtMillis = 1_000L,
+            hasHealthConnectSleepReadPermission = false
+        )
+
+        assertThat(diagnostic).contains("缺少 Health Connect 睡眠读取权限")
+        assertThat(diagnostic).doesNotContain("满足自动停录")
+    }
+
+    @Test
     fun sleepAutoStopRuleDiagnostic_reportsNonXiaomiSourceBeforeTimeRules() {
         val diagnostic = sleepAutoStopRuleDiagnostic(
             sleepStartMillis = 1_000L,

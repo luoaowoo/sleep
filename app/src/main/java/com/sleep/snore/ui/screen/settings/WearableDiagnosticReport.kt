@@ -1,5 +1,6 @@
 package com.sleep.snore.ui.screen.settings
 
+import com.sleep.snore.sleeptrigger.HealthConnectSleepTriggerSource
 import com.sleep.snore.sleeptrigger.XiaomiSleepCompanionApps
 
 internal data class WearableDiagnosticReportInput(
@@ -95,7 +96,11 @@ internal fun wearableDiagnosticReport(input: WearableDiagnosticReportInput): Str
                     sleepStartMillis = input.latestWearableSleepSessionStartMillis,
                     sleepEndMillis = input.latestWearableSleepSessionEndMillis,
                     triggerStartedAtMillis = input.activeRecordingTriggerStartedAtMillis,
-                    sourcePackage = input.latestWearableSleepSessionSourcePackage
+                    sourcePackage = input.latestWearableSleepSessionSourcePackage,
+                    stopOnSleepEndEnabled = input.stopOnSleepEndEnabled,
+                    recordingActive = input.recordingActive,
+                    activeRecordingTriggerSource = input.activeRecordingTriggerSource,
+                    hasHealthConnectSleepReadPermission = input.hasHealthConnectSleepReadPermission
                 )
             }"
         )
@@ -127,8 +132,24 @@ internal fun sleepAutoStopRuleDiagnostic(
     sleepStartMillis: Long,
     sleepEndMillis: Long,
     triggerStartedAtMillis: Long,
-    sourcePackage: String = ""
+    sourcePackage: String = "",
+    stopOnSleepEndEnabled: Boolean = true,
+    recordingActive: Boolean = true,
+    activeRecordingTriggerSource: String = HealthConnectSleepTriggerSource.SOURCE,
+    hasHealthConnectSleepReadPermission: Boolean = true
 ): String {
+    if (!stopOnSleepEndEnabled) {
+        return "不会自动停录：睡眠结束自动停录开关已关闭"
+    }
+    if (!recordingActive) {
+        return "不会自动停录：当前没有正在运行的前台鼾声检测"
+    }
+    if (activeRecordingTriggerSource != HealthConnectSleepTriggerSource.SOURCE) {
+        return "不会自动停录：当前录音不是睡前前台检测 / Health Connect 来源"
+    }
+    if (!hasHealthConnectSleepReadPermission) {
+        return "不会自动停录：缺少 Health Connect 睡眠读取权限"
+    }
     val durationMinutes = sleepDurationMinutes(sleepStartMillis, sleepEndMillis)
         ?: return "无有效最近睡眠"
     if (sourcePackage.isNotBlank() && sourcePackage !in XiaomiSleepCompanionApps.packageNames) {
