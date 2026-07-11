@@ -321,8 +321,10 @@ class SleepRecordingService : Service() {
     }
 
     private suspend fun matchesExpectedTriggerSource(expectedTriggerSource: String?): Boolean {
-        if (expectedTriggerSource.isNullOrBlank()) return true
-        return preferencesRepository.getActiveRecordingTriggerSource() == expectedTriggerSource
+        return shouldAcceptStopRequest(
+            activeTriggerSource = preferencesRepository.getActiveRecordingTriggerSource(),
+            expectedTriggerSource = expectedTriggerSource
+        )
     }
 
     private suspend fun finalizeCurrentSession(wearableSleepEndTimeMillis: Long? = null) {

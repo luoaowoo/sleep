@@ -216,7 +216,7 @@ class WearableSleepStandbyService : Service() {
             "手环睡眠待命",
             NotificationManager.IMPORTANCE_LOW
         ).apply {
-            description = "睡前保持前台待命，检测 Health Connect 睡眠记录后启动鼾声检测"
+            description = "睡前保持前台待命，辅助检查 Health Connect 睡眠结束"
         }
         getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
     }
