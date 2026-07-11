@@ -1,5 +1,7 @@
 package com.sleep.snore.ui.screen.settings
 
+import com.sleep.snore.sleeptrigger.XiaomiSleepCompanionApps
+
 internal data class WearableDiagnosticReportInput(
     val generatedAtText: String,
     val appText: String,
@@ -92,7 +94,8 @@ internal fun wearableDiagnosticReport(input: WearableDiagnosticReportInput): Str
                 sleepAutoStopRuleDiagnostic(
                     sleepStartMillis = input.latestWearableSleepSessionStartMillis,
                     sleepEndMillis = input.latestWearableSleepSessionEndMillis,
-                    triggerStartedAtMillis = input.activeRecordingTriggerStartedAtMillis
+                    triggerStartedAtMillis = input.activeRecordingTriggerStartedAtMillis,
+                    sourcePackage = input.latestWearableSleepSessionSourcePackage
                 )
             }"
         )
@@ -123,10 +126,14 @@ internal fun sleepOverlapAfterTriggerMinutes(
 internal fun sleepAutoStopRuleDiagnostic(
     sleepStartMillis: Long,
     sleepEndMillis: Long,
-    triggerStartedAtMillis: Long
+    triggerStartedAtMillis: Long,
+    sourcePackage: String = ""
 ): String {
     val durationMinutes = sleepDurationMinutes(sleepStartMillis, sleepEndMillis)
         ?: return "无有效最近睡眠"
+    if (sourcePackage.isNotBlank() && sourcePackage !in XiaomiSleepCompanionApps.packageNames) {
+        return "会被忽略：来源不是已知小米伴侣，仅用于诊断"
+    }
     val overlapMinutes = sleepOverlapAfterTriggerMinutes(
         sleepStartMillis = sleepStartMillis,
         sleepEndMillis = sleepEndMillis,

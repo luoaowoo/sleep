@@ -154,6 +154,64 @@ class WearableDiagnosticReportTest {
     }
 
     @Test
+    fun sleepAutoStopRuleDiagnostic_reportsNonXiaomiSourceBeforeTimeRules() {
+        val diagnostic = sleepAutoStopRuleDiagnostic(
+            sleepStartMillis = 1_000L,
+            sleepEndMillis = 7_201_000L,
+            triggerStartedAtMillis = 1_000L,
+            sourcePackage = "com.example.sleep"
+        )
+
+        assertThat(diagnostic).contains("来源不是已知小米伴侣")
+        assertThat(diagnostic).doesNotContain("满足自动停录")
+    }
+
+    @Test
+    fun wearableDiagnosticReport_reportsNonXiaomiSourceAsDiagnosticOnly() {
+        val report = wearableDiagnosticReport(
+            WearableDiagnosticReportInput(
+                generatedAtText = "2026-07-11 23:30:00",
+                appText = "com.sleep.snore / 1.0 (1)",
+                deviceText = "xiaomi Xiaomi 15 / Android 16 (SDK 35) / build/fingerprint",
+                healthConnectStatusText = "可用",
+                healthConnectSdkStatusCode = HealthConnectClient.SDK_AVAILABLE,
+                healthConnectGrantedPermissionsText = "android.permission.health.READ_SLEEP",
+                hasRecordAudioPermission = true,
+                hasNotificationPermission = true,
+                hasHealthConnectSleepReadPermission = true,
+                hasHealthConnectBackgroundReadPermission = true,
+                isIgnoringBatteryOptimizations = true,
+                xiaomiCompanionText = "未检测到 Mi Fitness / 小米运动健康 / Zepp Life",
+                periodicCheckEnabled = true,
+                stopOnSleepEndEnabled = true,
+                bedtimeReminderEnabled = true,
+                bedtimeReminderTimeText = "22:30",
+                foregroundDetectionActive = true,
+                recordingRuntimeText = "运行中",
+                recordingActive = true,
+                recordingStartTimeMillis = 1_000L,
+                recordingEventCount = 1,
+                activeRecordingTriggerSource = "health_connect_sleep",
+                activeRecordingTriggerStartedAtText = "07-11 23:00",
+                activeRecordingTriggerStartedAtMillis = 1_000L,
+                wearableSleepTriggerStatus = "非小米来源，仅诊断",
+                wearableSleepTriggerLastCheckText = "07-12 07:30",
+                latestWearableSleepSessionText = "07-11 23:00 - 07-12 07:00（非小米来源，仅诊断）",
+                latestWearableSleepSessionStartMillis = 1_000L,
+                latestWearableSleepSessionEndMillis = 7_201_000L,
+                latestWearableSleepSessionStatus = "非小米来源，仅诊断",
+                latestWearableSleepSessionSourcePackage = "com.example.sleep",
+                workManagerDiagnosticsText = "",
+                databaseDiagnosticsText = ""
+            )
+        )
+
+        assertThat(report).contains("最近睡眠来源：com.example.sleep")
+        assertThat(report).contains("来源不是已知小米伴侣")
+        assertThat(report).doesNotContain("最近睡眠自动停录规则判断：满足自动停录时间规则")
+    }
+
+    @Test
     fun wearableWorkDiagnosticsText_includesEmptyAndRetryStates() {
         val text = wearableWorkDiagnosticsText(
             listOf(
