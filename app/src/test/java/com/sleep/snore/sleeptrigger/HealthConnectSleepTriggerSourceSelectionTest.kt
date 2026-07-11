@@ -53,4 +53,29 @@ class HealthConnectSleepTriggerSourceSelectionTest {
         assertThat(actionable.session).isEqualTo(xiaomiSession)
         assertThat(actionable.event.event).isInstanceOf(SleepTriggerEvent.SleepEnded::class.java)
     }
+
+    @Test
+    fun selectXiaomiActionableSleepSession_prefersOlderXiaomiSessionOverNewerNonXiaomiSession() {
+        val newerNonXiaomiSession = SleepSessionSnapshot(
+            startTime = Instant.parse("2026-07-12T00:30:00Z"),
+            endTime = Instant.parse("2026-07-12T07:30:00Z"),
+            dataOriginPackageName = "com.example.sleep"
+        )
+        val olderXiaomiSession = SleepSessionSnapshot(
+            startTime = Instant.parse("2026-07-11T23:00:00Z"),
+            endTime = Instant.parse("2026-07-12T07:00:00Z"),
+            dataOriginPackageName = "com.xiaomi.wearable"
+        )
+
+        val result = selectXiaomiActionableSleepSession(
+            sessions = listOf(newerNonXiaomiSession, olderXiaomiSession),
+            now = now,
+            ignoreEventsBefore = Instant.parse("2026-07-11T22:00:00Z")
+        )
+
+        assertThat(result).isInstanceOf(XiaomiActionableSleepSelection.Actionable::class.java)
+        val actionable = result as XiaomiActionableSleepSelection.Actionable
+        assertThat(actionable.session).isEqualTo(olderXiaomiSession)
+        assertThat(actionable.event.event).isInstanceOf(SleepTriggerEvent.SleepEnded::class.java)
+    }
 }

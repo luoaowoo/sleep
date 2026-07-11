@@ -32,7 +32,7 @@ class RecordingSleepEndFallbackPoller @Inject constructor(
         val pollResult = runCatching {
             sleepSessionPoller.pollLatestSleepSession(
                 now = Instant.now(),
-                requireBackgroundRead = true,
+                requireBackgroundRead = false,
                 ignoreEventsBefore = sleepEventIgnoreEventsBefore(
                     settings = settings,
                     fallbackMillis = sessionStartTimeMillis
@@ -48,7 +48,7 @@ class RecordingSleepEndFallbackPoller @Inject constructor(
         if (sleepEnded == null) {
             if (pollResult !is HealthConnectSleepTriggerSource.PollResult.EventEmitted) {
                 settingsRepository.setWearableSleepTriggerStatus(
-                    "录音服务等待睡眠结束：${pollResult.toWearableSleepStatusText(requireBackgroundRead = true)}"
+                    "录音服务等待睡眠结束：${pollResult.toWearableSleepStatusText(requireBackgroundRead = false)}"
                 )
             }
             return RecordingSleepEndFallbackResult.ContinuePolling
