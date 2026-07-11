@@ -83,6 +83,7 @@ import com.sleep.snore.data.model.FontScale
 import com.sleep.snore.data.preferences.SettingsPreferencesRepository
 import com.sleep.snore.data.preferences.defaultArgb
 import com.sleep.snore.navigation.Route
+import com.sleep.snore.service.SleepRecordingService
 import com.sleep.snore.sleeptrigger.HealthConnectSleepTriggerSource
 import com.sleep.snore.sleeptrigger.HealthConnectSleepTriggerWorker
 import com.sleep.snore.sleeptrigger.WearableSleepStandbyService
@@ -103,6 +104,7 @@ fun SettingsScreen(
     val fontScale by viewModel.fontScale.collectAsStateWithLifecycle()
     val cardCornerStyle by viewModel.cardCornerStyle.collectAsStateWithLifecycle()
     val standbyState by WearableSleepStandbyService.standbyState.collectAsStateWithLifecycle()
+    val recordingState by SleepRecordingService.recordingState.collectAsStateWithLifecycle()
     val wearableSleepDetectionActive = standbyState.isActive ||
         uiState.activeRecordingTriggerSource == HealthConnectSleepTriggerSource.SOURCE
     val uiPreferences = LocalUiPreferences.current
@@ -525,6 +527,54 @@ fun SettingsScreen(
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    Spacer(Modifier.height(Spacing.sm))
+                    TextButton(
+                        onClick = {
+                            val report = wearableDiagnosticReport(
+                                WearableDiagnosticReportInput(
+                                    generatedAtText = java.text.SimpleDateFormat(
+                                        "yyyy-MM-dd HH:mm:ss",
+                                        java.util.Locale.getDefault()
+                                    ).format(java.util.Date()),
+                                    appText = appVersionText(context),
+                                    deviceText = "${Build.MANUFACTURER} ${Build.MODEL} / Android ${Build.VERSION.RELEASE}",
+                                    healthConnectStatusText = healthConnectStatusText(healthConnectSdkStatus),
+                                    hasRecordAudioPermission = hasRecordAudioPermission,
+                                    hasNotificationPermission = hasNotificationPermission,
+                                    hasHealthConnectSleepReadPermission = hasHealthConnectSleepReadPermission,
+                                    hasHealthConnectBackgroundReadPermission = hasHealthConnectBackgroundReadPermission,
+                                    isIgnoringBatteryOptimizations = isIgnoringBatteryOptimizations,
+                                    xiaomiCompanionText = installedXiaomiCompanion?.let {
+                                        "${it.label} (${it.packageName})"
+                                    } ?: "未检测到 Mi Fitness / Zepp Life",
+                                    periodicCheckEnabled = uiState.wearableSleepTriggerEnabled,
+                                    stopOnSleepEndEnabled = uiState.wearableStopOnSleepEndEnabled,
+                                    foregroundDetectionActive = wearableSleepDetectionActive,
+                                    recordingRuntimeText = if (recordingState.isActive) {
+                                        "运行中，事件数 ${recordingState.eventCount}"
+                                    } else {
+                                        "未运行"
+                                    },
+                                    activeRecordingTriggerSource = uiState.activeRecordingTriggerSource,
+                                    wearableSleepTriggerStatus = uiState.wearableSleepTriggerStatus,
+                                    wearableSleepTriggerLastCheckText = uiState.wearableSleepTriggerLastCheckText,
+                                    latestWearableSleepSessionText = uiState.latestWearableSleepSessionText
+                                )
+                            )
+                            context.startActivity(
+                                Intent.createChooser(
+                                    Intent(Intent.ACTION_SEND).apply {
+                                        type = "text/plain"
+                                        putExtra(Intent.EXTRA_SUBJECT, "SleepSnore 手环诊断")
+                                        putExtra(Intent.EXTRA_TEXT, report)
+                                    },
+                                    "分享手环诊断信息"
+                                )
+                            )
+                        }
+                    ) {
+                        Text("分享手环诊断信息")
+                    }
                     Spacer(Modifier.height(Spacing.sm))
                     Button(
                         onClick = {
@@ -980,6 +1030,20 @@ private fun findInstalledXiaomiCompanion(context: android.content.Context): Xiao
     return XiaomiCompanionApps.firstOrNull { app ->
         context.packageManager.getLaunchIntentForPackage(app.packageName) != null
     }
+}
+
+private fun appVersionText(context: android.content.Context): String {
+    val packageInfo = runCatching {
+        context.packageManager.getPackageInfo(context.packageName, 0)
+    }.getOrNull()
+    val versionName = packageInfo?.versionName?.takeIf { it.isNotBlank() } ?: "unknown"
+    val versionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+        packageInfo?.longVersionCode?.toString()
+    } else {
+        @Suppress("DEPRECATION")
+        packageInfo?.versionCode?.toString()
+    } ?: "unknown"
+    return "${context.packageName} / $versionName ($versionCode)"
 }
 
 private fun openXiaomiCompanionOrStore(
