@@ -43,6 +43,16 @@ class RecordingSleepEndFallbackPoller @Inject constructor(
             return RecordingSleepEndFallbackResult.ContinuePolling
         }
 
+        if (pollResult is HealthConnectSleepTriggerSource.PollResult.DuplicateEvent) {
+            val status = SLEEP_END_STOP_STATUS
+            settingsRepository.setWearableSleepTriggerStatus(status)
+            return RecordingSleepEndFallbackResult.StopRecording(
+                statusText = status,
+                eventKey = pollResult.eventKey,
+                endTimeMillis = pollResult.observedSession.endTime.toEpochMilli()
+            )
+        }
+
         val emittedEvent = pollResult as? HealthConnectSleepTriggerSource.PollResult.EventEmitted
         val sleepEnded = emittedEvent?.event as? SleepTriggerEvent.SleepEnded
         if (sleepEnded == null) {
@@ -54,13 +64,17 @@ class RecordingSleepEndFallbackPoller @Inject constructor(
             return RecordingSleepEndFallbackResult.ContinuePolling
         }
 
-        val status = "检测到睡眠结束，录音服务正在停止鼾声检测"
+        val status = SLEEP_END_STOP_STATUS
         settingsRepository.setWearableSleepTriggerStatus(status)
         return RecordingSleepEndFallbackResult.StopRecording(
             statusText = status,
             eventKey = emittedEvent.eventKey,
             endTimeMillis = sleepEnded.timestamp
         )
+    }
+
+    private companion object {
+        const val SLEEP_END_STOP_STATUS = "检测到睡眠结束，录音服务正在停止鼾声检测"
     }
 }
 

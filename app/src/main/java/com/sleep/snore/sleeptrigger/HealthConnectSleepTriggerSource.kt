@@ -154,7 +154,9 @@ internal fun selectXiaomiActionableSleepSession(
         sessions = sessions,
         now = now
     ) ?: return null
-    val xiaomiSessions = sessions.filter { it.isKnownXiaomiSource }
+    val xiaomiSessions = sessions.filter {
+        it.isKnownXiaomiSource && !it.startTime.isAfter(now) && !it.endTime.isBefore(it.startTime)
+    }
     if (xiaomiSessions.isEmpty()) {
         return XiaomiActionableSleepSelection.NoActionable(
             observedSession = latestSession,

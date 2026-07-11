@@ -81,6 +81,39 @@ class RecordingSleepEndFallbackPollerTest {
     }
 
     @Test
+    fun pollOnce_stopsRecordingForDuplicateSleepEnd() = runTest {
+        val repository = createRepository()
+        repository.setWearableSleepTriggerEnabled(true)
+        repository.setWearableStopOnSleepEndEnabled(true)
+        repository.setActiveRecordingTriggerSource(HealthConnectSleepTriggerSource.SOURCE, 1234L)
+        val poller = RecordingSleepEndFallbackPoller(
+            settingsRepository = repository,
+            sleepSessionPoller = FakeSleepSessionPoller(
+                HealthConnectSleepTriggerSource.PollResult.DuplicateEvent(
+                    observedSession = SleepSessionSnapshot(
+                        startTime = Instant.ofEpochMilli(1234L),
+                        endTime = Instant.ofEpochMilli(2000L),
+                        dataOriginPackageName = "com.xiaomi.wearable"
+                    ),
+                    eventKey = "SleepEnded:2000:1234"
+                )
+            )
+        )
+
+        val result = poller.pollOnce(sessionStartTimeMillis = 999L)
+
+        assertThat(result).isEqualTo(
+            RecordingSleepEndFallbackResult.StopRecording(
+                statusText = "检测到睡眠结束，录音服务正在停止鼾声检测",
+                eventKey = "SleepEnded:2000:1234",
+                endTimeMillis = 2000L
+            )
+        )
+        assertThat(repository.settings.first().wearableSleepTriggerStatus)
+            .isEqualTo("检测到睡眠结束，录音服务正在停止鼾声检测")
+    }
+
+    @Test
     fun pollOnce_ignoresSleepStartedWithoutRememberingEvent() = runTest {
         val repository = createRepository()
         repository.setWearableSleepTriggerEnabled(true)

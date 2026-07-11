@@ -30,6 +30,32 @@ class HealthConnectSleepTriggerSourceSelectionTest {
     }
 
     @Test
+    fun selectXiaomiActionableSleepSession_ignoresInvalidXiaomiSourceForSourceDecision() {
+        val nonXiaomiSession = SleepSessionSnapshot(
+            startTime = Instant.parse("2026-07-11T23:00:00Z"),
+            endTime = Instant.parse("2026-07-12T07:00:00Z"),
+            dataOriginPackageName = "com.example.sleep"
+        )
+        val futureXiaomiSession = SleepSessionSnapshot(
+            startTime = Instant.parse("2026-07-12T09:00:00Z"),
+            endTime = Instant.parse("2026-07-12T10:00:00Z"),
+            dataOriginPackageName = "com.mi.health"
+        )
+
+        val result = selectXiaomiActionableSleepSession(
+            sessions = listOf(nonXiaomiSession, futureXiaomiSession),
+            now = now,
+            ignoreEventsBefore = Instant.parse("2026-07-11T22:00:00Z")
+        )
+
+        assertThat(result).isInstanceOf(XiaomiActionableSleepSelection.NoActionable::class.java)
+        val noActionable = result as XiaomiActionableSleepSelection.NoActionable
+        assertThat(noActionable.observedSession).isEqualTo(nonXiaomiSession)
+        assertThat(noActionable.reason)
+            .isEqualTo(HealthConnectSleepTriggerSource.PollResult.NoActionableSleepReason.NON_XIAOMI_SOURCE)
+    }
+
+    @Test
     fun selectXiaomiActionableSleepSession_usesXiaomiSessionWhenMixedWithNonXiaomi() {
         val nonXiaomiSession = SleepSessionSnapshot(
             startTime = Instant.parse("2026-07-11T22:00:00Z"),
