@@ -229,4 +229,22 @@ class HealthConnectSleepEventInterpreterTest {
         assertThat(first?.eventKey).isEqualTo(second?.eventKey)
         assertThat(first?.eventKey).startsWith("SleepEnded:")
     }
+
+    @Test
+    fun sleepSessionSnapshot_marksKnownXiaomiSourcePackages() {
+        assertThat(
+            SleepSessionSnapshot(
+                startTime = Instant.EPOCH,
+                endTime = Instant.EPOCH,
+                dataOriginPackageName = "com.mi.health"
+            ).isKnownXiaomiSource
+        ).isTrue()
+        assertThat(
+            SleepSessionSnapshot(
+                startTime = Instant.EPOCH,
+                endTime = Instant.EPOCH,
+                dataOriginPackageName = "com.example.sleep"
+            ).isKnownXiaomiSource
+        ).isFalse()
+    }
 }

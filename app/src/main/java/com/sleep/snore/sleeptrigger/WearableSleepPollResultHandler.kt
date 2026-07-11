@@ -61,6 +61,9 @@ private fun HealthConnectSleepTriggerSource.PollResult.toLatestWearableSleepSess
         is HealthConnectSleepTriggerSource.PollResult.NoActionableSleep -> when (this.reason) {
             HealthConnectSleepTriggerSource.PollResult.NoActionableSleepReason.ONGOING -> "同步中，等待结束时间"
             HealthConnectSleepTriggerSource.PollResult.NoActionableSleepReason.BEFORE_ACTIVE_RECORDING -> "早于本次检测，已忽略"
+            HealthConnectSleepTriggerSource.PollResult.NoActionableSleepReason.NON_XIAOMI_SOURCE -> {
+                "非小米来源，仅诊断"
+            }
             HealthConnectSleepTriggerSource.PollResult.NoActionableSleepReason.INSUFFICIENT_ACTIVE_RECORDING_OVERLAP -> {
                 "与本次检测重叠过短，已忽略"
             }
@@ -94,6 +97,9 @@ internal fun HealthConnectSleepTriggerSource.PollResult.toWearableSleepStatusTex
             }
             HealthConnectSleepTriggerSource.PollResult.NoActionableSleepReason.BEFORE_ACTIVE_RECORDING -> {
                 "发现睡眠记录，但早于本次睡前前台检测，已忽略"
+            }
+            HealthConnectSleepTriggerSource.PollResult.NoActionableSleepReason.NON_XIAOMI_SOURCE -> {
+                "发现 Health Connect 睡眠记录，但来源不是已知小米伴侣，已仅用于诊断"
             }
             HealthConnectSleepTriggerSource.PollResult.NoActionableSleepReason.INSUFFICIENT_ACTIVE_RECORDING_OVERLAP -> {
                 "发现睡眠结束记录，但与本次前台检测重叠不足 30 分钟，已忽略"

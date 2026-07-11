@@ -177,6 +177,38 @@ class WearableSleepPollResultHandlerTest {
     }
 
     @Test
+    fun handleWearableSleepPollResult_reportsNonXiaomiSourceAsDiagnosticOnly() = runTest {
+        val settingsRepository = mockk<SettingsPreferencesRepository>(relaxed = true)
+        val session = SleepSessionSnapshot(
+            startTime = Instant.ofEpochMilli(1_000L),
+            endTime = Instant.ofEpochMilli(8_000L),
+            dataOriginPackageName = "com.example.sleep"
+        )
+
+        val result = handleWearableSleepPollResult(
+            pollResult = HealthConnectSleepTriggerSource.PollResult.NoActionableSleep(
+                observedSession = session,
+                reason = HealthConnectSleepTriggerSource.PollResult.NoActionableSleepReason.NON_XIAOMI_SOURCE
+            ),
+            stopOnSleepEnd = true,
+            coordinator = AutoSnoreDetectionCoordinator(FakeRecordingController()),
+            settingsRepository = settingsRepository,
+            requireBackgroundRead = true
+        )
+
+        assertThat(result.statusText).contains("不是已知小米伴侣")
+        assertThat(result.eventHandled).isFalse()
+        coVerify {
+            settingsRepository.setLatestWearableSleepSession(
+                startMillis = 1_000L,
+                endMillis = 8_000L,
+                status = "非小米来源，仅诊断",
+                sourcePackage = "com.example.sleep"
+            )
+        }
+    }
+
+    @Test
     fun handleWearableSleepPollResult_doesNotStartRecordingWhenSleepStartDisallowed() = runTest {
         val settingsRepository = mockk<SettingsPreferencesRepository>(relaxed = true)
         val controller = FakeRecordingController()

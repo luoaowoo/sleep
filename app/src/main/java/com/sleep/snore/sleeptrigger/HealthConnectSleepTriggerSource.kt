@@ -64,24 +64,20 @@ class HealthConnectSleepTriggerSource @Inject constructor(
             }
         }
 
-        val latestSession = HealthConnectSleepEventInterpreter.latestValidSession(
-            sessions = sessions,
-            now = now
-        ) ?: return PollResult.NoRecentSleep
-        val actionableSession = HealthConnectSleepEventInterpreter.latestActionableSession(
+        val actionableSession = selectXiaomiActionableSleepSession(
             sessions = sessions,
             now = now,
             ignoreEventsBefore = ignoreEventsBefore
-        ) ?: return PollResult.NoActionableSleep(
-            observedSession = latestSession,
-            reason = noActionableSleepReason(
-                session = latestSession,
-                now = now,
-                ignoreEventsBefore = ignoreEventsBefore
+        ) ?: return PollResult.NoRecentSleep
+        if (actionableSession is XiaomiActionableSleepSelection.NoActionable) {
+            return PollResult.NoActionableSleep(
+                observedSession = actionableSession.observedSession,
+                reason = actionableSession.reason
             )
-        )
-        val interpretedEvent = actionableSession.second
-        val interpretedSession = actionableSession.first
+        }
+        actionableSession as XiaomiActionableSleepSelection.Actionable
+        val interpretedEvent = actionableSession.event
+        val interpretedSession = actionableSession.session
         if (interpretedEvent.eventKey == settingsRepository.getLastWearableSleepEventKey()) {
             return PollResult.DuplicateEvent(interpretedSession)
         }
@@ -112,6 +108,7 @@ class HealthConnectSleepTriggerSource @Inject constructor(
         enum class NoActionableSleepReason {
             ONGOING,
             BEFORE_ACTIVE_RECORDING,
+            NON_XIAOMI_SOURCE,
             INSUFFICIENT_ACTIVE_RECORDING_OVERLAP,
             SHORT_SLEEP_SESSION
         }
@@ -130,6 +127,56 @@ class HealthConnectSleepTriggerSource @Inject constructor(
             .map { DataOrigin(it) }
             .toSet()
     }
+}
+
+internal sealed interface XiaomiActionableSleepSelection {
+    data class Actionable(
+        val session: SleepSessionSnapshot,
+        val event: InterpretedSleepEvent
+    ) : XiaomiActionableSleepSelection
+
+    data class NoActionable(
+        val observedSession: SleepSessionSnapshot,
+        val reason: HealthConnectSleepTriggerSource.PollResult.NoActionableSleepReason
+    ) : XiaomiActionableSleepSelection
+}
+
+internal fun selectXiaomiActionableSleepSession(
+    sessions: List<SleepSessionSnapshot>,
+    now: Instant,
+    ignoreEventsBefore: Instant?
+): XiaomiActionableSleepSelection? {
+    val latestSession = HealthConnectSleepEventInterpreter.latestValidSession(
+        sessions = sessions,
+        now = now
+    ) ?: return null
+    val xiaomiSessions = sessions.filter { it.isKnownXiaomiSource }
+    if (xiaomiSessions.isEmpty()) {
+        return XiaomiActionableSleepSelection.NoActionable(
+            observedSession = latestSession,
+            reason = HealthConnectSleepTriggerSource.PollResult.NoActionableSleepReason.NON_XIAOMI_SOURCE
+        )
+    }
+    val latestXiaomiSession = HealthConnectSleepEventInterpreter.latestValidSession(
+        sessions = xiaomiSessions,
+        now = now
+    ) ?: latestSession
+    val actionableSession = HealthConnectSleepEventInterpreter.latestActionableSession(
+        sessions = xiaomiSessions,
+        now = now,
+        ignoreEventsBefore = ignoreEventsBefore
+    ) ?: return XiaomiActionableSleepSelection.NoActionable(
+        observedSession = latestXiaomiSession,
+        reason = noActionableSleepReason(
+            session = latestXiaomiSession,
+            now = now,
+            ignoreEventsBefore = ignoreEventsBefore
+        )
+    )
+    return XiaomiActionableSleepSelection.Actionable(
+        session = actionableSession.first,
+        event = actionableSession.second
+    )
 }
 
 private suspend fun readSleepSessions(

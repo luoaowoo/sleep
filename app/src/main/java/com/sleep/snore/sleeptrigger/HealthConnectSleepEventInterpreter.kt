@@ -7,7 +7,10 @@ data class SleepSessionSnapshot(
     val startTime: Instant,
     val endTime: Instant,
     val dataOriginPackageName: String = ""
-)
+) {
+    val isKnownXiaomiSource: Boolean
+        get() = dataOriginPackageName in XiaomiSleepCompanionApps.packageNames
+}
 
 data class InterpretedSleepEvent(
     val event: SleepTriggerEvent,
