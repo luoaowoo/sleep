@@ -65,4 +65,25 @@ class AndroidRecordingControllerTest {
         assertThat(startedService.component?.className).isEqualTo(SleepRecordingService::class.java.name)
         assertThat(startedService.action).isEqualTo(SleepRecordingService.ACTION_START)
     }
+
+    @Test
+    fun stopFromSleepTrigger_whenActiveSourceIsManualDoesNotStopService() = runTest {
+        val context = RuntimeEnvironment.getApplication()
+        val settingsRepository = mockk<SettingsPreferencesRepository>(relaxed = true)
+        coEvery { settingsRepository.getActiveRecordingTriggerSource() } returns "manual"
+        val notifier = mockk<RecordingFailureNotifier>(relaxed = true)
+        val controller = AndroidRecordingController(
+            context = context,
+            settingsRepository = settingsRepository,
+            recordingFailureNotifier = notifier,
+            appVisibilityState = object : AppVisibilityState {
+                override val isAppVisible: Boolean = true
+            }
+        )
+
+        val stopped = controller.stopFromSleepTrigger("health_connect_sleep", 2_000L)
+
+        assertThat(stopped).isFalse()
+        assertThat(shadowOf(context).nextStartedService).isNull()
+    }
 }

@@ -30,9 +30,8 @@ open class WearableStandbyPrerequisiteChecker @Inject constructor(
             ) == PackageManager.PERMISSION_GRANTED
         if (!hasNotificationPermission) return "缺少通知权限，请先在后台录音区域授权"
 
-        if (HealthConnectClient.getSdkStatus(context) != HealthConnectClient.SDK_AVAILABLE) {
-            return "Health Connect 不可用，请先安装或启用 Health Connect"
-        }
+        val healthConnectStatus = HealthConnectClient.getSdkStatus(context)
+        healthConnectAvailabilityBlocker(healthConnectStatus)?.let { return it }
         val grantedPermissions = runCatching {
             HealthConnectClient.getOrCreate(context).permissionController.getGrantedPermissions()
         }.getOrElse {

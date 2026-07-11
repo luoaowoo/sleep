@@ -149,9 +149,13 @@ fun SettingsScreen(
     }
     var hasHealthConnectSleepReadPermission by remember(context) { mutableStateOf(false) }
     var hasHealthConnectBackgroundReadPermission by remember(context) { mutableStateOf(false) }
+    var healthConnectSdkStatus by remember(context) {
+        mutableStateOf(HealthConnectClient.getSdkStatus(context))
+    }
     LaunchedEffect(context, healthConnectPermissionRefreshTick) {
+        healthConnectSdkStatus = HealthConnectClient.getSdkStatus(context)
         val grantedPermissions = runCatching {
-            if (HealthConnectClient.getSdkStatus(context) != HealthConnectClient.SDK_AVAILABLE) {
+            if (healthConnectSdkStatus != HealthConnectClient.SDK_AVAILABLE) {
                 emptySet<String>()
             } else {
                 HealthConnectClient.getOrCreate(context)
@@ -415,6 +419,14 @@ fun SettingsScreen(
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    healthConnectAvailabilityBlocker(healthConnectSdkStatus)?.let { availabilityMessage ->
+                        Spacer(Modifier.height(Spacing.xs))
+                        Text(
+                            availabilityMessage,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
                     Spacer(Modifier.height(Spacing.sm))
                     SettingSwitchRow(
                         title = "Health Connect 周期检查",
@@ -483,6 +495,7 @@ fun SettingsScreen(
                     }
                     Spacer(Modifier.height(Spacing.sm))
                     Button(
+                        enabled = healthConnectSdkStatus == HealthConnectClient.SDK_AVAILABLE,
                         onClick = {
                             healthConnectPermissionLauncher.launch(
                                 HealthConnectSleepTriggerSource.BACKGROUND_REQUIRED_PERMISSIONS
