@@ -47,7 +47,8 @@ class SettingsViewModelWearableStandbyTest {
         val viewModel = SettingsViewModel(
             context = RuntimeEnvironment.getApplication(),
             preferencesRepository = repository,
-            recordingController = recordingController
+            recordingController = recordingController,
+            wearableStandbyPrerequisiteChecker = FakeWearableStandbyPrerequisiteChecker()
         )
 
         viewModel.onWearableSleepTriggerChange(false)
@@ -57,6 +58,72 @@ class SettingsViewModelWearableStandbyTest {
             .containsExactly(HealthConnectSleepTriggerSource.SOURCE)
         assertThat(repository.settingsSnapshot().wearableSleepTriggerEnabled).isFalse()
         assertThat(repository.settingsSnapshot().wearableSleepTriggerStatus).isEqualTo("Health Connect 周期检查已关闭")
+    }
+
+    @Test
+    fun startWearableSleepStandby_whenPrerequisiteBlockedDoesNotStartRecording() = runTest(dispatcher) {
+        val repository = createRepository()
+        val recordingController = FakeRecordingController()
+        val viewModel = SettingsViewModel(
+            context = RuntimeEnvironment.getApplication(),
+            preferencesRepository = repository,
+            recordingController = recordingController,
+            wearableStandbyPrerequisiteChecker = FakeWearableStandbyPrerequisiteChecker(
+                blocker = "缺少 Health Connect 睡眠/后台读取权限，请先授权 Health Connect"
+            )
+        )
+
+        viewModel.startWearableSleepStandby()
+        advanceUntilIdle()
+
+        assertThat(recordingController.startedSources).isEmpty()
+        assertThat(repository.settingsSnapshot().wearableSleepTriggerEnabled).isTrue()
+        assertThat(repository.settingsSnapshot().wearableSleepTriggerStatus)
+            .isEqualTo("缺少 Health Connect 睡眠/后台读取权限，请先授权 Health Connect")
+    }
+
+    @Test
+    fun startWearableSleepStandby_whenRecordingConfirmedWritesSuccessStatus() = runTest(dispatcher) {
+        val repository = createRepository()
+        val recordingController = FakeRecordingController(
+            startResult = RecordingStartResult.Confirmed("started")
+        )
+        val viewModel = SettingsViewModel(
+            context = RuntimeEnvironment.getApplication(),
+            preferencesRepository = repository,
+            recordingController = recordingController,
+            wearableStandbyPrerequisiteChecker = FakeWearableStandbyPrerequisiteChecker()
+        )
+
+        viewModel.startWearableSleepStandby()
+        advanceUntilIdle()
+
+        assertThat(recordingController.startedSources)
+            .containsExactly(HealthConnectSleepTriggerSource.SOURCE)
+        assertThat(repository.settingsSnapshot().wearableSleepTriggerStatus)
+            .isEqualTo("睡前前台检测已开启，录音服务将低频检查 Health Connect 睡眠结束")
+    }
+
+    @Test
+    fun startWearableSleepStandby_whenRecordingNotConfirmedKeepsControllerStatus() = runTest(dispatcher) {
+        val repository = createRepository()
+        val recordingController = FakeRecordingController(
+            startResult = RecordingStartResult.Submitted("等待录音服务确认")
+        )
+        val viewModel = SettingsViewModel(
+            context = RuntimeEnvironment.getApplication(),
+            preferencesRepository = repository,
+            recordingController = recordingController,
+            wearableStandbyPrerequisiteChecker = FakeWearableStandbyPrerequisiteChecker()
+        )
+
+        viewModel.startWearableSleepStandby()
+        advanceUntilIdle()
+
+        assertThat(recordingController.startedSources)
+            .containsExactly(HealthConnectSleepTriggerSource.SOURCE)
+        assertThat(repository.settingsSnapshot().wearableSleepTriggerStatus)
+            .isEqualTo("等待录音服务确认")
     }
 
     private fun createRepository(): SettingsPreferencesRepository {
@@ -73,11 +140,15 @@ class SettingsViewModelWearableStandbyTest {
 
     private suspend fun SettingsPreferencesRepository.settingsSnapshot() = settings.first()
 
-    private class FakeRecordingController : RecordingController {
+    private class FakeRecordingController(
+        private val startResult: RecordingStartResult = RecordingStartResult.Confirmed("started")
+    ) : RecordingController {
+        val startedSources = mutableListOf<String>()
         val stoppedSources = mutableListOf<String>()
 
         override suspend fun startFromSleepTrigger(source: String): RecordingStartResult {
-            return RecordingStartResult.Confirmed("started")
+            startedSources += source
+            return startResult
         }
 
         override suspend fun stopFromSleepTrigger(source: String, sleepEndTimeMillis: Long?): Boolean {
@@ -86,6 +157,12 @@ class SettingsViewModelWearableStandbyTest {
         }
 
         override fun isRecordingActive(): Boolean = false
+    }
+
+    private class FakeWearableStandbyPrerequisiteChecker(
+        private val blocker: String? = null
+    ) : WearableStandbyPrerequisiteChecker(RuntimeEnvironment.getApplication()) {
+        override suspend fun startBlocker(): String? = blocker
     }
 
     private object FakeSecretTextCipher : SecretTextCipher {

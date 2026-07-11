@@ -44,7 +44,14 @@ class SettingsScreenTest {
             repository.setFontScale(fontScale)
             repository.setCompactModeEnabled(compactMode)
         }
-        return SettingsViewModel(context, repository, FakeRecordingController)
+        return SettingsViewModel(
+            context,
+            repository,
+            FakeRecordingController,
+            object : WearableStandbyPrerequisiteChecker(context) {
+                override suspend fun startBlocker(): String? = null
+            }
+        )
     }
 
     @Test
