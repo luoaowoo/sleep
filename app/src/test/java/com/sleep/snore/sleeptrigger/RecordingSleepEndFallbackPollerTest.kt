@@ -169,7 +169,7 @@ class RecordingSleepEndFallbackPollerTest {
 
         assertThat(result).isEqualTo(RecordingSleepEndFallbackResult.ContinuePolling)
         assertThat(repository.settings.first().wearableSleepTriggerStatus)
-            .isEqualTo("录音服务等待睡眠结束：缺少 Health Connect 睡眠读取权限")
+            .isEqualTo("录音服务等待睡眠结束：缺少 Health Connect 睡眠/后台读取权限")
     }
 
     @Test

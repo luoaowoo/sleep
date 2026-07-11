@@ -52,10 +52,11 @@ class SettingsViewModelWearableStandbyTest {
 
     @Test
     fun onWearableSleepTriggerChange_offStopsPrestartedRecording() = runTest(dispatcher) {
+        val context = RuntimeEnvironment.getApplication()
         val repository = createRepository()
         val recordingController = FakeRecordingController()
         val viewModel = SettingsViewModel(
-            context = RuntimeEnvironment.getApplication(),
+            context = context,
             preferencesRepository = repository,
             sleepRepository = fakeSleepRepository(),
             recordingController = recordingController,
@@ -69,6 +70,36 @@ class SettingsViewModelWearableStandbyTest {
             .containsExactly(HealthConnectSleepTriggerSource.SOURCE)
         assertThat(repository.settingsSnapshot().wearableSleepTriggerEnabled).isFalse()
         assertThat(repository.settingsSnapshot().wearableSleepTriggerStatus).isEqualTo("Health Connect 周期检查已关闭")
+        val stoppedService = shadowOf(context).nextStoppedService
+        assertThat(stoppedService.component?.className)
+            .isEqualTo(WearableSleepStandbyService::class.java.name)
+        assertThat(shadowOf(context).nextStartedService).isNull()
+    }
+
+    @Test
+    fun stopWearableSleepStandby_stopsServiceWithoutStartingIt() = runTest(dispatcher) {
+        val context = RuntimeEnvironment.getApplication()
+        val repository = createRepository()
+        val recordingController = FakeRecordingController()
+        val viewModel = SettingsViewModel(
+            context = context,
+            preferencesRepository = repository,
+            sleepRepository = fakeSleepRepository(),
+            recordingController = recordingController,
+            wearableStandbyPrerequisiteChecker = FakeWearableStandbyPrerequisiteChecker()
+        )
+
+        viewModel.stopWearableSleepStandby()
+        advanceUntilIdle()
+
+        assertThat(recordingController.stoppedSources)
+            .containsExactly(HealthConnectSleepTriggerSource.SOURCE)
+        val stoppedService = shadowOf(context).nextStoppedService
+        assertThat(stoppedService.component?.className)
+            .isEqualTo(WearableSleepStandbyService::class.java.name)
+        assertThat(shadowOf(context).nextStartedService).isNull()
+        assertThat(repository.settingsSnapshot().wearableSleepTriggerStatus)
+            .isEqualTo("睡前前台检测已停止，鼾声检测也已请求停止")
     }
 
     @Test

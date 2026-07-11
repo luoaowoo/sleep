@@ -1,6 +1,7 @@
 package com.sleep.snore.ui.screen.settings
 
 import android.content.Context
+import android.content.Intent
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -276,7 +277,7 @@ class SettingsViewModel @Inject constructor(
             } else {
                 runCatching { HealthConnectSleepTriggerWorker.cancel(context) }
                 runCatching {
-                    context.startService(WearableSleepStandbyService.stopIntent(context))
+                    context.stopService(Intent(context, WearableSleepStandbyService::class.java))
                 }
                 recordingController.stopFromSleepTrigger(HealthConnectSleepTriggerSource.SOURCE)
                 preferencesRepository.setWearableSleepTriggerMessage("Health Connect 周期检查已关闭")
@@ -408,7 +409,7 @@ class SettingsViewModel @Inject constructor(
 
     fun stopWearableSleepStandby() {
         runCatching {
-            context.startService(WearableSleepStandbyService.stopIntent(context))
+            context.stopService(Intent(context, WearableSleepStandbyService::class.java))
         }
         viewModelScope.launch {
             val stoppedRecording = recordingController.stopFromSleepTrigger(

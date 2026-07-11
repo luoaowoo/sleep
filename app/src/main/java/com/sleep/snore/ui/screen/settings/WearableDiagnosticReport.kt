@@ -136,12 +136,16 @@ internal fun wearableDiagnosticNextStep(input: WearableDiagnosticReportInput): S
         !input.stopOnSleepEndEnabled -> {
             "开启“睡眠结束后自动停止”，否则睡醒后需要手动停止前台检测。"
         }
-        !input.recordingActive || input.activeRecordingTriggerSource != HealthConnectSleepTriggerSource.SOURCE -> {
-            "睡前点击“睡前开启前台检测”；手环/Health Connect 只负责睡醒后的停止和校准。"
-        }
         input.latestWearableSleepSessionSourcePackage.isNotBlank() &&
             input.latestWearableSleepSessionSourcePackage !in XiaomiSleepCompanionApps.packageNames -> {
             "最近睡眠不是小米伴侣来源；打开小米伴侣确认睡眠同步到 Health Connect 后再立即检查。"
+        }
+        input.latestWearableSleepSessionSourcePackage.isBlank() &&
+            input.latestWearableSleepSessionEndMillis > input.latestWearableSleepSessionStartMillis -> {
+            "最近睡眠缺少来源信息；请打开小米伴侣确认睡眠同步到 Health Connect 后再立即检查。"
+        }
+        !input.recordingActive || input.activeRecordingTriggerSource != HealthConnectSleepTriggerSource.SOURCE -> {
+            "睡前点击“睡前开启前台检测”；手环/Health Connect 只负责睡醒后的停止和校准。"
         }
         input.latestWearableSleepSessionEndMillis <= input.latestWearableSleepSessionStartMillis -> {
             "等待小米伴侣把睡眠结束时间同步到 Health Connect；同步后会自动停录或可点立即检查。"
@@ -192,6 +196,9 @@ internal fun sleepAutoStopRuleDiagnostic(
     }
     val durationMinutes = sleepDurationMinutes(sleepStartMillis, sleepEndMillis)
         ?: return "无有效最近睡眠"
+    if (sourcePackage.isBlank()) {
+        return "无法自动停录：最近睡眠缺少来源信息，无法确认来自小米伴侣"
+    }
     if (sourcePackage.isNotBlank() && sourcePackage !in XiaomiSleepCompanionApps.packageNames) {
         return "会被忽略：来源不是已知小米伴侣，仅用于诊断"
     }

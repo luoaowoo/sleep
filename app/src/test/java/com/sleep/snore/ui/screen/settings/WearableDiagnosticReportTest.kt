@@ -125,7 +125,8 @@ class WearableDiagnosticReportTest {
         val diagnostic = sleepAutoStopRuleDiagnostic(
             sleepStartMillis = 1_000L,
             sleepEndMillis = 61_000L,
-            triggerStartedAtMillis = 60_000L
+            triggerStartedAtMillis = 60_000L,
+            sourcePackage = "com.xiaomi.wearable"
         )
 
         assertThat(diagnostic).contains("重叠不足")
@@ -136,7 +137,8 @@ class WearableDiagnosticReportTest {
         val diagnostic = sleepAutoStopRuleDiagnostic(
             sleepStartMillis = 1_000L,
             sleepEndMillis = 3_601_000L,
-            triggerStartedAtMillis = 1_000L
+            triggerStartedAtMillis = 1_000L,
+            sourcePackage = "com.xiaomi.wearable"
         )
 
         assertThat(diagnostic).contains("睡眠时长不足")
@@ -147,7 +149,8 @@ class WearableDiagnosticReportTest {
         val diagnostic = sleepAutoStopRuleDiagnostic(
             sleepStartMillis = 1_000L,
             sleepEndMillis = 7_201_000L,
-            triggerStartedAtMillis = 1_000L
+            triggerStartedAtMillis = 1_000L,
+            sourcePackage = "com.xiaomi.wearable"
         )
 
         assertThat(diagnostic).contains("满足自动停录")
@@ -219,6 +222,19 @@ class WearableDiagnosticReportTest {
     }
 
     @Test
+    fun sleepAutoStopRuleDiagnostic_rejectsMissingSleepSource() {
+        val diagnostic = sleepAutoStopRuleDiagnostic(
+            sleepStartMillis = 1_000L,
+            sleepEndMillis = 7_201_000L,
+            triggerStartedAtMillis = 1_000L,
+            sourcePackage = ""
+        )
+
+        assertThat(diagnostic).contains("缺少来源信息")
+        assertThat(diagnostic).doesNotContain("满足自动停录时间规则")
+    }
+
+    @Test
     fun wearableDiagnosticReport_reportsNonXiaomiSourceAsDiagnosticOnly() {
         val report = wearableDiagnosticReport(
             WearableDiagnosticReportInput(
@@ -280,6 +296,30 @@ class WearableDiagnosticReportTest {
 
         assertThat(nextStep).contains("不是小米伴侣来源")
         assertThat(nextStep).contains("立即检查")
+    }
+
+    @Test
+    fun wearableDiagnosticNextStep_prioritizesNonXiaomiSourceBeforeStartingForegroundDetection() {
+        val nextStep = wearableDiagnosticNextStep(
+            diagnosticInput(
+                recordingActive = false,
+                activeRecordingTriggerSource = "",
+                latestWearableSleepSessionSourcePackage = "com.example.sleep"
+            )
+        )
+
+        assertThat(nextStep).contains("不是小米伴侣来源")
+        assertThat(nextStep).doesNotContain("睡前点击")
+    }
+
+    @Test
+    fun wearableDiagnosticNextStep_rejectsMissingSleepSourceBeforeReady() {
+        val nextStep = wearableDiagnosticNextStep(
+            diagnosticInput(latestWearableSleepSessionSourcePackage = "")
+        )
+
+        assertThat(nextStep).contains("缺少来源信息")
+        assertThat(nextStep).doesNotContain("链路基本就绪")
     }
 
     @Test

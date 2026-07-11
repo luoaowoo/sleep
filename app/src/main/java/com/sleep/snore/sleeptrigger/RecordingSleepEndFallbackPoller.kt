@@ -58,7 +58,7 @@ class RecordingSleepEndFallbackPoller @Inject constructor(
         if (sleepEnded == null) {
             if (pollResult !is HealthConnectSleepTriggerSource.PollResult.EventEmitted) {
                 settingsRepository.setWearableSleepTriggerStatus(
-                    "录音服务等待睡眠结束：${pollResult.toWearableSleepStatusText(requireBackgroundRead = false)}"
+                    "录音服务等待睡眠结束：${pollResult.toWearableSleepStatusText(requireBackgroundRead = true)}"
                 )
             }
             return RecordingSleepEndFallbackResult.ContinuePolling

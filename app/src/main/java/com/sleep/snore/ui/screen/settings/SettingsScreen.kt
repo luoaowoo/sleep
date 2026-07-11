@@ -397,7 +397,8 @@ fun SettingsScreen(
                             isIgnoringBatteryOptimizations = isIgnoringBatteryOptimizations,
                             hasXiaomiCompanion = installedXiaomiCompanion != null,
                             periodicCheckEnabled = uiState.wearableSleepTriggerEnabled,
-                            stopOnSleepEndEnabled = uiState.wearableStopOnSleepEndEnabled
+                            stopOnSleepEndEnabled = uiState.wearableStopOnSleepEndEnabled,
+                            latestWearableSleepSessionSourcePackage = uiState.latestWearableSleepSessionSourcePackage
                         ),
                         style = MaterialTheme.typography.labelSmall,
                         color = if (
@@ -406,7 +407,8 @@ fun SettingsScreen(
                             hasHealthConnectSleepReadPermission &&
                             hasHealthConnectBackgroundReadPermission &&
                             installedXiaomiCompanion != null &&
-                            uiState.wearableStopOnSleepEndEnabled
+                            uiState.wearableStopOnSleepEndEnabled &&
+                            uiState.latestWearableSleepSessionSourcePackage in XiaomiSleepCompanionApps.packageNames
                         ) {
                             MaterialTheme.colorScheme.primary
                         } else {
@@ -421,7 +423,8 @@ fun SettingsScreen(
                             hasHealthConnectBackgroundReadPermission = hasHealthConnectBackgroundReadPermission,
                             periodicCheckEnabled = uiState.wearableSleepTriggerEnabled,
                             stopOnSleepEndEnabled = uiState.wearableStopOnSleepEndEnabled,
-                            foregroundDetectionActive = wearableSleepDetectionActive
+                            foregroundDetectionActive = wearableSleepDetectionActive,
+                            latestWearableSleepSessionSourcePackage = uiState.latestWearableSleepSessionSourcePackage
                         ),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant

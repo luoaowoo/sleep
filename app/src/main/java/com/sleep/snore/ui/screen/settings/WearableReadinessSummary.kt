@@ -1,5 +1,7 @@
 package com.sleep.snore.ui.screen.settings
 
+import com.sleep.snore.sleeptrigger.XiaomiSleepCompanionApps
+
 internal fun wearableReadinessSummary(
     hasRecordAudioPermission: Boolean,
     hasNotificationPermission: Boolean,
@@ -8,7 +10,8 @@ internal fun wearableReadinessSummary(
     isIgnoringBatteryOptimizations: Boolean,
     hasXiaomiCompanion: Boolean,
     periodicCheckEnabled: Boolean,
-    stopOnSleepEndEnabled: Boolean
+    stopOnSleepEndEnabled: Boolean,
+    latestWearableSleepSessionSourcePackage: String
 ): String {
     val requiredMissingItems = buildList {
         if (!hasRecordAudioPermission) add("麦克风权限")
@@ -20,6 +23,14 @@ internal fun wearableReadinessSummary(
     }
     if (requiredMissingItems.isNotEmpty()) {
         return "睡前检测还需处理：${requiredMissingItems.joinToString("、")}。"
+    }
+    if (latestWearableSleepSessionSourcePackage.isNotBlank() &&
+        latestWearableSleepSessionSourcePackage !in XiaomiSleepCompanionApps.packageNames
+    ) {
+        return "睡前检测权限已满足，但最近睡眠不是小米伴侣来源；请先确认小米伴侣已同步睡眠到 Health Connect。"
+    }
+    if (latestWearableSleepSessionSourcePackage.isBlank()) {
+        return "睡前检测权限已满足；小米睡眠同步仍待验证，请先让小米伴侣同步一次睡眠到 Health Connect。"
     }
     val recommendedItems = buildList {
         if (!isIgnoringBatteryOptimizations) add("电池优化放行")
@@ -38,7 +49,8 @@ internal fun wearableIntegrationStatusSummary(
     hasHealthConnectBackgroundReadPermission: Boolean,
     periodicCheckEnabled: Boolean,
     stopOnSleepEndEnabled: Boolean,
-    foregroundDetectionActive: Boolean
+    foregroundDetectionActive: Boolean,
+    latestWearableSleepSessionSourcePackage: String
 ): String {
     return when {
         foregroundDetectionActive && !stopOnSleepEndEnabled -> {
@@ -54,16 +66,23 @@ internal fun wearableIntegrationStatusSummary(
             "小米伴侣 App 已就绪：下一步授权本应用读取 Health Connect 睡眠数据。"
         }
         !hasHealthConnectBackgroundReadPermission -> {
-            "Health Connect 睡眠读取已授权：可手动检查最近睡眠；后台周期检查和睡眠结束自动停录仍需后台读取授权。"
+            "Health Connect 睡眠读取已授权：可手动检查最近睡眠；后台周期检查和 Worker 兜底停录仍需后台读取授权；已运行的前台检测可继续低频检查睡眠结束。"
         }
         !periodicCheckEnabled -> {
             "Health Connect 睡眠读取已就绪：下一步开启周期检查，并在睡前点击“睡前开启前台检测”。"
         }
+        latestWearableSleepSessionSourcePackage.isNotBlank() &&
+            latestWearableSleepSessionSourcePackage !in XiaomiSleepCompanionApps.packageNames -> {
+            "小米伴侣同步待验证：最近睡眠来源不是小米伴侣；请打开 Mi Fitness/小米运动健康或 Zepp Life，确认睡眠同步到 Health Connect 后再立即检查。"
+        }
+        latestWearableSleepSessionSourcePackage.isBlank() -> {
+            "小米伴侣同步待验证：权限和开关已准备好，但还没有读取到小米来源睡眠；请先让小米伴侣同步一次睡眠到 Health Connect。"
+        }
         !stopOnSleepEndEnabled -> {
-            "小米伴侣 + Health Connect 链路已配置，但自动停录已关闭；睡醒后需要手动停止鼾声检测。"
+            "小米伴侣 + Health Connect 链路已验证，但自动停录已关闭；睡醒后需要手动停止鼾声检测。"
         }
         else -> {
-            "小米伴侣 + Health Connect 链路已配置：睡前点击“睡前开启前台检测”，睡醒后等待小米同步睡眠结束记录；若未自动停录，请打开小米伴侣确认同步后再点立即检查。"
+            "小米伴侣 + Health Connect 链路已验证：睡前点击“睡前开启前台检测”，睡醒后等待小米同步睡眠结束记录；若未自动停录，请打开小米伴侣确认同步后再点立即检查。"
         }
     }
 }
