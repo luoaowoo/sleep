@@ -647,6 +647,23 @@ class SleepRecordingService : Service() {
         wearableSleepEndWatcherJob = serviceScope.launch {
             delay(WEARABLE_SLEEP_END_WATCH_INITIAL_DELAY_MS)
             while (isSessionActive) {
+                val now = System.currentTimeMillis()
+                if (
+                    shouldStopWearableRecordingAfterMaxDuration(
+                        sessionStartTimeMillis = sessionStartTime,
+                        nowMillis = now,
+                        maxDurationMillis = MAX_SESSION_RECOVERY_MS
+                    )
+                ) {
+                    Log.w(TAG, "wearable recording reached max duration; finalizing with current time")
+                    serviceScope.launch {
+                        finishSessionAndStop(
+                            wearableSleepEndTimeMillis = now,
+                            expectedTriggerSource = HealthConnectSleepTriggerSource.SOURCE
+                        )
+                    }
+                    return@launch
+                }
                 when (val pollResult = recordingSleepEndFallbackPoller.pollOnce(sessionStartTime)) {
                     RecordingSleepEndFallbackResult.ContinuePolling -> Unit
                     RecordingSleepEndFallbackResult.StopPolling -> return@launch

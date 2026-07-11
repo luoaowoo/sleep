@@ -20,7 +20,7 @@
 - `sleeptrigger/WearableSleepPollResultHandler`：Worker 和待命服务共用事件处理逻辑；只有录音确认成功后才记住事件 key，失败时保留重试机会。
 - `recording/RecordingController`：统一外部触发的录音启动/停止入口，预检麦克风权限并等待前台录音服务确认。
 - `recording/ActiveRecordingFinalizerWorker`：睡眠结束停止录音时会排一个延迟兜底任务；如果前台录音服务已被系统杀掉或停止请求没能完成，Worker 会优先读取 Health Connect 的真实睡眠结束时间，再结算数据库中的手环触发 active record，避免留下半截记录。
-- `service/SleepRecordingService`：前台麦克风服务；只保存疑似鼾声片段，睡眠结束或服务恢复时结算记录。
+- `service/SleepRecordingService`：前台麦克风服务；只保存疑似鼾声片段，睡眠结束、服务恢复或手环来源前台检测达到 16 小时上限时结算记录。
 - `sleeptrigger/WearableSleepTriggerBootReceiver`：开机/应用更新后恢复 WorkManager 检查；如果发现手环触发的未完成录音记录，会安排兜底结算，而不是违反系统限制在后台强行开麦。
 - `ui/screen/settings`：提供 Health Connect 授权、立即检查、睡前前台检测、麦克风/通知/电池优化引导。
 
@@ -42,6 +42,7 @@
 - 进程或服务状态丢失时，睡眠结束事件会尝试恢复数据库中的 active record 并完成结算，避免留下半截记录。
 - 睡眠结束停止请求会携带期望来源，录音服务会再次确认当前 active record 仍来自 Health Connect，避免旧的自动停止请求误停用户后来手动开启的录音。
 - 睡眠结束停止请求会额外排一个延迟兜底结算 Worker；若服务已经正常结算并清除 active record，Worker 会自动空跑；若仍有 active record，则优先按 Health Connect 睡眠结束时间结算。若小米同步暂未写入睡眠结束时间，Worker 会先重试等待同步，多次仍失败后才按当前时间截断兜底。
+- 如果小米伴侣 App 或 Health Connect 长时间没有同步睡眠结束，手环/Health Connect 来源的前台检测会在运行满 16 小时后按当前时间安全截断结算，避免前台服务和 active 记录无限等待；普通手动录音不受这个自动截断影响。
 - 设备重启或应用更新后，如果系统不允许后台恢复麦克风前台服务，应用会优先结算未完成的手环触发记录并提示状态，避免数据长期卡在 active 状态。
 
 ## 已知限制
