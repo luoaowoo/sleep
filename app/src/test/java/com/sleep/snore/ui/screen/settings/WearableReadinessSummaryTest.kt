@@ -38,8 +38,26 @@ class WearableReadinessSummaryTest {
         assertThat(summary).contains("麦克风权限")
         assertThat(summary).contains("通知权限")
         assertThat(summary).contains("Health Connect 睡眠读取授权")
+        assertThat(summary).contains("Health Connect 后台读取授权")
         assertThat(summary).contains("小米伴侣 App")
         assertThat(summary).contains("睡眠结束后自动停止")
+    }
+
+    @Test
+    fun wearableReadinessSummary_blocksMissingBackgroundReadPermission() {
+        val summary = wearableReadinessSummary(
+            hasRecordAudioPermission = true,
+            hasNotificationPermission = true,
+            hasHealthConnectSleepReadPermission = true,
+            hasHealthConnectBackgroundReadPermission = false,
+            isIgnoringBatteryOptimizations = true,
+            hasXiaomiCompanion = true,
+            periodicCheckEnabled = true,
+            stopOnSleepEndEnabled = true
+        )
+
+        assertThat(summary).contains("睡前检测还需处理")
+        assertThat(summary).contains("Health Connect 后台读取授权")
     }
 
     @Test
@@ -48,7 +66,7 @@ class WearableReadinessSummaryTest {
             hasRecordAudioPermission = true,
             hasNotificationPermission = true,
             hasHealthConnectSleepReadPermission = true,
-            hasHealthConnectBackgroundReadPermission = false,
+            hasHealthConnectBackgroundReadPermission = true,
             isIgnoringBatteryOptimizations = false,
             hasXiaomiCompanion = true,
             periodicCheckEnabled = false,
@@ -57,7 +75,6 @@ class WearableReadinessSummaryTest {
 
         assertThat(summary).contains("可开始睡前前台检测")
         assertThat(summary).contains("建议补充")
-        assertThat(summary).contains("Health Connect 后台读取授权")
         assertThat(summary).contains("电池优化放行")
         assertThat(summary).contains("Health Connect 周期检查")
     }

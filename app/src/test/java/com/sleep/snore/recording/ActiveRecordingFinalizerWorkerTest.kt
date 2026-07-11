@@ -150,13 +150,13 @@ class ActiveRecordingFinalizerWorkerTest {
     }
 
     @Test
-    fun doWork_permissionMissingKeepsRetryingWithoutCurrentTimeTruncation() = runTest {
+    fun doWork_permissionMissingRetriesWithinResolveWindow() = runTest {
         val fixture = createFixture(activeRecord = activeRecord())
         coEvery {
             fixture.wearableSleepEndTimeResolver.resolveResult(any())
         } returns WearableSleepEndResolveResult.PermissionMissing
 
-        val result = fixture.worker(runAttemptCount = MAX_HEALTH_CONNECT_RESOLVE_ATTEMPTS).doWork()
+        val result = fixture.worker(runAttemptCount = MAX_HEALTH_CONNECT_RESOLVE_ATTEMPTS - 1).doWork()
 
         assertThat(result).isEqualTo(ListenableWorker.Result.retry())
         coVerify(exactly = 0) { fixture.activeRecordingFinalizer.finalizeIfActive(any(), any()) }
@@ -169,19 +169,69 @@ class ActiveRecordingFinalizerWorkerTest {
     }
 
     @Test
-    fun doWork_readFailedKeepsRetryingWithoutCurrentTimeTruncation() = runTest {
+    fun doWork_permissionMissingAfterMaxAttemptsFallsBackToNow() = runTest {
+        val fixture = createFixture(activeRecord = activeRecord())
+        coEvery {
+            fixture.wearableSleepEndTimeResolver.resolveResult(any())
+        } returns WearableSleepEndResolveResult.PermissionMissing
+        coEvery {
+            fixture.activeRecordingFinalizer.finalizeIfActive(
+                expectedTriggerSource = HealthConnectSleepTriggerSource.SOURCE,
+                endTimeMillis = any()
+            )
+        } returns true
+
+        val result = fixture.worker(runAttemptCount = MAX_HEALTH_CONNECT_RESOLVE_ATTEMPTS).doWork()
+
+        assertThat(result).isEqualTo(ListenableWorker.Result.success())
+        coVerify { fixture.activeRecordingFinalizer.finalizeIfActive(HealthConnectSleepTriggerSource.SOURCE, any()) }
+        coVerify {
+            fixture.settingsRepository.setWearableSleepTriggerStatus(
+                match { it.contains("多次未能读取") && it.contains("当前时间") },
+                any()
+            )
+        }
+    }
+
+    @Test
+    fun doWork_readFailedRetriesWithinResolveWindow() = runTest {
         val fixture = createFixture(activeRecord = activeRecord())
         coEvery {
             fixture.wearableSleepEndTimeResolver.resolveResult(any())
         } returns WearableSleepEndResolveResult.ReadFailed
 
-        val result = fixture.worker(runAttemptCount = MAX_HEALTH_CONNECT_RESOLVE_ATTEMPTS).doWork()
+        val result = fixture.worker(runAttemptCount = MAX_HEALTH_CONNECT_RESOLVE_ATTEMPTS - 1).doWork()
 
         assertThat(result).isEqualTo(ListenableWorker.Result.retry())
         coVerify(exactly = 0) { fixture.activeRecordingFinalizer.finalizeIfActive(any(), any()) }
         coVerify {
             fixture.settingsRepository.setWearableSleepTriggerStatus(
                 match { it.contains("读取失败") && it.contains("继续等待") },
+                any()
+            )
+        }
+    }
+
+    @Test
+    fun doWork_readFailedAfterMaxAttemptsFallsBackToNow() = runTest {
+        val fixture = createFixture(activeRecord = activeRecord())
+        coEvery {
+            fixture.wearableSleepEndTimeResolver.resolveResult(any())
+        } returns WearableSleepEndResolveResult.ReadFailed
+        coEvery {
+            fixture.activeRecordingFinalizer.finalizeIfActive(
+                expectedTriggerSource = HealthConnectSleepTriggerSource.SOURCE,
+                endTimeMillis = any()
+            )
+        } returns true
+
+        val result = fixture.worker(runAttemptCount = MAX_HEALTH_CONNECT_RESOLVE_ATTEMPTS).doWork()
+
+        assertThat(result).isEqualTo(ListenableWorker.Result.success())
+        coVerify { fixture.activeRecordingFinalizer.finalizeIfActive(HealthConnectSleepTriggerSource.SOURCE, any()) }
+        coVerify {
+            fixture.settingsRepository.setWearableSleepTriggerStatus(
+                match { it.contains("多次未能读取") && it.contains("当前时间") },
                 any()
             )
         }
@@ -226,31 +276,29 @@ class ActiveRecordingFinalizerWorkerTest {
     }
 
     @Test
-    fun shouldRetryWearableFinalizer_doesNotStopRetryingForPermissionMissing() {
+    fun shouldRetryWearableFinalizer_stopsPermissionMissingAtMaxAttemptWindow() {
         assertThat(
             shouldRetryWearableFinalizer(
                 expectedSource = HealthConnectSleepTriggerSource.SOURCE,
                 activeRecordExists = true,
                 inputSleepEndTimeMillis = null,
                 resolvedWearableSleepEnd = null,
-                resolveResult = WearableSleepEndResolveResult.PermissionMissing,
                 runAttemptCount = MAX_HEALTH_CONNECT_RESOLVE_ATTEMPTS
             )
-        ).isTrue()
+        ).isFalse()
     }
 
     @Test
-    fun shouldRetryWearableFinalizer_doesNotStopRetryingForReadFailed() {
+    fun shouldRetryWearableFinalizer_stopsReadFailedAtMaxAttemptWindow() {
         assertThat(
             shouldRetryWearableFinalizer(
                 expectedSource = HealthConnectSleepTriggerSource.SOURCE,
                 activeRecordExists = true,
                 inputSleepEndTimeMillis = null,
                 resolvedWearableSleepEnd = null,
-                resolveResult = WearableSleepEndResolveResult.ReadFailed,
                 runAttemptCount = MAX_HEALTH_CONNECT_RESOLVE_ATTEMPTS
             )
-        ).isTrue()
+        ).isFalse()
     }
 
     @Test

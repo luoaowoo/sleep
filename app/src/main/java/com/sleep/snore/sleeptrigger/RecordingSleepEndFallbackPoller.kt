@@ -32,7 +32,7 @@ class RecordingSleepEndFallbackPoller @Inject constructor(
         val pollResult = runCatching {
             sleepSessionPoller.pollLatestSleepSession(
                 now = Instant.now(),
-                requireBackgroundRead = false,
+                requireBackgroundRead = true,
                 ignoreEventsBefore = sleepEventIgnoreEventsBefore(
                     settings = settings,
                     fallbackMillis = sessionStartTimeMillis

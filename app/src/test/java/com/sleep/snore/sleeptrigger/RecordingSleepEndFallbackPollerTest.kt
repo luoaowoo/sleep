@@ -168,7 +168,7 @@ class RecordingSleepEndFallbackPollerTest {
     }
 
     @Test
-    fun pollOnce_usesForegroundSleepReadBecauseRecordingServiceIsForeground() = runTest {
+    fun pollOnce_requiresBackgroundSleepReadForLockedScreenStability() = runTest {
         val repository = createRepository()
         repository.setWearableSleepTriggerEnabled(true)
         repository.setWearableStopOnSleepEndEnabled(true)
@@ -181,7 +181,7 @@ class RecordingSleepEndFallbackPollerTest {
 
         poller.pollOnce(sessionStartTimeMillis = 999L)
 
-        assertThat(sleepSessionPoller.lastRequireBackgroundRead).isFalse()
+        assertThat(sleepSessionPoller.lastRequireBackgroundRead).isTrue()
     }
 
     @Test

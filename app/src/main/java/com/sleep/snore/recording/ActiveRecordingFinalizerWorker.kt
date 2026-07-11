@@ -58,7 +58,6 @@ class ActiveRecordingFinalizerWorker @AssistedInject constructor(
                 activeRecordExists = activeRecord != null,
                 inputSleepEndTimeMillis = inputSleepEndTimeMillis,
                 resolvedWearableSleepEnd = resolvedWearableSleepEnd,
-                resolveResult = wearableSleepEndResolveResult,
                 runAttemptCount = runAttemptCount
             )
         ) {
@@ -136,7 +135,6 @@ internal fun shouldRetryWearableFinalizer(
     activeRecordExists: Boolean,
     inputSleepEndTimeMillis: Long?,
     resolvedWearableSleepEnd: ResolvedWearableSleepEnd?,
-    resolveResult: WearableSleepEndResolveResult? = null,
     runAttemptCount: Int
 ): Boolean {
     if (
@@ -146,12 +144,6 @@ internal fun shouldRetryWearableFinalizer(
         resolvedWearableSleepEnd != null
     ) {
         return false
-    }
-    if (
-        resolveResult == WearableSleepEndResolveResult.PermissionMissing ||
-        resolveResult == WearableSleepEndResolveResult.ReadFailed
-    ) {
-        return true
     }
     return runAttemptCount < MAX_HEALTH_CONNECT_RESOLVE_ATTEMPTS
 }

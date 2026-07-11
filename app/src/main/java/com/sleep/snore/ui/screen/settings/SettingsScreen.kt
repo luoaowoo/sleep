@@ -404,6 +404,7 @@ fun SettingsScreen(
                             hasRecordAudioPermission &&
                             hasNotificationPermission &&
                             hasHealthConnectSleepReadPermission &&
+                            hasHealthConnectBackgroundReadPermission &&
                             installedXiaomiCompanion != null &&
                             uiState.wearableStopOnSleepEndEnabled
                         ) {
