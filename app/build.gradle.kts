@@ -88,6 +88,7 @@ dependencies {
     // Health Connect / background sleep trigger
     implementation("androidx.health.connect:connect-client:1.1.0-alpha11")
     implementation("androidx.work:work-runtime-ktx:2.9.1")
+    implementation("com.google.guava:guava:33.2.1-android")
     implementation("androidx.hilt:hilt-work:1.2.0")
     kapt("androidx.hilt:hilt-compiler:1.2.0")
 

@@ -23,7 +23,8 @@ internal data class WearableDiagnosticReportInput(
     val activeRecordingTriggerStartedAtMillis: Long,
     val wearableSleepTriggerStatus: String,
     val wearableSleepTriggerLastCheckText: String,
-    val latestWearableSleepSessionText: String
+    val latestWearableSleepSessionText: String,
+    val workManagerDiagnosticsText: String
 )
 
 internal fun wearableDiagnosticReport(input: WearableDiagnosticReportInput): String {
@@ -60,6 +61,8 @@ internal fun wearableDiagnosticReport(input: WearableDiagnosticReportInput): Str
         appendLine("最近状态：${input.wearableSleepTriggerStatus}")
         appendLine("最近检查：${input.wearableSleepTriggerLastCheckText}")
         appendLine("最近同步睡眠：${input.latestWearableSleepSessionText}")
+        appendLine("后台任务：")
+        appendLine(input.workManagerDiagnosticsText.ifBlank { "无" })
         appendLine("说明：Android 后台不能可靠直接开启麦克风；推荐睡前打开前台检测，睡醒后等待小米同步睡眠结束到 Health Connect 自动停录。")
     }.trimEnd()
 }

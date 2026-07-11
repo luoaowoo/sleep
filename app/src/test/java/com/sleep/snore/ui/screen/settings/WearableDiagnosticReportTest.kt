@@ -32,7 +32,8 @@ class WearableDiagnosticReportTest {
                 activeRecordingTriggerStartedAtMillis = 1_000_000L,
                 wearableSleepTriggerStatus = "睡前前台检测已开启",
                 wearableSleepTriggerLastCheckText = "07-11 23:20",
-                latestWearableSleepSessionText = "07-11 01:00 - 07-11 08:00（已读取睡眠结束）"
+                latestWearableSleepSessionText = "07-11 01:00 - 07-11 08:00（已读取睡眠结束）",
+                workManagerDiagnosticsText = "health_connect_sleep_trigger: ENQUEUED(attempt=0)"
             )
         )
 
@@ -53,6 +54,8 @@ class WearableDiagnosticReportTest {
         assertThat(report).contains("当前录音触发毫秒：1000000")
         assertThat(report).contains("录音开始-触发差值毫秒：500")
         assertThat(report).contains("最近同步睡眠：07-11 01:00 - 07-11 08:00")
+        assertThat(report).contains("后台任务：")
+        assertThat(report).contains("health_connect_sleep_trigger: ENQUEUED(attempt=0)")
         assertThat(report).contains("后台不能可靠直接开启麦克风")
         assertThat(report).doesNotContain("API Key")
         assertThat(report).doesNotContain("原始音频")
@@ -69,5 +72,18 @@ class WearableDiagnosticReportTest {
     fun recordingTriggerOffsetMillis_returnsNullWhenTimingMissing() {
         assertThat(recordingTriggerOffsetMillis(0L, 1_000L)).isNull()
         assertThat(recordingTriggerOffsetMillis(1_000L, 0L)).isNull()
+    }
+
+    @Test
+    fun wearableWorkDiagnosticsText_includesEmptyAndRetryStates() {
+        val text = wearableWorkDiagnosticsText(
+            listOf(
+                WearableWorkDiagnosticItem("health_connect_sleep_trigger", emptyList()),
+                WearableWorkDiagnosticItem("active_recording_finalizer", listOf("RUNNING(attempt=2)"))
+            )
+        )
+
+        assertThat(text).contains("health_connect_sleep_trigger: 无记录")
+        assertThat(text).contains("active_recording_finalizer: RUNNING(attempt=2)")
     }
 }

@@ -57,6 +57,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -90,6 +91,7 @@ import com.sleep.snore.sleeptrigger.WearableSleepStandbyService
 import com.sleep.snore.ui.theme.LocalUiPreferences
 import com.sleep.snore.ui.theme.Spacing
 import kotlin.math.atan2
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -110,6 +112,7 @@ fun SettingsScreen(
     val uiPreferences = LocalUiPreferences.current
     val powerManager = remember(context) { context.getSystemService(PowerManager::class.java) }
     val lifecycleOwner = LocalLifecycleOwner.current
+    val coroutineScope = rememberCoroutineScope()
     var permissionRefreshTick by remember { mutableStateOf(0) }
     var healthConnectPermissionRefreshTick by remember { mutableStateOf(0) }
     var powerStateRefreshTick by remember { mutableStateOf(0) }
@@ -530,48 +533,51 @@ fun SettingsScreen(
                     Spacer(Modifier.height(Spacing.sm))
                     TextButton(
                         onClick = {
-                            val report = wearableDiagnosticReport(
-                                WearableDiagnosticReportInput(
-                                    generatedAtText = java.text.SimpleDateFormat(
-                                        "yyyy-MM-dd HH:mm:ss",
-                                        java.util.Locale.getDefault()
-                                    ).format(java.util.Date()),
-                                    appText = appVersionText(context),
-                                    deviceText = "${Build.MANUFACTURER} ${Build.MODEL} / Android ${Build.VERSION.RELEASE}",
-                                    healthConnectStatusText = healthConnectStatusText(healthConnectSdkStatus),
-                                    hasRecordAudioPermission = hasRecordAudioPermission,
-                                    hasNotificationPermission = hasNotificationPermission,
-                                    hasHealthConnectSleepReadPermission = hasHealthConnectSleepReadPermission,
-                                    hasHealthConnectBackgroundReadPermission = hasHealthConnectBackgroundReadPermission,
-                                    isIgnoringBatteryOptimizations = isIgnoringBatteryOptimizations,
-                                    xiaomiCompanionText = installedXiaomiCompanion?.let {
-                                        "${it.label} (${it.packageName})"
-                                    } ?: "未检测到 Mi Fitness / Zepp Life",
-                                    periodicCheckEnabled = uiState.wearableSleepTriggerEnabled,
-                                    stopOnSleepEndEnabled = uiState.wearableStopOnSleepEndEnabled,
-                                    foregroundDetectionActive = wearableSleepDetectionActive,
-                                    recordingRuntimeText = recordingRuntimeText(recordingState),
-                                    recordingActive = recordingState.isActive,
-                                    recordingStartTimeMillis = recordingState.startTime,
-                                    recordingEventCount = recordingState.eventCount,
-                                    activeRecordingTriggerSource = uiState.activeRecordingTriggerSource,
-                                    activeRecordingTriggerStartedAtText = uiState.activeRecordingTriggerStartedAtText,
-                                    activeRecordingTriggerStartedAtMillis = uiState.activeRecordingTriggerStartedAtMillis,
-                                    wearableSleepTriggerStatus = uiState.wearableSleepTriggerStatus,
-                                    wearableSleepTriggerLastCheckText = uiState.wearableSleepTriggerLastCheckText,
-                                    latestWearableSleepSessionText = uiState.latestWearableSleepSessionText
+                            coroutineScope.launch {
+                                val report = wearableDiagnosticReport(
+                                    WearableDiagnosticReportInput(
+                                        generatedAtText = java.text.SimpleDateFormat(
+                                            "yyyy-MM-dd HH:mm:ss",
+                                            java.util.Locale.getDefault()
+                                        ).format(java.util.Date()),
+                                        appText = appVersionText(context),
+                                        deviceText = "${Build.MANUFACTURER} ${Build.MODEL} / Android ${Build.VERSION.RELEASE}",
+                                        healthConnectStatusText = healthConnectStatusText(healthConnectSdkStatus),
+                                        hasRecordAudioPermission = hasRecordAudioPermission,
+                                        hasNotificationPermission = hasNotificationPermission,
+                                        hasHealthConnectSleepReadPermission = hasHealthConnectSleepReadPermission,
+                                        hasHealthConnectBackgroundReadPermission = hasHealthConnectBackgroundReadPermission,
+                                        isIgnoringBatteryOptimizations = isIgnoringBatteryOptimizations,
+                                        xiaomiCompanionText = installedXiaomiCompanion?.let {
+                                            "${it.label} (${it.packageName})"
+                                        } ?: "未检测到 Mi Fitness / Zepp Life",
+                                        periodicCheckEnabled = uiState.wearableSleepTriggerEnabled,
+                                        stopOnSleepEndEnabled = uiState.wearableStopOnSleepEndEnabled,
+                                        foregroundDetectionActive = wearableSleepDetectionActive,
+                                        recordingRuntimeText = recordingRuntimeText(recordingState),
+                                        recordingActive = recordingState.isActive,
+                                        recordingStartTimeMillis = recordingState.startTime,
+                                        recordingEventCount = recordingState.eventCount,
+                                        activeRecordingTriggerSource = uiState.activeRecordingTriggerSource,
+                                        activeRecordingTriggerStartedAtText = uiState.activeRecordingTriggerStartedAtText,
+                                        activeRecordingTriggerStartedAtMillis = uiState.activeRecordingTriggerStartedAtMillis,
+                                        wearableSleepTriggerStatus = uiState.wearableSleepTriggerStatus,
+                                        wearableSleepTriggerLastCheckText = uiState.wearableSleepTriggerLastCheckText,
+                                        latestWearableSleepSessionText = uiState.latestWearableSleepSessionText,
+                                        workManagerDiagnosticsText = collectWearableWorkDiagnostics(context)
+                                    )
                                 )
-                            )
-                            context.startActivity(
-                                Intent.createChooser(
-                                    Intent(Intent.ACTION_SEND).apply {
-                                        type = "text/plain"
-                                        putExtra(Intent.EXTRA_SUBJECT, "SleepSnore 手环诊断")
-                                        putExtra(Intent.EXTRA_TEXT, report)
-                                    },
-                                    "分享手环诊断信息"
+                                context.startActivity(
+                                    Intent.createChooser(
+                                        Intent(Intent.ACTION_SEND).apply {
+                                            type = "text/plain"
+                                            putExtra(Intent.EXTRA_SUBJECT, "SleepSnore 手环诊断")
+                                            putExtra(Intent.EXTRA_TEXT, report)
+                                        },
+                                        "分享手环诊断信息"
+                                    )
                                 )
-                            )
+                            }
                         }
                     ) {
                         Text("分享手环诊断信息")
