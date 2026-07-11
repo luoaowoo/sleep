@@ -1,6 +1,7 @@
 package com.sleep.snore.sleeptrigger
 
 import java.time.Instant
+import java.time.temporal.ChronoUnit
 
 data class SleepSessionSnapshot(
     val startTime: Instant,
@@ -22,15 +23,49 @@ object HealthConnectSleepEventInterpreter {
             .maxByOrNull { it.startTime }
     }
 
+    fun latestActionableSession(
+        sessions: List<SleepSessionSnapshot>,
+        now: Instant,
+        ignoreEventsBefore: Instant? = null
+    ): Pair<SleepSessionSnapshot, InterpretedSleepEvent>? {
+        return sessions
+            .asSequence()
+            .filter { !it.startTime.isAfter(now) && !it.endTime.isBefore(it.startTime) }
+            .sortedWith(compareByDescending<SleepSessionSnapshot> { it.endTime }.thenByDescending { it.startTime })
+            .mapNotNull { session ->
+                val event = interpret(
+                    session = session,
+                    now = now,
+                    ignoreEventsBefore = ignoreEventsBefore
+                ) ?: return@mapNotNull null
+                session to event
+            }
+            .firstOrNull()
+    }
+
     fun interpret(
         session: SleepSessionSnapshot,
         now: Instant,
         ignoreEventsBefore: Instant? = null,
+        minimumOverlapAfterIgnoreBoundaryMillis: Long = MINIMUM_OVERLAP_AFTER_IGNORE_BOUNDARY_MILLIS,
         source: String = HealthConnectSleepTriggerSource.SOURCE
     ): InterpretedSleepEvent? {
         if (session.startTime.isAfter(now)) return null
         if (session.endTime.isAfter(now)) return null
         if (ignoreEventsBefore != null && session.endTime.isBefore(ignoreEventsBefore)) {
+            return null
+        }
+        if (
+            ignoreEventsBefore != null &&
+            minimumOverlapAfterIgnoreBoundaryMillis > 0L &&
+            overlapAfterBoundaryMillis(session, ignoreEventsBefore) < minimumOverlapAfterIgnoreBoundaryMillis
+        ) {
+            return null
+        }
+        if (
+            ignoreEventsBefore != null &&
+            sessionDurationMillis(session) < MINIMUM_AUTO_STOP_SLEEP_SESSION_DURATION_MILLIS
+        ) {
             return null
         }
         val event = SleepTriggerEvent.SleepEnded(
@@ -43,5 +78,19 @@ object HealthConnectSleepEventInterpreter {
         )
     }
 
+    private fun overlapAfterBoundaryMillis(
+        session: SleepSessionSnapshot,
+        boundary: Instant
+    ): Long {
+        val overlapStart = maxOf(session.startTime, boundary)
+        return ChronoUnit.MILLIS.between(overlapStart, session.endTime).coerceAtLeast(0L)
+    }
+
+    internal fun sessionDurationMillis(session: SleepSessionSnapshot): Long {
+        return ChronoUnit.MILLIS.between(session.startTime, session.endTime).coerceAtLeast(0L)
+    }
+
     private const val EVENT_TYPE_SLEEP_ENDED = "SleepEnded"
+    private const val MINIMUM_OVERLAP_AFTER_IGNORE_BOUNDARY_MILLIS = 30L * 60L * 1000L
+    internal const val MINIMUM_AUTO_STOP_SLEEP_SESSION_DURATION_MILLIS = 2L * 60L * 60L * 1000L
 }

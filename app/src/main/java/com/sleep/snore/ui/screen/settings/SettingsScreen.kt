@@ -373,7 +373,8 @@ fun SettingsScreen(
                             hasHealthConnectPermission = hasHealthConnectPermission,
                             isIgnoringBatteryOptimizations = isIgnoringBatteryOptimizations,
                             hasXiaomiCompanion = installedXiaomiCompanion != null,
-                            periodicCheckEnabled = uiState.wearableSleepTriggerEnabled
+                            periodicCheckEnabled = uiState.wearableSleepTriggerEnabled,
+                            stopOnSleepEndEnabled = uiState.wearableStopOnSleepEndEnabled
                         ),
                         style = MaterialTheme.typography.labelSmall,
                         color = if (
@@ -382,7 +383,8 @@ fun SettingsScreen(
                             hasHealthConnectPermission &&
                             isIgnoringBatteryOptimizations &&
                             installedXiaomiCompanion != null &&
-                            uiState.wearableSleepTriggerEnabled
+                            uiState.wearableSleepTriggerEnabled &&
+                            uiState.wearableStopOnSleepEndEnabled
                         ) {
                             MaterialTheme.colorScheme.primary
                         } else {
@@ -395,6 +397,7 @@ fun SettingsScreen(
                             hasXiaomiCompanion = installedXiaomiCompanion != null,
                             hasHealthConnectPermission = hasHealthConnectPermission,
                             periodicCheckEnabled = uiState.wearableSleepTriggerEnabled,
+                            stopOnSleepEndEnabled = uiState.wearableStopOnSleepEndEnabled,
                             foregroundDetectionActive = wearableSleepDetectionActive
                         ),
                         style = MaterialTheme.typography.labelSmall,

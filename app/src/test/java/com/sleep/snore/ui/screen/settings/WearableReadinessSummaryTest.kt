@@ -13,7 +13,8 @@ class WearableReadinessSummaryTest {
             hasHealthConnectPermission = true,
             isIgnoringBatteryOptimizations = true,
             hasXiaomiCompanion = true,
-            periodicCheckEnabled = true
+            periodicCheckEnabled = true,
+            stopOnSleepEndEnabled = true
         )
 
         assertThat(summary).contains("睡前检测准备基本完成")
@@ -28,7 +29,8 @@ class WearableReadinessSummaryTest {
             hasHealthConnectPermission = false,
             isIgnoringBatteryOptimizations = false,
             hasXiaomiCompanion = false,
-            periodicCheckEnabled = false
+            periodicCheckEnabled = false,
+            stopOnSleepEndEnabled = false
         )
 
         assertThat(summary).contains("麦克风权限")
@@ -37,6 +39,7 @@ class WearableReadinessSummaryTest {
         assertThat(summary).contains("电池优化放行")
         assertThat(summary).contains("小米伴侣 App")
         assertThat(summary).contains("Health Connect 周期检查")
+        assertThat(summary).contains("睡眠结束后自动停止")
     }
 
     @Test
@@ -45,6 +48,7 @@ class WearableReadinessSummaryTest {
             hasXiaomiCompanion = true,
             hasHealthConnectPermission = true,
             periodicCheckEnabled = true,
+            stopOnSleepEndEnabled = true,
             foregroundDetectionActive = true
         )
 
@@ -58,6 +62,7 @@ class WearableReadinessSummaryTest {
             hasXiaomiCompanion = false,
             hasHealthConnectPermission = false,
             periodicCheckEnabled = false,
+            stopOnSleepEndEnabled = false,
             foregroundDetectionActive = false
         )
 
@@ -71,6 +76,7 @@ class WearableReadinessSummaryTest {
             hasXiaomiCompanion = true,
             hasHealthConnectPermission = false,
             periodicCheckEnabled = false,
+            stopOnSleepEndEnabled = false,
             foregroundDetectionActive = false
         )
 
@@ -83,6 +89,7 @@ class WearableReadinessSummaryTest {
             hasXiaomiCompanion = true,
             hasHealthConnectPermission = true,
             periodicCheckEnabled = false,
+            stopOnSleepEndEnabled = true,
             foregroundDetectionActive = false
         )
 
@@ -96,10 +103,39 @@ class WearableReadinessSummaryTest {
             hasXiaomiCompanion = true,
             hasHealthConnectPermission = true,
             periodicCheckEnabled = true,
+            stopOnSleepEndEnabled = true,
             foregroundDetectionActive = false
         )
 
         assertThat(summary).contains("链路已配置")
         assertThat(summary).contains("等待小米同步睡眠结束记录")
+    }
+
+    @Test
+    fun wearableIntegrationStatusSummary_reportsAutoStopDisabled() {
+        val summary = wearableIntegrationStatusSummary(
+            hasXiaomiCompanion = true,
+            hasHealthConnectPermission = true,
+            periodicCheckEnabled = true,
+            stopOnSleepEndEnabled = false,
+            foregroundDetectionActive = false
+        )
+
+        assertThat(summary).contains("自动停录已关闭")
+        assertThat(summary).contains("手动停止")
+    }
+
+    @Test
+    fun wearableIntegrationStatusSummary_reportsForegroundActiveWithAutoStopDisabled() {
+        val summary = wearableIntegrationStatusSummary(
+            hasXiaomiCompanion = true,
+            hasHealthConnectPermission = true,
+            periodicCheckEnabled = true,
+            stopOnSleepEndEnabled = false,
+            foregroundDetectionActive = true
+        )
+
+        assertThat(summary).contains("前台鼾声检测已开启")
+        assertThat(summary).contains("睡醒后需要手动停止")
     }
 }

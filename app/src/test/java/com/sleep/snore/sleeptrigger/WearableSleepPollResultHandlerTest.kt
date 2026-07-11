@@ -140,6 +140,37 @@ class WearableSleepPollResultHandlerTest {
     }
 
     @Test
+    fun handleWearableSleepPollResult_reportsShortOverlapSleepSession() = runTest {
+        val settingsRepository = mockk<SettingsPreferencesRepository>(relaxed = true)
+        val session = SleepSessionSnapshot(
+            startTime = Instant.ofEpochMilli(1_000L),
+            endTime = Instant.ofEpochMilli(8_000L)
+        )
+
+        val result = handleWearableSleepPollResult(
+            pollResult = HealthConnectSleepTriggerSource.PollResult.NoActionableSleep(
+                observedSession = session,
+                reason = HealthConnectSleepTriggerSource.PollResult.NoActionableSleepReason
+                    .INSUFFICIENT_ACTIVE_RECORDING_OVERLAP
+            ),
+            stopOnSleepEnd = true,
+            coordinator = AutoSnoreDetectionCoordinator(FakeRecordingController()),
+            settingsRepository = settingsRepository,
+            requireBackgroundRead = true
+        )
+
+        assertThat(result.statusText).contains("重叠不足 30 分钟")
+        assertThat(result.eventHandled).isFalse()
+        coVerify {
+            settingsRepository.setLatestWearableSleepSession(
+                startMillis = 1_000L,
+                endMillis = 8_000L,
+                status = "与本次检测重叠过短，已忽略"
+            )
+        }
+    }
+
+    @Test
     fun handleWearableSleepPollResult_doesNotStartRecordingWhenSleepStartDisallowed() = runTest {
         val settingsRepository = mockk<SettingsPreferencesRepository>(relaxed = true)
         val controller = FakeRecordingController()

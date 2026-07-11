@@ -334,7 +334,11 @@ class SettingsViewModel @Inject constructor(
                 preferencesRepository.setWearableSleepTriggerStatus(recordingStartResult.statusText)
                 return@launch
             }
-            val status = "睡前前台检测已开启，录音服务将低频检查 Health Connect 睡眠结束"
+            val status = if (_uiState.value.wearableStopOnSleepEndEnabled) {
+                "睡前前台检测已开启，录音服务将低频检查 Health Connect 睡眠结束"
+            } else {
+                "睡前前台检测已开启，但自动停录已关闭；睡醒后请手动停止"
+            }
             _uiState.update { state -> state.copy(wearableSleepTriggerStatus = status) }
             preferencesRepository.setWearableSleepTriggerStatus(status)
         }

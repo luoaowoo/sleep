@@ -42,46 +42,49 @@ class HealthConnectSleepTriggerSource @Inject constructor(
             return PollResult.PermissionMissing
         }
 
-        val latestSession = runCatching {
+        val sessions = runCatching {
             val records = client.readRecords(
                 ReadRecordsRequest(
                     recordType = SleepSessionRecord::class,
                     timeRangeFilter = TimeRangeFilter.between(now.minus(36, ChronoUnit.HOURS), now)
                 )
             ).records
-            HealthConnectSleepEventInterpreter.latestValidSession(
-                sessions = records.map { record ->
+            records.map { record ->
                     SleepSessionSnapshot(
                         startTime = record.startTime,
                         endTime = record.endTime
                     )
-                },
-                now = now
-            )
+                }
         }.getOrElse { throwable ->
             return if (throwable is SecurityException) {
                 PollResult.PermissionMissing
             } else {
                 PollResult.ReadFailed
             }
-        } ?: return PollResult.NoRecentSleep
+        }
 
-        val interpretedEvent = HealthConnectSleepEventInterpreter.interpret(
-            session = latestSession,
+        val latestSession = HealthConnectSleepEventInterpreter.latestValidSession(
+            sessions = sessions,
+            now = now
+        ) ?: return PollResult.NoRecentSleep
+        val actionableSession = HealthConnectSleepEventInterpreter.latestActionableSession(
+            sessions = sessions,
             now = now,
             ignoreEventsBefore = ignoreEventsBefore
         ) ?: return PollResult.NoActionableSleep(
             observedSession = latestSession,
-            reason = if (latestSession.endTime.isAfter(now)) {
-                PollResult.NoActionableSleepReason.ONGOING
-            } else {
-                PollResult.NoActionableSleepReason.BEFORE_ACTIVE_RECORDING
-            }
+            reason = noActionableSleepReason(
+                session = latestSession,
+                now = now,
+                ignoreEventsBefore = ignoreEventsBefore
+            )
         )
+        val interpretedEvent = actionableSession.second
+        val interpretedSession = actionableSession.first
         if (interpretedEvent.eventKey == settingsRepository.getLastWearableSleepEventKey()) {
-            return PollResult.DuplicateEvent(latestSession)
+            return PollResult.DuplicateEvent(interpretedSession)
         }
-        return PollResult.EventEmitted(interpretedEvent.event, interpretedEvent.eventKey, latestSession)
+        return PollResult.EventEmitted(interpretedEvent.event, interpretedEvent.eventKey, interpretedSession)
     }
 
     sealed interface PollResult {
@@ -107,7 +110,9 @@ class HealthConnectSleepTriggerSource @Inject constructor(
 
         enum class NoActionableSleepReason {
             ONGOING,
-            BEFORE_ACTIVE_RECORDING
+            BEFORE_ACTIVE_RECORDING,
+            INSUFFICIENT_ACTIVE_RECORDING_OVERLAP,
+            SHORT_SLEEP_SESSION
         }
     }
 
@@ -119,5 +124,23 @@ class HealthConnectSleepTriggerSource @Inject constructor(
         val FOREGROUND_REQUIRED_PERMISSIONS: Set<String> = setOf(READ_SLEEP_PERMISSION)
         val BACKGROUND_REQUIRED_PERMISSIONS: Set<String> = setOf(READ_SLEEP_PERMISSION, BACKGROUND_READ_PERMISSION)
         val REQUIRED_PERMISSIONS: Set<String> = BACKGROUND_REQUIRED_PERMISSIONS
+    }
+}
+
+private fun noActionableSleepReason(
+    session: SleepSessionSnapshot,
+    now: Instant,
+    ignoreEventsBefore: Instant?
+): HealthConnectSleepTriggerSource.PollResult.NoActionableSleepReason {
+    return when {
+        session.endTime.isAfter(now) -> HealthConnectSleepTriggerSource.PollResult.NoActionableSleepReason.ONGOING
+        ignoreEventsBefore != null && session.endTime.isBefore(ignoreEventsBefore) -> {
+            HealthConnectSleepTriggerSource.PollResult.NoActionableSleepReason.BEFORE_ACTIVE_RECORDING
+        }
+        ignoreEventsBefore != null && HealthConnectSleepEventInterpreter.sessionDurationMillis(session) <
+            HealthConnectSleepEventInterpreter.MINIMUM_AUTO_STOP_SLEEP_SESSION_DURATION_MILLIS -> {
+            HealthConnectSleepTriggerSource.PollResult.NoActionableSleepReason.SHORT_SLEEP_SESSION
+        }
+        else -> HealthConnectSleepTriggerSource.PollResult.NoActionableSleepReason.INSUFFICIENT_ACTIVE_RECORDING_OVERLAP
     }
 }

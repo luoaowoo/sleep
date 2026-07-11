@@ -105,6 +105,29 @@ class SettingsViewModelWearableStandbyTest {
     }
 
     @Test
+    fun startWearableSleepStandby_whenAutoStopDisabledWritesManualStopStatus() = runTest(dispatcher) {
+        val repository = createRepository()
+        repository.setWearableStopOnSleepEndEnabled(false)
+        val recordingController = FakeRecordingController(
+            startResult = RecordingStartResult.Confirmed("started")
+        )
+        val viewModel = SettingsViewModel(
+            context = RuntimeEnvironment.getApplication(),
+            preferencesRepository = repository,
+            recordingController = recordingController,
+            wearableStandbyPrerequisiteChecker = FakeWearableStandbyPrerequisiteChecker()
+        )
+
+        viewModel.startWearableSleepStandby()
+        advanceUntilIdle()
+
+        assertThat(recordingController.startedSources)
+            .containsExactly(HealthConnectSleepTriggerSource.SOURCE)
+        assertThat(repository.settingsSnapshot().wearableSleepTriggerStatus)
+            .isEqualTo("睡前前台检测已开启，但自动停录已关闭；睡醒后请手动停止")
+    }
+
+    @Test
     fun startWearableSleepStandby_whenRecordingNotConfirmedKeepsControllerStatus() = runTest(dispatcher) {
         val repository = createRepository()
         val recordingController = FakeRecordingController(

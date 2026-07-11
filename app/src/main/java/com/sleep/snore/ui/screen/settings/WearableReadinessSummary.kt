@@ -6,7 +6,8 @@ internal fun wearableReadinessSummary(
     hasHealthConnectPermission: Boolean,
     isIgnoringBatteryOptimizations: Boolean,
     hasXiaomiCompanion: Boolean,
-    periodicCheckEnabled: Boolean
+    periodicCheckEnabled: Boolean,
+    stopOnSleepEndEnabled: Boolean
 ): String {
     val missingItems = buildList {
         if (!hasRecordAudioPermission) add("麦克风权限")
@@ -15,6 +16,7 @@ internal fun wearableReadinessSummary(
         if (!isIgnoringBatteryOptimizations) add("电池优化放行")
         if (!hasXiaomiCompanion) add("小米伴侣 App")
         if (!periodicCheckEnabled) add("Health Connect 周期检查")
+        if (!stopOnSleepEndEnabled) add("睡眠结束后自动停止")
     }
     return if (missingItems.isEmpty()) {
         "睡前检测准备基本完成；睡前点击“睡前开启前台检测”即可开始整晚鼾声检测。"
@@ -27,9 +29,13 @@ internal fun wearableIntegrationStatusSummary(
     hasXiaomiCompanion: Boolean,
     hasHealthConnectPermission: Boolean,
     periodicCheckEnabled: Boolean,
+    stopOnSleepEndEnabled: Boolean,
     foregroundDetectionActive: Boolean
 ): String {
     return when {
+        foregroundDetectionActive && !stopOnSleepEndEnabled -> {
+            "小米手环/Health Connect 辅助链路运行中：前台鼾声检测已开启，但自动停录已关闭；睡醒后需要手动停止。"
+        }
         foregroundDetectionActive -> {
             "小米手环/Health Connect 辅助链路运行中：前台鼾声检测已开启，应用会等待同步后的睡眠结束记录用于自动停录。"
         }
@@ -41,6 +47,9 @@ internal fun wearableIntegrationStatusSummary(
         }
         !periodicCheckEnabled -> {
             "Health Connect 睡眠读取已就绪：下一步开启周期检查，并在睡前点击“睡前开启前台检测”。"
+        }
+        !stopOnSleepEndEnabled -> {
+            "小米伴侣 + Health Connect 链路已配置，但自动停录已关闭；睡醒后需要手动停止鼾声检测。"
         }
         else -> {
             "小米伴侣 + Health Connect 链路已配置：睡前点击“睡前开启前台检测”，睡醒后等待小米同步睡眠结束记录。"

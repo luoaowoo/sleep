@@ -124,6 +124,71 @@ class HealthConnectSleepEventInterpreterTest {
     }
 
     @Test
+    fun interpret_ignoresFinishedSessionWithShortOverlapAfterArmedTime() {
+        val result = HealthConnectSleepEventInterpreter.interpret(
+            session = SleepSessionSnapshot(
+                startTime = Instant.parse("2026-07-11T20:00:00Z"),
+                endTime = Instant.parse("2026-07-11T22:10:00Z")
+            ),
+            now = Instant.parse("2026-07-11T22:15:00Z"),
+            ignoreEventsBefore = Instant.parse("2026-07-11T22:00:00Z")
+        )
+
+        assertThat(result).isNull()
+    }
+
+    @Test
+    fun interpret_keepsFinishedSessionWithEnoughOverlapAfterArmedTime() {
+        val result = HealthConnectSleepEventInterpreter.interpret(
+            session = SleepSessionSnapshot(
+                startTime = Instant.parse("2026-07-11T20:00:00Z"),
+                endTime = Instant.parse("2026-07-11T22:45:00Z")
+            ),
+            now = Instant.parse("2026-07-11T23:00:00Z"),
+            ignoreEventsBefore = Instant.parse("2026-07-11T22:00:00Z")
+        )
+
+        assertThat(result?.event).isInstanceOf(SleepTriggerEvent.SleepEnded::class.java)
+    }
+
+    @Test
+    fun interpret_ignoresShortNapAfterArmedTime() {
+        val result = HealthConnectSleepEventInterpreter.interpret(
+            session = SleepSessionSnapshot(
+                startTime = Instant.parse("2026-07-11T22:00:00Z"),
+                endTime = Instant.parse("2026-07-11T22:45:00Z")
+            ),
+            now = Instant.parse("2026-07-11T23:00:00Z"),
+            ignoreEventsBefore = Instant.parse("2026-07-11T21:55:00Z")
+        )
+
+        assertThat(result).isNull()
+    }
+
+    @Test
+    fun latestActionableSession_prefersLongSleepOverNewerShortNap() {
+        val now = Instant.parse("2026-07-12T12:00:00Z")
+        val longSleep = SleepSessionSnapshot(
+            startTime = Instant.parse("2026-07-11T23:00:00Z"),
+            endTime = Instant.parse("2026-07-12T07:00:00Z")
+        )
+        val shortNap = SleepSessionSnapshot(
+            startTime = Instant.parse("2026-07-12T11:00:00Z"),
+            endTime = Instant.parse("2026-07-12T11:30:00Z")
+        )
+
+        val result = HealthConnectSleepEventInterpreter.latestActionableSession(
+            sessions = listOf(longSleep, shortNap),
+            now = now,
+            ignoreEventsBefore = Instant.parse("2026-07-11T22:30:00Z")
+        )
+
+        assertThat(result?.first).isEqualTo(longSleep)
+        assertThat(result?.second?.eventKey)
+            .isEqualTo("SleepEnded:${longSleep.endTime.toEpochMilli()}:${longSleep.startTime.toEpochMilli()}")
+    }
+
+    @Test
     fun interpret_treatsEndEqualNowAsFinished() {
         val now = Instant.parse("2026-07-11T08:00:00Z")
         val result = HealthConnectSleepEventInterpreter.interpret(
