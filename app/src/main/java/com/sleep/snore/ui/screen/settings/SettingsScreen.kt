@@ -476,6 +476,16 @@ fun SettingsScreen(
                     ) {
                         Text("授权 Health Connect")
                     }
+                    TextButton(
+                        onClick = {
+                            openFirstAvailableSettingsIntent(
+                                context = context,
+                                intents = healthConnectSettingsIntents()
+                            )
+                        }
+                    ) {
+                        Text("打开 Health Connect 设置/安装更新")
+                    }
                     Spacer(Modifier.height(Spacing.sm))
                     Button(
                         onClick = viewModel::checkWearableSleepNow

@@ -9,6 +9,7 @@ import com.sleep.snore.data.repository.SleepRepository
 import com.sleep.snore.domain.SnoreEvaluator
 import com.sleep.snore.domain.SnoreScoreCalculator
 import com.sleep.snore.service.recordingDurationSummary
+import com.sleep.snore.service.safeRecordingEndTime
 import java.util.Calendar
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -43,7 +44,7 @@ class ActiveRecordingFinalizer @Inject constructor(
         endTimeMillis: Long,
         events: List<SnoreEventEntity>
     ): SleepRecordEntity {
-        val safeEndTime = max(activeRecord.startTime + 1L, endTimeMillis)
+        val safeEndTime = safeRecordingEndTime(activeRecord.startTime, endTimeMillis)
         val durationMs = max(1L, safeEndTime - activeRecord.startTime)
         val snoreDurationMs = events.sumOf { it.durationMs.toLong() }
         val durationSummary = recordingDurationSummary(durationMs, snoreDurationMs)

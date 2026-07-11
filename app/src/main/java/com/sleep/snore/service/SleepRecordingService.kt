@@ -723,7 +723,8 @@ class SleepRecordingService : Service() {
         endTime: Long,
         events: List<SnoreEventEntity>
     ): SleepRecordEntity {
-        val durationMs = max(1L, endTime - startTime)
+        val safeEndTime = safeRecordingEndTime(startTime, endTime)
+        val durationMs = max(1L, safeEndTime - startTime)
         val snoreDurationMs = events.sumOf { it.durationMs.toLong() }
         val durationSummary = recordingDurationSummary(durationMs, snoreDurationMs)
         val sleepDurationMin = durationSummary.sleepDurationMin
@@ -736,7 +737,7 @@ class SleepRecordingService : Service() {
         val base = SleepRecordEntity(
             id = recordId,
             startTime = startTime,
-            endTime = endTime,
+            endTime = safeEndTime,
             sleepDurationMin = sleepDurationMin,
             snoreScore = 0,
             severity = Severity.GOOD.name,
