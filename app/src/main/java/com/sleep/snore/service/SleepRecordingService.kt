@@ -227,9 +227,6 @@ class SleepRecordingService : Service() {
                     activeRecord.id
                 }
                 currentRecordId = recordId
-                if (!triggerSource.isNullOrBlank()) {
-                    preferencesRepository.setActiveRecordingTriggerSource(triggerSource, sessionStartTime)
-                }
                 if (!isSessionActive) return@launch
                 val detectorStarted = startSnoreDetection(
                     recordId = recordId,
@@ -239,8 +236,10 @@ class SleepRecordingService : Service() {
                 )
                 if (!detectorStarted) {
                     abortSessionStart(recordId = recordId, deleteRecord = createdNewRecord)
-                } else if (!triggerSource.isNullOrBlank()) {
-                    startWearableSleepEndWatcherIfNeeded(triggerSource)
+                } else if (shouldConfirmSleepTriggerRecording(detectorStarted, triggerSource)) {
+                    val confirmedTriggerSource = triggerSource.orEmpty()
+                    preferencesRepository.setActiveRecordingTriggerSource(confirmedTriggerSource, sessionStartTime)
+                    startWearableSleepEndWatcherIfNeeded(confirmedTriggerSource)
                 } else if (!recoveryOnly) {
                     preferencesRepository.clearActiveRecordingTriggerSource()
                 } else {

@@ -46,6 +46,34 @@ class SleepRecordingStopPolicyTest {
     }
 
     @Test
+    fun shouldConfirmSleepTriggerRecording_requiresStartedDetectorAndTriggerSource() {
+        assertThat(
+            shouldConfirmSleepTriggerRecording(
+                detectorStarted = true,
+                triggerSource = "health_connect_sleep"
+            )
+        ).isTrue()
+        assertThat(
+            shouldConfirmSleepTriggerRecording(
+                detectorStarted = false,
+                triggerSource = "health_connect_sleep"
+            )
+        ).isFalse()
+        assertThat(
+            shouldConfirmSleepTriggerRecording(
+                detectorStarted = true,
+                triggerSource = ""
+            )
+        ).isFalse()
+        assertThat(
+            shouldConfirmSleepTriggerRecording(
+                detectorStarted = true,
+                triggerSource = null
+            )
+        ).isFalse()
+    }
+
+    @Test
     fun shouldStopWearableRecordingAfterMaxDuration_keepsRecordingBeforeLimit() {
         assertThat(
             shouldStopWearableRecordingAfterMaxDuration(

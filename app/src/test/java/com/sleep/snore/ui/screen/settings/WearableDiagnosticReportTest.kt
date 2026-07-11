@@ -72,6 +72,7 @@ class WearableDiagnosticReportTest {
         assertThat(report).contains("最近睡眠来源：com.xiaomi.wearable")
         assertThat(report).contains("最近睡眠时长分钟：420")
         assertThat(report).contains("最近睡眠与触发重叠分钟：420")
+        assertThat(report).contains("手环前台检测 16 小时兜底截止毫秒：58600000")
         assertThat(report).contains("最近睡眠自动停录规则判断：满足自动停录时间规则")
         assertThat(report).contains("后台任务：")
         assertThat(report).contains("health_connect_sleep_trigger: ENQUEUED(attempt=0)")
@@ -114,6 +115,28 @@ class WearableDiagnosticReportTest {
                 triggerStartedAtMillis = 61_000L
             )
         ).isEqualTo(1L)
+    }
+
+    @Test
+    fun wearableRecordingCapAtMillis_reportsOnlyForWearableRecording() {
+        assertThat(
+            wearableRecordingCapAtMillis(
+                activeRecordingTriggerSource = "health_connect_sleep",
+                activeRecordingTriggerStartedAtMillis = 1_000L
+            )
+        ).isEqualTo(57_601_000L)
+        assertThat(
+            wearableRecordingCapAtMillis(
+                activeRecordingTriggerSource = "",
+                activeRecordingTriggerStartedAtMillis = 1_000L
+            )
+        ).isNull()
+        assertThat(
+            wearableRecordingCapAtMillis(
+                activeRecordingTriggerSource = "health_connect_sleep",
+                activeRecordingTriggerStartedAtMillis = 0L
+            )
+        ).isNull()
     }
 
     @Test

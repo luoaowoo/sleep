@@ -91,6 +91,14 @@ internal fun wearableDiagnosticReport(input: WearableDiagnosticReportInput): Str
             }"
         )
         appendLine(
+            "手环前台检测 16 小时兜底截止毫秒：${
+                wearableRecordingCapAtMillis(
+                    activeRecordingTriggerSource = input.activeRecordingTriggerSource,
+                    activeRecordingTriggerStartedAtMillis = input.activeRecordingTriggerStartedAtMillis
+                ) ?: "不适用"
+            }"
+        )
+        appendLine(
             "最近睡眠自动停录规则判断：${
                 sleepAutoStopRuleDiagnostic(
                     sleepStartMillis = input.latestWearableSleepSessionStartMillis,
@@ -226,6 +234,15 @@ internal fun recordingTriggerOffsetMillis(
     return recordingStartTimeMillis - triggerStartedAtMillis
 }
 
+internal fun wearableRecordingCapAtMillis(
+    activeRecordingTriggerSource: String,
+    activeRecordingTriggerStartedAtMillis: Long
+): Long? {
+    if (activeRecordingTriggerSource != HealthConnectSleepTriggerSource.SOURCE) return null
+    if (activeRecordingTriggerStartedAtMillis <= 0L) return null
+    return activeRecordingTriggerStartedAtMillis + WEARABLE_RECORDING_CAP_MILLIS
+}
+
 internal fun healthConnectStatusText(sdkStatus: Int): String {
     val blocker = healthConnectAvailabilityBlocker(sdkStatus)
     return blocker ?: "可用"
@@ -247,3 +264,4 @@ private fun Boolean.toActiveInactive(): String = if (this) "运行中" else "未
 
 private const val MINIMUM_ACTIVE_RECORDING_OVERLAP_MINUTES = 30L
 private const val MINIMUM_AUTO_STOP_SLEEP_SESSION_DURATION_MINUTES = 120L
+private const val WEARABLE_RECORDING_CAP_MILLIS = 16L * 60L * 60L * 1000L

@@ -142,9 +142,30 @@ class SettingsViewModelWearableStandbyTest {
         advanceUntilIdle()
 
         assertThat(recordingController.startedSources).isEmpty()
-        assertThat(repository.settingsSnapshot().wearableSleepTriggerEnabled).isTrue()
+        assertThat(repository.settingsSnapshot().wearableSleepTriggerEnabled).isFalse()
         assertThat(repository.settingsSnapshot().wearableSleepTriggerStatus)
             .isEqualTo("缺少 Health Connect 睡眠/后台读取权限，请先授权 Health Connect")
+    }
+
+    @Test
+    fun onHealthConnectPermissionsResult_foregroundOnlyDoesNotEnablePeriodicCheck() = runTest(dispatcher) {
+        val repository = createRepository()
+        val recordingController = FakeRecordingController()
+        val viewModel = SettingsViewModel(
+            context = RuntimeEnvironment.getApplication(),
+            preferencesRepository = repository,
+            sleepRepository = fakeSleepRepository(),
+            recordingController = recordingController,
+            wearableStandbyPrerequisiteChecker = FakeWearableStandbyPrerequisiteChecker()
+        )
+
+        viewModel.onHealthConnectPermissionsResult(HealthConnectSleepTriggerSource.FOREGROUND_REQUIRED_PERMISSIONS)
+        advanceUntilIdle()
+
+        val settings = repository.settingsSnapshot()
+        assertThat(settings.wearableSleepTriggerEnabled).isFalse()
+        assertThat(settings.wearableSleepTriggerStatus).contains("后台读取权限")
+        assertThat(recordingController.startedSources).isEmpty()
     }
 
     @Test

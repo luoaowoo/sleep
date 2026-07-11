@@ -8,6 +8,13 @@ internal fun shouldAcceptStopRequest(
     return activeTriggerSource == expectedTriggerSource
 }
 
+internal fun shouldConfirmSleepTriggerRecording(
+    detectorStarted: Boolean,
+    triggerSource: String?
+): Boolean {
+    return detectorStarted && !triggerSource.isNullOrBlank()
+}
+
 internal fun shouldStopWearableRecordingAfterMaxDuration(
     sessionStartTimeMillis: Long,
     nowMillis: Long,

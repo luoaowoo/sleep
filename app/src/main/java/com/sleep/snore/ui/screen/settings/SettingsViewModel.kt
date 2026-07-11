@@ -291,7 +291,17 @@ class SettingsViewModel @Inject constructor(
                 checkWearableSleepNow("Health Connect 已授权，正在检查最近睡眠记录；这不会开始录音，睡前仍需开启前台检测")
             }
             grantedPermissions.containsAll(HealthConnectSleepTriggerSource.FOREGROUND_REQUIRED_PERMISSIONS) -> {
-                checkWearableSleepNow("已授权睡眠读取，正在检查最近睡眠记录；这不会开始录音，后台轮询仍需后台读取权限")
+                val status = "已授权睡眠读取，但后台轮询和锁屏后自动停录仍需后台读取权限"
+                _uiState.update {
+                    it.copy(
+                        wearableSleepTriggerEnabled = false,
+                        wearableSleepTriggerStatus = status
+                    )
+                }
+                viewModelScope.launch {
+                    preferencesRepository.setWearableSleepTriggerEnabled(false)
+                    preferencesRepository.setWearableSleepTriggerStatus(status)
+                }
             }
             else -> {
                 viewModelScope.launch {
@@ -371,11 +381,11 @@ class SettingsViewModel @Inject constructor(
             if (blocker != null) {
                 _uiState.update {
                     it.copy(
-                        wearableSleepTriggerEnabled = true,
+                        wearableSleepTriggerEnabled = false,
                         wearableSleepTriggerStatus = blocker
                     )
                 }
-                preferencesRepository.setWearableSleepTriggerEnabled(true)
+                preferencesRepository.setWearableSleepTriggerEnabled(false)
                 preferencesRepository.setWearableSleepTriggerStatus(blocker)
                 return@launch
             }
