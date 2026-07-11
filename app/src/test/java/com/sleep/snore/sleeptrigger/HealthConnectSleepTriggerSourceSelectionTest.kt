@@ -78,4 +78,55 @@ class HealthConnectSleepTriggerSourceSelectionTest {
         assertThat(actionable.session).isEqualTo(olderXiaomiSession)
         assertThat(actionable.event.event).isInstanceOf(SleepTriggerEvent.SleepEnded::class.java)
     }
+
+    @Test
+    fun selectXiaomiActionableSleepSession_prefersOlderLongXiaomiSleepOverNewerShortXiaomiNap() {
+        val olderLongSleep = SleepSessionSnapshot(
+            startTime = Instant.parse("2026-07-11T23:00:00Z"),
+            endTime = Instant.parse("2026-07-12T07:00:00Z"),
+            dataOriginPackageName = "com.mi.health"
+        )
+        val newerShortNap = SleepSessionSnapshot(
+            startTime = Instant.parse("2026-07-12T07:20:00Z"),
+            endTime = Instant.parse("2026-07-12T07:45:00Z"),
+            dataOriginPackageName = "com.xiaomi.wearable"
+        )
+
+        val result = selectXiaomiActionableSleepSession(
+            sessions = listOf(olderLongSleep, newerShortNap),
+            now = now,
+            ignoreEventsBefore = Instant.parse("2026-07-11T22:30:00Z")
+        )
+
+        assertThat(result).isInstanceOf(XiaomiActionableSleepSelection.Actionable::class.java)
+        val actionable = result as XiaomiActionableSleepSelection.Actionable
+        assertThat(actionable.session).isEqualTo(olderLongSleep)
+        assertThat(actionable.event.event).isInstanceOf(SleepTriggerEvent.SleepEnded::class.java)
+    }
+
+    @Test
+    fun selectXiaomiActionableSleepSession_reportsXiaomiShortSleepEvenWithNewerNonXiaomiSession() {
+        val newerNonXiaomiSession = SleepSessionSnapshot(
+            startTime = Instant.parse("2026-07-12T00:30:00Z"),
+            endTime = Instant.parse("2026-07-12T07:30:00Z"),
+            dataOriginPackageName = "com.example.sleep"
+        )
+        val olderXiaomiShortSleep = SleepSessionSnapshot(
+            startTime = Instant.parse("2026-07-11T23:00:00Z"),
+            endTime = Instant.parse("2026-07-11T23:45:00Z"),
+            dataOriginPackageName = "com.mi.health"
+        )
+
+        val result = selectXiaomiActionableSleepSession(
+            sessions = listOf(newerNonXiaomiSession, olderXiaomiShortSleep),
+            now = now,
+            ignoreEventsBefore = Instant.parse("2026-07-11T22:30:00Z")
+        )
+
+        assertThat(result).isInstanceOf(XiaomiActionableSleepSelection.NoActionable::class.java)
+        val noActionable = result as XiaomiActionableSleepSelection.NoActionable
+        assertThat(noActionable.observedSession).isEqualTo(olderXiaomiShortSleep)
+        assertThat(noActionable.reason)
+            .isEqualTo(HealthConnectSleepTriggerSource.PollResult.NoActionableSleepReason.SHORT_SLEEP_SESSION)
+    }
 }

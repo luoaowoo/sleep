@@ -2,10 +2,12 @@ package com.sleep.snore.recording
 
 import android.Manifest
 import androidx.work.Configuration
+import androidx.work.impl.WorkManagerImpl
 import androidx.work.testing.WorkManagerTestInitHelper
 import com.google.common.truth.Truth.assertThat
 import com.sleep.snore.data.preferences.SettingsPreferences
 import com.sleep.snore.data.preferences.SettingsPreferencesRepository
+import com.sleep.snore.recording.ActiveRecordingFinalizerWorker.Companion.WORK_NAME
 import com.sleep.snore.service.SleepRecordingService
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -124,6 +126,14 @@ class AndroidRecordingControllerTest {
         assertThat(startedService.action).isEqualTo(SleepRecordingService.ACTION_STOP)
         assertThat(startedService.getStringExtra("expected_trigger_source")).isEqualTo("health_connect_sleep")
         assertThat(startedService.getLongExtra("sleep_end_time_millis", 0L)).isEqualTo(2_000L)
+        val workManager = WorkManagerImpl.getInstance(context)
+        val workSpecIds = workManager.workDatabase.workNameDao().getWorkSpecIdsWithName(WORK_NAME)
+        val workSpec = workManager.workDatabase.workSpecDao().getWorkSpec(workSpecIds.single())
+        assertThat(workSpec).isNotNull()
+        workSpec!!
+        assertThat(workSpec.input.getString("expected_source")).isEqualTo("health_connect_sleep")
+        assertThat(workSpec.input.getLong("sleep_end_time_millis", 0L)).isEqualTo(2_000L)
+        assertThat(workSpec.input.getLong("active_recording_start_millis", 0L)).isEqualTo(1_000L)
     }
 
     private fun initializeWorkManager(context: android.content.Context) {
