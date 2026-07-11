@@ -18,3 +18,33 @@ internal fun shouldStopWearableRecordingAfterMaxDuration(
     val elapsedMillis = nowMillis - sessionStartTimeMillis
     return elapsedMillis >= maxDurationMillis
 }
+
+internal enum class StaleActiveRecordingRecoveryAction {
+    Recover,
+    FinalizeLocally,
+    DeferWearableFinalizer
+}
+
+internal fun staleActiveRecordingRecoveryAction(
+    recordingAgeMillis: Long,
+    maxRecoveryMillis: Long,
+    activeTriggerSource: String?,
+    wearableTriggerSource: String
+): StaleActiveRecordingRecoveryAction {
+    if (recordingAgeMillis in 0..maxRecoveryMillis) {
+        return StaleActiveRecordingRecoveryAction.Recover
+    }
+    return if (activeTriggerSource == wearableTriggerSource) {
+        StaleActiveRecordingRecoveryAction.DeferWearableFinalizer
+    } else {
+        StaleActiveRecordingRecoveryAction.FinalizeLocally
+    }
+}
+
+internal fun shouldDeferDestroyFinalizationToWearableFinalizer(
+    shouldFinalizeActiveSession: Boolean,
+    activeTriggerSource: String?,
+    wearableTriggerSource: String
+): Boolean {
+    return shouldFinalizeActiveSession && activeTriggerSource == wearableTriggerSource
+}

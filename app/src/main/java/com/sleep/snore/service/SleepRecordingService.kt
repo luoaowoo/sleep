@@ -31,6 +31,7 @@ import com.sleep.snore.data.preferences.SettingsPreferencesRepository
 import com.sleep.snore.data.repository.SleepRepository
 import com.sleep.snore.domain.SnoreEvaluator
 import com.sleep.snore.domain.SnoreScoreCalculator
+import com.sleep.snore.recording.ActiveRecordingFinalizerWorker
 import com.sleep.snore.sleeptrigger.HealthConnectSleepTriggerSource
 import com.sleep.snore.sleeptrigger.RecordingSleepEndFallbackPoller
 import com.sleep.snore.sleeptrigger.RecordingSleepEndFallbackResult
@@ -60,6 +61,12 @@ data class RecordingRuntimeState(
     val startTime: Long = 0L,
     val eventCount: Int = 0
 )
+
+private sealed interface ActiveRecordingRecoveryResult {
+    data object NoActiveRecord : ActiveRecordingRecoveryResult
+    data object DeferredWearableFinalization : ActiveRecordingRecoveryResult
+    data class Recovered(val record: SleepRecordEntity) : ActiveRecordingRecoveryResult
+}
 
 @AndroidEntryPoint
 class SleepRecordingService : Service() {
@@ -134,8 +141,25 @@ class SleepRecordingService : Service() {
             CoroutineScope(Dispatchers.IO).launch {
                 var finalized = false
                 try {
-                    finalizeCurrentSession()
-                    finalized = true
+                    val triggerSource = preferencesRepository.getActiveRecordingTriggerSource()
+                    if (
+                        shouldDeferDestroyFinalizationToWearableFinalizer(
+                            shouldFinalizeActiveSession = true,
+                            activeTriggerSource = triggerSource,
+                            wearableTriggerSource = HealthConnectSleepTriggerSource.SOURCE
+                        )
+                    ) {
+                        ActiveRecordingFinalizerWorker.enqueueFallback(
+                            context = applicationContext,
+                            expectedSource = HealthConnectSleepTriggerSource.SOURCE
+                        )
+                        preferencesRepository.setWearableSleepTriggerStatus(
+                            "前台服务被系统结束，已等待 Health Connect 睡眠结束兜底结算"
+                        )
+                    } else {
+                        finalizeCurrentSession()
+                        finalized = true
+                    }
                 } catch (e: Exception) {
                     Log.e(TAG, "failed to finalize session on destroy", e)
                     finalized = writeFallbackFinalRecord()
@@ -185,7 +209,12 @@ class SleepRecordingService : Service() {
                     runCatching { cleanOldData() }
                         .onFailure { Log.w(TAG, "auto clean failed before recording start", it) }
                 }
-                val activeRecord = recoverActiveRecordingIfAvailable()
+                val activeRecordingRecovery = recoverActiveRecordingIfAvailable()
+                if (activeRecordingRecovery is ActiveRecordingRecoveryResult.DeferredWearableFinalization) {
+                    stopRecoveryAwaitingWearableFinalizer()
+                    return@launch
+                }
+                val activeRecord = (activeRecordingRecovery as? ActiveRecordingRecoveryResult.Recovered)?.record
                 if (recoveryOnly && activeRecord == null) {
                     stopRecoveryWithoutActiveRecord()
                     return@launch
@@ -416,17 +445,39 @@ class SleepRecordingService : Service() {
         serviceScope = CoroutineScope(Dispatchers.IO + serviceJob)
     }
 
-    private suspend fun recoverActiveRecordingIfAvailable(): SleepRecordEntity? {
-        val activeRecord = repository.getActiveRecordingRecord() ?: return null
+    private suspend fun recoverActiveRecordingIfAvailable(): ActiveRecordingRecoveryResult {
+        val activeRecord = repository.getActiveRecordingRecord() ?: return ActiveRecordingRecoveryResult.NoActiveRecord
         val now = System.currentTimeMillis()
         val ageMs = now - activeRecord.startTime
         val events = repository.getEventsSnapshotByRecordId(activeRecord.id)
-        if (ageMs !in 0..MAX_SESSION_RECOVERY_MS) {
-            Log.w(TAG, "finalizing stale recording record: ${activeRecord.id}")
-            val endTime = events.maxOfOrNull { it.startTimestamp + it.durationMs }
-                ?: (activeRecord.startTime + STALE_EMPTY_RECORD_DURATION_MS).coerceAtMost(now)
-            repository.updateRecord(buildFinalRecord(activeRecord.id, activeRecord.startTime, endTime, events))
-            return null
+        val triggerSource = preferencesRepository.getActiveRecordingTriggerSource()
+        when (
+            staleActiveRecordingRecoveryAction(
+                recordingAgeMillis = ageMs,
+                maxRecoveryMillis = MAX_SESSION_RECOVERY_MS,
+                activeTriggerSource = triggerSource,
+                wearableTriggerSource = HealthConnectSleepTriggerSource.SOURCE
+            )
+        ) {
+            StaleActiveRecordingRecoveryAction.Recover -> Unit
+            StaleActiveRecordingRecoveryAction.DeferWearableFinalizer -> {
+                Log.w(TAG, "stale wearable recording record will be finalized by worker: ${activeRecord.id}")
+                ActiveRecordingFinalizerWorker.enqueueFallback(
+                    context = applicationContext,
+                    expectedSource = HealthConnectSleepTriggerSource.SOURCE
+                )
+                preferencesRepository.setWearableSleepTriggerStatus(
+                    "检测到超时未完成的手环鼾声记录，已等待 Health Connect 睡眠结束兜底结算"
+                )
+                return ActiveRecordingRecoveryResult.DeferredWearableFinalization
+            }
+            StaleActiveRecordingRecoveryAction.FinalizeLocally -> {
+                Log.w(TAG, "finalizing stale recording record locally: ${activeRecord.id}")
+                val endTime = events.maxOfOrNull { it.startTimestamp + it.durationMs }
+                    ?: (activeRecord.startTime + STALE_EMPTY_RECORD_DURATION_MS).coerceAtMost(now)
+                repository.updateRecord(buildFinalRecord(activeRecord.id, activeRecord.startTime, endTime, events))
+                return ActiveRecordingRecoveryResult.NoActiveRecord
+            }
         }
 
         sessionStartTime = activeRecord.startTime
@@ -441,7 +492,7 @@ class SleepRecordingService : Service() {
         )
         updateNotification()
         Log.i(TAG, "recovered active recording record: ${activeRecord.id}")
-        return activeRecord
+        return ActiveRecordingRecoveryResult.Recovered(activeRecord)
     }
 
     private suspend fun getCurrentSessionEvents(recordId: Long): List<SnoreEventEntity> {
@@ -671,7 +722,8 @@ class SleepRecordingService : Service() {
                         serviceScope.launch {
                             finishSessionAndStop(
                                 handledWearableSleepEndEventKey = pollResult.eventKey,
-                                wearableSleepEndTimeMillis = pollResult.endTimeMillis
+                                wearableSleepEndTimeMillis = pollResult.endTimeMillis,
+                                expectedTriggerSource = HealthConnectSleepTriggerSource.SOURCE
                             )
                         }
                         return@launch
@@ -721,6 +773,16 @@ class SleepRecordingService : Service() {
         _recordingState.value = RecordingRuntimeState()
         currentRecordId = null
         clearActiveRecordingTriggerSourceAsync()
+        releaseWakeLock()
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        stopSelf()
+    }
+
+    private fun stopRecoveryAwaitingWearableFinalizer() {
+        Log.i(TAG, "sticky service restart deferred wearable active recording to finalizer worker")
+        isSessionActive = false
+        _recordingState.value = RecordingRuntimeState()
+        currentRecordId = null
         releaseWakeLock()
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()

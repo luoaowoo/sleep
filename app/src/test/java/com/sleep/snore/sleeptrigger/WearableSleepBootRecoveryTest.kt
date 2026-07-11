@@ -1,11 +1,26 @@
 package com.sleep.snore.sleeptrigger
 
+import android.content.Context
+import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import com.google.common.truth.Truth.assertThat
 import com.sleep.snore.data.db.entity.SleepRecordEntity
 import com.sleep.snore.data.model.Severity
+import com.sleep.snore.data.preferences.SecretTextCipher
 import com.sleep.snore.data.preferences.SettingsPreferences
+import com.sleep.snore.data.preferences.SettingsPreferencesRepository
+import com.sleep.snore.data.repository.SleepRepository
+import io.mockk.coEvery
+import io.mockk.every
+import io.mockk.mockk
+import java.io.File
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.runTest
 import org.junit.Test
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class WearableSleepBootRecoveryTest {
 
     @Test
@@ -85,6 +100,67 @@ class WearableSleepBootRecoveryTest {
         ).isNull()
     }
 
+    @Test
+    fun recoverWearableRecordingAfterRestartIfNeeded_enqueuesFinalizerAndWritesStatus() = runTest {
+        val settingsRepository = createSettingsRepository()
+        settingsRepository.setActiveRecordingTriggerSource(HealthConnectSleepTriggerSource.SOURCE, 1_000L)
+        val sleepRepository = mockk<SleepRepository>()
+        coEvery { sleepRepository.getActiveRecordingRecord() } returns activeRecord()
+        val enqueuedSources = mutableListOf<String>()
+
+        val recovered = recoverWearableRecordingAfterRestartIfNeeded(
+            context = mockContext(),
+            settingsRepository = settingsRepository,
+            sleepRepository = sleepRepository,
+            entryPoint = WearableRestartRecoveryEntryPoint.AppStart,
+            enqueueFinalizer = { _, expectedSource -> enqueuedSources += expectedSource }
+        )
+
+        assertThat(recovered).isTrue()
+        assertThat(enqueuedSources).containsExactly(HealthConnectSleepTriggerSource.SOURCE)
+        assertThat(settingsRepository.settings.first().wearableSleepTriggerStatus).contains("应用启动")
+    }
+
+    @Test
+    fun recoverWearableRecordingAfterRestartIfNeeded_skipsManualActiveRecord() = runTest {
+        val settingsRepository = createSettingsRepository()
+        settingsRepository.setActiveRecordingTriggerSource("manual", 1_000L)
+        val sleepRepository = mockk<SleepRepository>()
+        coEvery { sleepRepository.getActiveRecordingRecord() } returns activeRecord()
+        val enqueuedSources = mutableListOf<String>()
+
+        val recovered = recoverWearableRecordingAfterRestartIfNeeded(
+            context = mockContext(),
+            settingsRepository = settingsRepository,
+            sleepRepository = sleepRepository,
+            entryPoint = WearableRestartRecoveryEntryPoint.AppStart,
+            enqueueFinalizer = { _, expectedSource -> enqueuedSources += expectedSource }
+        )
+
+        assertThat(recovered).isFalse()
+        assertThat(enqueuedSources).isEmpty()
+        assertThat(settingsRepository.settings.first().wearableSleepTriggerStatus)
+            .isEqualTo(SettingsPreferences().wearableSleepTriggerStatus)
+    }
+
+    private fun createSettingsRepository(): SettingsPreferencesRepository {
+        val dataStoreFile = File.createTempFile("wearable-boot-recovery", ".preferences_pb").apply {
+            delete()
+            deleteOnExit()
+        }
+        val dataStore = PreferenceDataStoreFactory.create(
+            scope = TestScope(UnconfinedTestDispatcher()),
+            produceFile = { dataStoreFile }
+        )
+        return SettingsPreferencesRepository(dataStore, FakeSecretTextCipher)
+    }
+
+    private fun mockContext(): Context {
+        val context = mockk<Context>()
+        every { context.applicationContext } returns context
+        return context
+    }
+
     private fun activeRecord(): SleepRecordEntity {
         return SleepRecordEntity(
             id = 1L,
@@ -108,5 +184,10 @@ class WearableSleepBootRecoveryTest {
             aiSuggestions = "[]",
             createdAt = 1_000L
         )
+    }
+
+    private object FakeSecretTextCipher : SecretTextCipher {
+        override fun encrypt(plainText: String): String = "enc:$plainText"
+        override fun decrypt(cipherText: String): String? = cipherText.removePrefix("enc:")
     }
 }
