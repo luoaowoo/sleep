@@ -5,6 +5,8 @@ internal data class WearableDiagnosticReportInput(
     val appText: String,
     val deviceText: String,
     val healthConnectStatusText: String,
+    val healthConnectSdkStatusCode: Int,
+    val healthConnectGrantedPermissionsText: String,
     val hasRecordAudioPermission: Boolean,
     val hasNotificationPermission: Boolean,
     val hasHealthConnectSleepReadPermission: Boolean,
@@ -38,6 +40,8 @@ internal fun wearableDiagnosticReport(input: WearableDiagnosticReportInput): Str
         appendLine("应用：${input.appText}")
         appendLine("设备：${input.deviceText}")
         appendLine("Health Connect：${input.healthConnectStatusText}")
+        appendLine("Health Connect SDK 状态码：${input.healthConnectSdkStatusCode}")
+        appendLine("Health Connect 已授权权限：${input.healthConnectGrantedPermissionsText.ifBlank { "无" }}")
         appendLine("小米伴侣：${input.xiaomiCompanionText}")
         appendLine("麦克风权限：${input.hasRecordAudioPermission.toYesNo()}")
         appendLine("通知权限：${input.hasNotificationPermission.toYesNo()}")
@@ -145,6 +149,14 @@ internal fun recordingTriggerOffsetMillis(
 internal fun healthConnectStatusText(sdkStatus: Int): String {
     val blocker = healthConnectAvailabilityBlocker(sdkStatus)
     return blocker ?: "可用"
+}
+
+internal fun healthConnectGrantedPermissionsText(grantedPermissions: Set<String>): String {
+    return grantedPermissions
+        .filter { it.isNotBlank() }
+        .sorted()
+        .joinToString(separator = ", ")
+        .ifBlank { "无" }
 }
 
 private fun Boolean.toYesNo(): String = if (this) "已满足" else "未满足"

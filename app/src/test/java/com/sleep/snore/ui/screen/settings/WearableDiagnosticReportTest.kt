@@ -12,8 +12,10 @@ class WearableDiagnosticReportTest {
             WearableDiagnosticReportInput(
                 generatedAtText = "2026-07-11 23:30:00",
                 appText = "com.sleep.snore / 1.0 (1)",
-                deviceText = "Xiaomi 15 / Android 16",
+                deviceText = "xiaomi Xiaomi 15 / Android 16 (SDK 35) / build/fingerprint",
                 healthConnectStatusText = "可用",
+                healthConnectSdkStatusCode = HealthConnectClient.SDK_AVAILABLE,
+                healthConnectGrantedPermissionsText = "android.permission.health.READ_SLEEP",
                 hasRecordAudioPermission = true,
                 hasNotificationPermission = false,
                 hasHealthConnectSleepReadPermission = true,
@@ -43,8 +45,10 @@ class WearableDiagnosticReportTest {
 
         assertThat(report).contains("SleepSnore 小米手环 / Health Connect 诊断")
         assertThat(report).contains("应用：com.sleep.snore / 1.0 (1)")
-        assertThat(report).contains("设备：Xiaomi 15 / Android 16")
+        assertThat(report).contains("设备：xiaomi Xiaomi 15 / Android 16 (SDK 35) / build/fingerprint")
         assertThat(report).contains("Health Connect：可用")
+        assertThat(report).contains("Health Connect SDK 状态码：")
+        assertThat(report).contains("Health Connect 已授权权限：android.permission.health.READ_SLEEP")
         assertThat(report).contains("小米伴侣：Mi Fitness")
         assertThat(report).contains("通知权限：未满足")
         assertThat(report).contains("Health Connect 后台读取：未满足")
@@ -78,6 +82,14 @@ class WearableDiagnosticReportTest {
         assertThat(
             healthConnectStatusText(HealthConnectClient.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED)
         ).contains("安装或更新")
+    }
+
+    @Test
+    fun healthConnectGrantedPermissionsText_sortsPermissionsAndReportsEmpty() {
+        assertThat(
+            healthConnectGrantedPermissionsText(setOf("permission.z", "", "permission.a"))
+        ).isEqualTo("permission.a, permission.z")
+        assertThat(healthConnectGrantedPermissionsText(emptySet())).isEqualTo("无")
     }
 
     @Test

@@ -157,6 +157,7 @@ fun SettingsScreen(
     var healthConnectSdkStatus by remember(context) {
         mutableStateOf(HealthConnectClient.getSdkStatus(context))
     }
+    var healthConnectGrantedPermissionsText by remember(context) { mutableStateOf("未读取") }
     LaunchedEffect(context, healthConnectPermissionRefreshTick) {
         healthConnectSdkStatus = HealthConnectClient.getSdkStatus(context)
         val grantedPermissions = runCatching {
@@ -174,6 +175,7 @@ fun SettingsScreen(
         hasHealthConnectBackgroundReadPermission = grantedPermissions.contains(
             HealthConnectSleepTriggerSource.BACKGROUND_READ_PERMISSION
         )
+        healthConnectGrantedPermissionsText = healthConnectGrantedPermissionsText(grantedPermissions)
     }
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -543,8 +545,10 @@ fun SettingsScreen(
                                             java.util.Locale.getDefault()
                                         ).format(java.util.Date()),
                                         appText = appVersionText(context),
-                                        deviceText = "${Build.MANUFACTURER} ${Build.MODEL} / Android ${Build.VERSION.RELEASE}",
+                                        deviceText = deviceBuildText(),
                                         healthConnectStatusText = healthConnectStatusText(healthConnectSdkStatus),
+                                        healthConnectSdkStatusCode = healthConnectSdkStatus,
+                                        healthConnectGrantedPermissionsText = healthConnectGrantedPermissionsText,
                                         hasRecordAudioPermission = hasRecordAudioPermission,
                                         hasNotificationPermission = hasNotificationPermission,
                                         hasHealthConnectSleepReadPermission = hasHealthConnectSleepReadPermission,
@@ -1057,6 +1061,11 @@ private fun appVersionText(context: android.content.Context): String {
         packageInfo?.versionCode?.toString()
     } ?: "unknown"
     return "${context.packageName} / $versionName ($versionCode)"
+}
+
+private fun deviceBuildText(): String {
+    return "${Build.BRAND} ${Build.MANUFACTURER} ${Build.MODEL} / " +
+        "Android ${Build.VERSION.RELEASE} (SDK ${Build.VERSION.SDK_INT}) / ${Build.FINGERPRINT}"
 }
 
 private fun recordingRuntimeText(recordingState: com.sleep.snore.service.RecordingRuntimeState): String {
