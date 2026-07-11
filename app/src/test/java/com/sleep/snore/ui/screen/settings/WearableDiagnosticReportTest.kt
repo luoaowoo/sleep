@@ -24,6 +24,8 @@ class WearableDiagnosticReportTest {
                 xiaomiCompanionText = "Mi Fitness (com.xiaomi.wearable)",
                 periodicCheckEnabled = true,
                 stopOnSleepEndEnabled = true,
+                bedtimeReminderEnabled = true,
+                bedtimeReminderTimeText = "22:30",
                 foregroundDetectionActive = true,
                 recordingRuntimeText = "运行中，事件数 3",
                 recordingActive = true,
@@ -52,6 +54,7 @@ class WearableDiagnosticReportTest {
         assertThat(report).contains("小米伴侣：Mi Fitness")
         assertThat(report).contains("通知权限：未满足")
         assertThat(report).contains("Health Connect 后台读取：未满足")
+        assertThat(report).contains("睡前提醒：已开启（22:30）")
         assertThat(report).contains("前台睡前检测：运行中")
         assertThat(report).contains("录音运行态：运行中，事件数 3")
         assertThat(report).contains("录音运行中：已满足")

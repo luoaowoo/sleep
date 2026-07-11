@@ -135,6 +135,19 @@ class SettingsPreferencesRepositoryTest {
         assertThat(clearedSettings.activeRecordingTriggerStartedAtMillis).isEqualTo(0L)
     }
 
+    @Test
+    fun bedtimeReminder_persistsEnabledAndClampsMinuteOfDay() = runTest {
+        val repository = createFixture().repository
+
+        repository.setBedtimeReminderEnabled(true)
+        repository.setBedtimeReminderMinuteOfDay(24 * 60 + 30)
+
+        val settings = repository.settings.first()
+        assertThat(settings.bedtimeReminderEnabled).isTrue()
+        assertThat(settings.bedtimeReminderMinuteOfDay)
+            .isEqualTo(SettingsPreferencesRepository.MAX_BEDTIME_REMINDER_MINUTE_OF_DAY)
+    }
+
     private fun createFixture(): RepositoryFixture {
         val dataStoreFile = File.createTempFile("sleep-settings", ".preferences_pb").apply {
             delete()

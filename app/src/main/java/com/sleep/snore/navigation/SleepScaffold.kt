@@ -19,6 +19,7 @@ import androidx.compose.material3.NavigationRailItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -28,10 +29,19 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 
 @Composable
-fun SleepScaffold() {
+fun SleepScaffold(
+    startRoute: String? = null,
+    startRouteRequestId: Int = 0
+) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+
+    LaunchedEffect(startRoute, startRouteRequestId) {
+        if (startRoute == Route.Settings.route) {
+            navController.navigateTopLevel(Route.Settings.route, currentRoute)
+        }
+    }
 
     val hideCompactNavigation = currentRoute in listOf(
         Route.Recording.route, Route.Result.TEMPLATE, Route.RiskAssessment.route

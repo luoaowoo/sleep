@@ -11,6 +11,7 @@ import com.sleep.snore.data.preferences.SettingsPreferencesRepository
 import com.sleep.snore.data.preferences.defaultArgb
 import com.sleep.snore.data.repository.SleepRepository
 import com.sleep.snore.recording.RecordingController
+import com.sleep.snore.sleeptrigger.BedtimeDetectionReminderWorker
 import com.sleep.snore.sleeptrigger.HealthConnectSleepTriggerSource
 import com.sleep.snore.sleeptrigger.HealthConnectSleepTriggerWorker
 import com.sleep.snore.sleeptrigger.WearableSleepStandbyService
@@ -46,6 +47,9 @@ data class SettingsUiState(
     val aiCustomInfo: String = "",
     val wearableSleepTriggerEnabled: Boolean = SettingsPreferencesRepository.DEFAULT_WEARABLE_SLEEP_TRIGGER_ENABLED,
     val wearableStopOnSleepEndEnabled: Boolean = SettingsPreferencesRepository.DEFAULT_WEARABLE_STOP_ON_SLEEP_END_ENABLED,
+    val bedtimeReminderEnabled: Boolean = SettingsPreferencesRepository.DEFAULT_BEDTIME_REMINDER_ENABLED,
+    val bedtimeReminderMinuteOfDay: Int = SettingsPreferencesRepository.DEFAULT_BEDTIME_REMINDER_MINUTE_OF_DAY,
+    val bedtimeReminderTimeText: String = SettingsPreferencesRepository.DEFAULT_BEDTIME_REMINDER_MINUTE_OF_DAY.toMinuteOfDayText(),
     val wearableSleepTriggerStatus: String = SettingsPreferencesRepository.DEFAULT_WEARABLE_SLEEP_TRIGGER_STATUS,
     val wearableSleepTriggerLastCheckText: String = "尚未检查",
     val latestWearableSleepSessionText: String = "尚未发现同步睡眠记录",
@@ -108,6 +112,9 @@ class SettingsViewModel @Inject constructor(
                         aiCustomInfo = settings.aiCustomInfo,
                         wearableSleepTriggerEnabled = settings.wearableSleepTriggerEnabled,
                         wearableStopOnSleepEndEnabled = settings.wearableStopOnSleepEndEnabled,
+                        bedtimeReminderEnabled = settings.bedtimeReminderEnabled,
+                        bedtimeReminderMinuteOfDay = settings.bedtimeReminderMinuteOfDay,
+                        bedtimeReminderTimeText = settings.bedtimeReminderMinuteOfDay.toMinuteOfDayText(),
                         wearableSleepTriggerStatus = settings.wearableSleepTriggerStatus,
                         wearableSleepTriggerLastCheckText = settings.wearableSleepTriggerLastCheckMillis.toLastCheckText(),
                         latestWearableSleepSessionText = toSleepSessionText(
@@ -314,6 +321,40 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun onBedtimeReminderChange(enabled: Boolean) {
+        _uiState.update { it.copy(bedtimeReminderEnabled = enabled) }
+        viewModelScope.launch {
+            preferencesRepository.setBedtimeReminderEnabled(enabled)
+            if (enabled) {
+                BedtimeDetectionReminderWorker.enqueueNext(
+                    context = context,
+                    minuteOfDay = _uiState.value.bedtimeReminderMinuteOfDay
+                )
+            } else {
+                BedtimeDetectionReminderWorker.cancel(context)
+            }
+        }
+    }
+
+    fun adjustBedtimeReminderMinutes(deltaMinutes: Int) {
+        val nextMinuteOfDay = Math.floorMod(
+            _uiState.value.bedtimeReminderMinuteOfDay + deltaMinutes,
+            MINUTES_PER_DAY
+        )
+        _uiState.update {
+            it.copy(
+                bedtimeReminderMinuteOfDay = nextMinuteOfDay,
+                bedtimeReminderTimeText = nextMinuteOfDay.toMinuteOfDayText()
+            )
+        }
+        viewModelScope.launch {
+            preferencesRepository.setBedtimeReminderMinuteOfDay(nextMinuteOfDay)
+            if (_uiState.value.bedtimeReminderEnabled) {
+                BedtimeDetectionReminderWorker.enqueueNext(context, nextMinuteOfDay)
+            }
+        }
+    }
+
     fun startWearableSleepStandby() {
         _uiState.update {
             it.copy(
@@ -433,6 +474,15 @@ class SettingsViewModel @Inject constructor(
 
     private companion object {
         const val ALPHA_MASK = -0x1000000
+        const val MINUTES_PER_DAY = 24 * 60
         const val PERIODIC_CHECK_ENABLED_STATUS = "已开启 Health Connect 周期检查；它不会开始录音，睡前请点击前台检测"
     }
+}
+
+private fun Int.toMinuteOfDayText(): String {
+    val safeMinute = coerceIn(
+        SettingsPreferencesRepository.MIN_BEDTIME_REMINDER_MINUTE_OF_DAY,
+        SettingsPreferencesRepository.MAX_BEDTIME_REMINDER_MINUTE_OF_DAY
+    )
+    return "%02d:%02d".format(Locale.getDefault(), safeMinute / 60, safeMinute % 60)
 }

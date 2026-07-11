@@ -7,6 +7,9 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.sleep.snore.data.model.AccentColor
 import com.sleep.snore.data.model.CardCornerStyle
@@ -24,8 +27,12 @@ import javax.inject.Inject
 class MainActivity : ComponentActivity() {
     @Inject lateinit var settingsPreferencesRepository: SettingsPreferencesRepository
 
+    private var startRoute by mutableStateOf<String?>(null)
+    private var startRouteRequestId by mutableIntStateOf(0)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        updateStartRoute(intent)
         enableEdgeToEdge()
         setContent {
             val settings by settingsPreferencesRepository.settings.collectAsStateWithLifecycle(SettingsPreferences())
@@ -60,9 +67,35 @@ class MainActivity : ComponentActivity() {
                         cardCornerStyle = cardCornerStyle
                     )
                 ) {
-                    SleepScaffold()
+                    SleepScaffold(
+                        startRoute = startRoute,
+                        startRouteRequestId = startRouteRequestId
+                    )
                 }
             }
         }
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        updateStartRoute(intent)
+    }
+
+    private fun updateStartRoute(intent: android.content.Intent?) {
+        startRoute = intent.startRoute()
+        startRouteRequestId += 1
+    }
+
+    private fun android.content.Intent?.startRoute(): String? {
+        return when (this?.getStringExtra(EXTRA_START_ROUTE)) {
+            START_ROUTE_SETTINGS -> START_ROUTE_SETTINGS
+            else -> null
+        }
+    }
+
+    companion object {
+        const val EXTRA_START_ROUTE = "com.sleep.snore.extra.START_ROUTE"
+        const val START_ROUTE_SETTINGS = "settings"
     }
 }

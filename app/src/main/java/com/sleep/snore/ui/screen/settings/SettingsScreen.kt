@@ -448,6 +448,31 @@ fun SettingsScreen(
                         checked = uiState.wearableStopOnSleepEndEnabled,
                         onCheckedChange = viewModel::onWearableStopOnSleepEndChange
                     )
+                    HorizontalDivider(modifier = Modifier.padding(vertical = Spacing.sm))
+                    SettingSwitchRow(
+                        title = "睡前提醒通知",
+                        supportingText = "每天 ${uiState.bedtimeReminderTimeText} 提醒打开本页，手动开启前台鼾声检测；不会在后台自动开麦。",
+                        checked = uiState.bedtimeReminderEnabled,
+                        onCheckedChange = viewModel::onBedtimeReminderChange
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "提醒时间：${uiState.bedtimeReminderTimeText}",
+                            modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        TextButton(onClick = { viewModel.adjustBedtimeReminderMinutes(-30) }) {
+                            Text("提前 30 分钟")
+                        }
+                        TextButton(onClick = { viewModel.adjustBedtimeReminderMinutes(30) }) {
+                            Text("延后 30 分钟")
+                        }
+                    }
                     Spacer(Modifier.height(Spacing.xs))
                     Text(
                         "需要授予 Health Connect 睡眠读取和后台读取权限。Android 可能阻止纯后台启动麦克风，所以睡前前台检测会先合法启动麦克风服务。",
@@ -559,6 +584,8 @@ fun SettingsScreen(
                                         } ?: "未检测到 Mi Fitness / Zepp Life",
                                         periodicCheckEnabled = uiState.wearableSleepTriggerEnabled,
                                         stopOnSleepEndEnabled = uiState.wearableStopOnSleepEndEnabled,
+                                        bedtimeReminderEnabled = uiState.bedtimeReminderEnabled,
+                                        bedtimeReminderTimeText = uiState.bedtimeReminderTimeText,
                                         foregroundDetectionActive = wearableSleepDetectionActive,
                                         recordingRuntimeText = recordingRuntimeText(recordingState),
                                         recordingActive = recordingState.isActive,

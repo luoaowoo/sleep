@@ -32,6 +32,12 @@ class WearableSleepTriggerBootReceiver : BroadcastReceiver() {
                     HealthConnectSleepTriggerWorker.enqueue(appContext)
                     HealthConnectSleepTriggerWorker.enqueueNow(appContext)
                 }
+                if (settings.bedtimeReminderEnabled) {
+                    BedtimeDetectionReminderWorker.enqueueNext(
+                        context = appContext,
+                        minuteOfDay = settings.bedtimeReminderMinuteOfDay
+                    )
+                }
                 val activeRecord = entryPoint.sleepRepository().getActiveRecordingRecord()
                 if (shouldFinalizeWearableRecordingAfterBoot(settings, activeRecord)) {
                     ActiveRecordingFinalizerWorker.enqueueFallback(

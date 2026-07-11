@@ -37,6 +37,8 @@ data class SettingsPreferences(
     val aiCustomInfo: String = "",
     val wearableSleepTriggerEnabled: Boolean = SettingsPreferencesRepository.DEFAULT_WEARABLE_SLEEP_TRIGGER_ENABLED,
     val wearableStopOnSleepEndEnabled: Boolean = SettingsPreferencesRepository.DEFAULT_WEARABLE_STOP_ON_SLEEP_END_ENABLED,
+    val bedtimeReminderEnabled: Boolean = SettingsPreferencesRepository.DEFAULT_BEDTIME_REMINDER_ENABLED,
+    val bedtimeReminderMinuteOfDay: Int = SettingsPreferencesRepository.DEFAULT_BEDTIME_REMINDER_MINUTE_OF_DAY,
     val wearableSleepTriggerStatus: String = SettingsPreferencesRepository.DEFAULT_WEARABLE_SLEEP_TRIGGER_STATUS,
     val wearableSleepTriggerLastCheckMillis: Long = 0L,
     val latestWearableSleepSessionStartMillis: Long = 0L,
@@ -95,6 +97,11 @@ class SettingsPreferencesRepository @Inject constructor(
                     ?: DEFAULT_WEARABLE_SLEEP_TRIGGER_ENABLED,
                 wearableStopOnSleepEndEnabled = preferences[Keys.WEARABLE_STOP_ON_SLEEP_END_ENABLED]
                     ?: DEFAULT_WEARABLE_STOP_ON_SLEEP_END_ENABLED,
+                bedtimeReminderEnabled = preferences[Keys.BEDTIME_REMINDER_ENABLED]
+                    ?: DEFAULT_BEDTIME_REMINDER_ENABLED,
+                bedtimeReminderMinuteOfDay = preferences[Keys.BEDTIME_REMINDER_MINUTE_OF_DAY]
+                    ?.coerceIn(MIN_BEDTIME_REMINDER_MINUTE_OF_DAY, MAX_BEDTIME_REMINDER_MINUTE_OF_DAY)
+                    ?: DEFAULT_BEDTIME_REMINDER_MINUTE_OF_DAY,
                 wearableSleepTriggerStatus = preferences[Keys.WEARABLE_SLEEP_TRIGGER_STATUS]
                     ?: DEFAULT_WEARABLE_SLEEP_TRIGGER_STATUS,
                 wearableSleepTriggerLastCheckMillis = preferences[Keys.WEARABLE_SLEEP_TRIGGER_LAST_CHECK_MILLIS]
@@ -252,6 +259,21 @@ class SettingsPreferencesRepository @Inject constructor(
         }
     }
 
+    suspend fun setBedtimeReminderEnabled(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[Keys.BEDTIME_REMINDER_ENABLED] = enabled
+        }
+    }
+
+    suspend fun setBedtimeReminderMinuteOfDay(minuteOfDay: Int) {
+        dataStore.edit { preferences ->
+            preferences[Keys.BEDTIME_REMINDER_MINUTE_OF_DAY] = minuteOfDay.coerceIn(
+                MIN_BEDTIME_REMINDER_MINUTE_OF_DAY,
+                MAX_BEDTIME_REMINDER_MINUTE_OF_DAY
+            )
+        }
+    }
+
     suspend fun getLastWearableSleepEventKey(): String? {
         return safePreferences.map { preferences ->
             preferences[Keys.WEARABLE_LAST_SLEEP_EVENT_KEY]
@@ -362,6 +384,8 @@ class SettingsPreferencesRepository @Inject constructor(
         val AI_CUSTOM_INFO = stringPreferencesKey("ai_custom_info")
         val WEARABLE_SLEEP_TRIGGER_ENABLED = booleanPreferencesKey("wearable_sleep_trigger_enabled")
         val WEARABLE_STOP_ON_SLEEP_END_ENABLED = booleanPreferencesKey("wearable_stop_on_sleep_end_enabled")
+        val BEDTIME_REMINDER_ENABLED = booleanPreferencesKey("bedtime_reminder_enabled")
+        val BEDTIME_REMINDER_MINUTE_OF_DAY = intPreferencesKey("bedtime_reminder_minute_of_day")
         val WEARABLE_LAST_SLEEP_EVENT_KEY = stringPreferencesKey("wearable_last_sleep_event_key")
         val WEARABLE_SLEEP_TRIGGER_STATUS = stringPreferencesKey("wearable_sleep_trigger_status")
         val WEARABLE_SLEEP_TRIGGER_LAST_CHECK_MILLIS = longPreferencesKey("wearable_sleep_trigger_last_check_millis")
@@ -380,6 +404,8 @@ class SettingsPreferencesRepository @Inject constructor(
         const val MAX_SILENCE_THRESHOLD_DB = -20f
         const val MIN_MAX_SEGMENT_DURATION_SEC = 15
         const val MAX_MAX_SEGMENT_DURATION_SEC = 120
+        const val MIN_BEDTIME_REMINDER_MINUTE_OF_DAY = 0
+        const val MAX_BEDTIME_REMINDER_MINUTE_OF_DAY = 23 * 60 + 59
         const val DEFAULT_SILENCE_THRESHOLD_DB = -40f
         const val DEFAULT_MAX_SEGMENT_DURATION_SEC = 60
         const val DEFAULT_AUTO_CLEAN_ENABLED = true
@@ -395,6 +421,8 @@ class SettingsPreferencesRepository @Inject constructor(
         const val DEFAULT_DEEPSEEK_MODEL_NAME = "deepseek-chat"
         const val DEFAULT_WEARABLE_SLEEP_TRIGGER_ENABLED = false
         const val DEFAULT_WEARABLE_STOP_ON_SLEEP_END_ENABLED = true
+        const val DEFAULT_BEDTIME_REMINDER_ENABLED = false
+        const val DEFAULT_BEDTIME_REMINDER_MINUTE_OF_DAY = 22 * 60 + 30
         const val DEFAULT_WEARABLE_SLEEP_TRIGGER_STATUS = "未检查"
         private const val ALPHA_MASK = -0x1000000
     }

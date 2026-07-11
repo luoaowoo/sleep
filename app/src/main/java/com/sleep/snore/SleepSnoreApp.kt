@@ -6,6 +6,7 @@ import androidx.work.Configuration
 import androidx.work.WorkManager
 import com.sleep.snore.data.preferences.SettingsPreferencesRepository
 import com.sleep.snore.recording.AppVisibilityTracker
+import com.sleep.snore.sleeptrigger.BedtimeDetectionReminderWorker
 import com.sleep.snore.sleeptrigger.HealthConnectSleepTriggerWorker
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
@@ -46,6 +47,18 @@ class SleepSnoreApp : Application() {
                     HealthConnectSleepTriggerWorker.cancel(this@SleepSnoreApp)
                 }
             }
+        }
+        appScope.launch {
+            settingsPreferencesRepository.settings
+                .map { it.bedtimeReminderEnabled to it.bedtimeReminderMinuteOfDay }
+                .distinctUntilChanged()
+                .collect { (enabled, minuteOfDay) ->
+                    if (enabled) {
+                        BedtimeDetectionReminderWorker.enqueueNext(this@SleepSnoreApp, minuteOfDay)
+                    } else {
+                        BedtimeDetectionReminderWorker.cancel(this@SleepSnoreApp)
+                    }
+                }
         }
     }
 }

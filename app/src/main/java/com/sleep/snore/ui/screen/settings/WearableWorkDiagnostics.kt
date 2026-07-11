@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import com.sleep.snore.recording.ActiveRecordingFinalizerWorker
+import com.sleep.snore.sleeptrigger.BedtimeDetectionReminderWorker
 import com.sleep.snore.sleeptrigger.HealthConnectSleepTriggerWorker
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
@@ -19,6 +20,7 @@ internal suspend fun collectWearableWorkDiagnostics(context: Context): String = 
     val items = listOf(
         HealthConnectSleepTriggerWorker.WORK_NAME,
         HealthConnectSleepTriggerWorker.ONE_TIME_WORK_NAME,
+        BedtimeDetectionReminderWorker.WORK_NAME,
         ActiveRecordingFinalizerWorker.WORK_NAME
     ).map { workName ->
         WearableWorkDiagnosticItem(
