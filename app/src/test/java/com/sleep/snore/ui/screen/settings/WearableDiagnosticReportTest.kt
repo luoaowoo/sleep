@@ -388,6 +388,8 @@ class WearableDiagnosticReportTest {
                 activeRecordStartMillis = 1_000L,
                 activeRecordEndMillis = 1_000L,
                 activeRecordEventCount = 3,
+                activeRecordingTriggerSource = "health_connect_sleep",
+                nowMillis = 61_000_000L,
                 lastWearableSleepEventKey = "SleepEnded:8000:1000"
             )
         )
@@ -395,6 +397,9 @@ class WearableDiagnosticReportTest {
         assertThat(text).contains("activeRecord: id=9")
         assertThat(text).contains("active=true")
         assertThat(text).contains("events=3")
+        assertThat(text).contains("ageHours=16")
+        assertThat(text).contains("wearable16hCapAt=57601000")
+        assertThat(text).contains("over16hCap=true")
         assertThat(text).contains("lastWearableSleepEventKey: SleepEnded:8000:1000")
     }
 
@@ -406,12 +411,32 @@ class WearableDiagnosticReportTest {
                 activeRecordStartMillis = null,
                 activeRecordEndMillis = null,
                 activeRecordEventCount = null,
+                activeRecordingTriggerSource = null,
+                nowMillis = null,
                 lastWearableSleepEventKey = null
             )
         )
 
         assertThat(text).contains("activeRecord: 无")
         assertThat(text).contains("lastWearableSleepEventKey: 无")
+    }
+
+    @Test
+    fun wearableDatabaseDiagnostics_helpersReportAgeAndWearableCap() {
+        assertThat(activeRecordAgeHours(1_000L, 7_201_000L)).isEqualTo(2L)
+        assertThat(activeRecordAgeHours(7_201_000L, 1_000L)).isNull()
+        assertThat(
+            wearableActiveRecordCapAtMillis(
+                activeRecordStartMillis = 1_000L,
+                activeRecordingTriggerSource = "health_connect_sleep"
+            )
+        ).isEqualTo(57_601_000L)
+        assertThat(
+            wearableActiveRecordCapAtMillis(
+                activeRecordStartMillis = 1_000L,
+                activeRecordingTriggerSource = ""
+            )
+        ).isNull()
     }
 
     private fun diagnosticInput(
