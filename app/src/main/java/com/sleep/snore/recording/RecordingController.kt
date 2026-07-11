@@ -75,7 +75,7 @@ class AndroidRecordingController @Inject constructor(
     override suspend fun stopFromSleepTrigger(source: String, sleepEndTimeMillis: Long?): Boolean {
         if (settingsRepository.getActiveRecordingTriggerSource() != source) return false
         return runCatching {
-            context.startService(SleepRecordingService.stopIntent(context, sleepEndTimeMillis))
+            context.startService(SleepRecordingService.stopFromTriggerIntent(context, source, sleepEndTimeMillis))
             ActiveRecordingFinalizerWorker.enqueueFallback(context, source, sleepEndTimeMillis)
             true
         }.getOrElse {

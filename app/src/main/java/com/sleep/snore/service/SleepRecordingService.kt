@@ -96,7 +96,8 @@ class SleepRecordingService : Service() {
         return when (intent?.action) {
             ACTION_STOP -> {
                 finishSessionAndStop(
-                    wearableSleepEndTimeMillis = intent.sleepEndTimeMillisExtra()
+                    wearableSleepEndTimeMillis = intent.sleepEndTimeMillisExtra(),
+                    expectedTriggerSource = intent.expectedTriggerSourceExtra()
                 )
                 START_NOT_STICKY
             }
@@ -222,11 +223,29 @@ class SleepRecordingService : Service() {
 
     private fun finishSessionAndStop(
         handledWearableSleepEndEventKey: String? = null,
-        wearableSleepEndTimeMillis: Long? = null
+        wearableSleepEndTimeMillis: Long? = null,
+        expectedTriggerSource: String? = null
     ) {
+        if (!expectedTriggerSource.isNullOrBlank()) {
+            ensureServiceScope()
+            serviceScope.launch {
+                if (matchesExpectedTriggerSource(expectedTriggerSource)) {
+                    finishSessionAndStop(
+                        handledWearableSleepEndEventKey = handledWearableSleepEndEventKey,
+                        wearableSleepEndTimeMillis = wearableSleepEndTimeMillis
+                    )
+                } else {
+                    Log.i(TAG, "skip stop because trigger source changed")
+                }
+            }
+            return
+        }
         if (isFinishingSession) return
         if (!isSessionActive) {
-            finishRecoveredSessionAndStop(handledWearableSleepEndEventKey, wearableSleepEndTimeMillis)
+            finishRecoveredSessionAndStop(
+                handledWearableSleepEndEventKey,
+                wearableSleepEndTimeMillis
+            )
             return
         }
         isFinishingSession = true
@@ -299,6 +318,11 @@ class SleepRecordingService : Service() {
                 serviceScope.cancel()
             }
         }
+    }
+
+    private suspend fun matchesExpectedTriggerSource(expectedTriggerSource: String?): Boolean {
+        if (expectedTriggerSource.isNullOrBlank()) return true
+        return preferencesRepository.getActiveRecordingTriggerSource() == expectedTriggerSource
     }
 
     private suspend fun finalizeCurrentSession(wearableSleepEndTimeMillis: Long? = null) {
@@ -858,15 +882,27 @@ class SleepRecordingService : Service() {
                         putExtra(EXTRA_SLEEP_END_TIME_MILLIS, sleepEndTimeMillis)
                     }
                 }
+        fun stopFromTriggerIntent(
+            context: Context,
+            expectedTriggerSource: String,
+            sleepEndTimeMillis: Long? = null
+        ): Intent = stopIntent(context, sleepEndTimeMillis)
+            .putExtra(EXTRA_EXPECTED_TRIGGER_SOURCE, expectedTriggerSource)
+
         fun refreshNotificationIntent(context: Context): Intent =
             Intent(context, SleepRecordingService::class.java).setAction(ACTION_REFRESH_NOTIFICATION)
         private const val EXTRA_TRIGGER_SOURCE = "trigger_source"
         private const val EXTRA_SLEEP_END_TIME_MILLIS = "sleep_end_time_millis"
+        private const val EXTRA_EXPECTED_TRIGGER_SOURCE = "expected_trigger_source"
     }
 }
 
 private fun Intent.sleepEndTimeMillisExtra(): Long? {
     return getLongExtra("sleep_end_time_millis", 0L).takeIf { it > 0L }
+}
+
+private fun Intent.expectedTriggerSourceExtra(): String? {
+    return getStringExtra("expected_trigger_source")?.takeIf { it.isNotBlank() }
 }
 
 private data class ApneaStats(
