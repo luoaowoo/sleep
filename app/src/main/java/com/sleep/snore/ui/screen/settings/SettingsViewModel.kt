@@ -248,7 +248,7 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             preferencesRepository.setWearableSleepTriggerEnabled(enabled)
             if (enabled) {
-                preferencesRepository.setWearableSleepTriggerStatus("已开启 Health Connect 周期检查；睡前请开启前台检测以保证夜间录音")
+                preferencesRepository.setWearableSleepTriggerStatus(PERIODIC_CHECK_ENABLED_STATUS)
                 HealthConnectSleepTriggerWorker.enqueue(context)
                 HealthConnectSleepTriggerWorker.enqueueNow(context)
             } else {
@@ -265,10 +265,10 @@ class SettingsViewModel @Inject constructor(
     fun onHealthConnectPermissionsResult(grantedPermissions: Set<String>) {
         when {
             grantedPermissions.containsAll(HealthConnectSleepTriggerSource.BACKGROUND_REQUIRED_PERMISSIONS) -> {
-                checkWearableSleepNow("Health Connect 已授权，正在检查最近睡眠记录")
+                checkWearableSleepNow("Health Connect 已授权，正在检查最近睡眠记录；这不会开始录音，睡前仍需开启前台检测")
             }
             grantedPermissions.containsAll(HealthConnectSleepTriggerSource.FOREGROUND_REQUIRED_PERMISSIONS) -> {
-                checkWearableSleepNow("已授权睡眠读取，正在检查最近睡眠记录；后台轮询仍需后台读取权限")
+                checkWearableSleepNow("已授权睡眠读取，正在检查最近睡眠记录；这不会开始录音，后台轮询仍需后台读取权限")
             }
             else -> {
                 viewModelScope.launch {
@@ -279,7 +279,7 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun checkWearableSleepNow(
-        status: String = "正在检查最近睡眠记录"
+        status: String = "正在检查最近睡眠记录；这不会开始录音，睡前仍需开启前台检测"
     ) {
         _uiState.update {
             it.copy(
@@ -409,5 +409,6 @@ class SettingsViewModel @Inject constructor(
 
     private companion object {
         const val ALPHA_MASK = -0x1000000
+        const val PERIODIC_CHECK_ENABLED_STATUS = "已开启 Health Connect 周期检查；它不会开始录音，睡前请点击前台检测"
     }
 }

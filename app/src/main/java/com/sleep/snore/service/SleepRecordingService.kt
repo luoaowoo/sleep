@@ -132,13 +132,19 @@ class SleepRecordingService : Service() {
             stopSnoreDetection()
             _recordingState.value = RecordingRuntimeState()
             CoroutineScope(Dispatchers.IO).launch {
+                var finalized = false
                 try {
                     finalizeCurrentSession()
+                    finalized = true
                 } catch (e: Exception) {
                     Log.e(TAG, "failed to finalize session on destroy", e)
-                    writeFallbackFinalRecord()
+                    finalized = writeFallbackFinalRecord()
                 } finally {
-                    preferencesRepository.clearActiveRecordingTriggerSource()
+                    if (finalized) {
+                        preferencesRepository.clearActiveRecordingTriggerSource()
+                    } else {
+                        Log.w(TAG, "keep active trigger source for recovery because destroy finalization failed")
+                    }
                     releaseWakeLock()
                     serviceScope.cancel()
                 }
@@ -191,6 +197,9 @@ class SleepRecordingService : Service() {
                     activeRecord.id
                 }
                 currentRecordId = recordId
+                if (!triggerSource.isNullOrBlank()) {
+                    preferencesRepository.setActiveRecordingTriggerSource(triggerSource, sessionStartTime)
+                }
                 if (!isSessionActive) return@launch
                 val detectorStarted = startSnoreDetection(
                     recordId = recordId,
@@ -201,7 +210,6 @@ class SleepRecordingService : Service() {
                 if (!detectorStarted) {
                     abortSessionStart(recordId = recordId, deleteRecord = createdNewRecord)
                 } else if (!triggerSource.isNullOrBlank()) {
-                    preferencesRepository.setActiveRecordingTriggerSource(triggerSource, sessionStartTime)
                     startWearableSleepEndWatcherIfNeeded(triggerSource)
                 } else if (!recoveryOnly) {
                     preferencesRepository.clearActiveRecordingTriggerSource()
@@ -254,17 +262,23 @@ class SleepRecordingService : Service() {
         stopSnoreDetection()
 
         serviceScope.launch {
+            var finalized = false
             try {
                 finalizeCurrentSession(wearableSleepEndTimeMillis)
+                finalized = true
             } catch (e: Exception) {
                 Log.e(TAG, "failed to finish recording session", e)
-                writeFallbackFinalRecord(wearableSleepEndTimeMillis)
+                finalized = writeFallbackFinalRecord(wearableSleepEndTimeMillis)
             } finally {
-                if (!handledWearableSleepEndEventKey.isNullOrBlank()) {
+                if (finalized && !handledWearableSleepEndEventKey.isNullOrBlank()) {
                     preferencesRepository.setLastWearableSleepEventKey(handledWearableSleepEndEventKey)
                 }
                 releaseWakeLock()
-                preferencesRepository.clearActiveRecordingTriggerSource()
+                if (finalized) {
+                    preferencesRepository.clearActiveRecordingTriggerSource()
+                } else {
+                    Log.w(TAG, "keep active trigger source for recovery because stop finalization failed")
+                }
                 _recordingState.value = RecordingRuntimeState()
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
@@ -281,10 +295,12 @@ class SleepRecordingService : Service() {
         if (isFinishingSession) return
         isFinishingSession = true
         serviceScope.launch {
+            var finalized = false
             try {
                 val activeRecord = repository.getActiveRecordingRecord()
                 if (activeRecord == null) {
                     Log.i(TAG, "stop requested without active recording")
+                    finalized = true
                     return@launch
                 }
                 currentRecordId = activeRecord.id
@@ -300,14 +316,19 @@ class SleepRecordingService : Service() {
                     )
                 )
                 Log.i(TAG, "finalized recovered recording on stop: ${activeRecord.id}")
+                finalized = true
             } catch (e: Exception) {
                 Log.e(TAG, "failed to finalize recovered recording on stop", e)
-                writeFallbackFinalRecord(wearableSleepEndTimeMillis)
+                finalized = writeFallbackFinalRecord(wearableSleepEndTimeMillis)
             } finally {
-                if (!handledWearableSleepEndEventKey.isNullOrBlank()) {
+                if (finalized && !handledWearableSleepEndEventKey.isNullOrBlank()) {
                     preferencesRepository.setLastWearableSleepEventKey(handledWearableSleepEndEventKey)
                 }
-                preferencesRepository.clearActiveRecordingTriggerSource()
+                if (finalized) {
+                    preferencesRepository.clearActiveRecordingTriggerSource()
+                } else {
+                    Log.w(TAG, "keep active trigger source for recovery because recovered finalization failed")
+                }
                 currentRecordId = null
                 sessionStartTime = 0L
                 isSessionActive = false
@@ -351,10 +372,10 @@ class SleepRecordingService : Service() {
         if (settings?.autoCleanEnabled == true) cleanOldData()
     }
 
-    private suspend fun writeFallbackFinalRecord(wearableSleepEndTimeMillis: Long? = null) {
-        val recordId = currentRecordId ?: return
-        runCatching {
-            val endTime = wearableSleepEndTimeMillis ?: System.currentTimeMillis()
+    private suspend fun writeFallbackFinalRecord(wearableSleepEndTimeMillis: Long? = null): Boolean {
+        val recordId = currentRecordId ?: return false
+        return runCatching {
+            val endTime = safeRecordingEndTime(sessionStartTime, wearableSleepEndTimeMillis ?: System.currentTimeMillis())
             val events = getCurrentSessionEvents(recordId)
             val durationMs = max(1L, endTime - sessionStartTime)
             val snoreDurationMs = events.sumOf { it.durationMs.toLong() }
@@ -383,9 +404,10 @@ class SleepRecordingService : Service() {
                     createdAt = sessionStartTime
                 )
             )
+            true
         }.onFailure {
             Log.e(TAG, "failed to write fallback final record", it)
-        }
+        }.getOrDefault(false)
     }
 
     private fun ensureServiceScope() {

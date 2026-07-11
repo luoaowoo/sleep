@@ -1,6 +1,8 @@
 package com.sleep.snore.ui.screen.settings
 
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import androidx.work.Configuration
+import androidx.work.testing.WorkManagerTestInitHelper
 import com.google.common.truth.Truth.assertThat
 import com.sleep.snore.data.preferences.SecretTextCipher
 import com.sleep.snore.data.preferences.SettingsPreferencesRepository
@@ -33,6 +35,10 @@ class SettingsViewModelWearableStandbyTest {
     @Before
     fun setUp() {
         Dispatchers.setMain(dispatcher)
+        WorkManagerTestInitHelper.initializeTestWorkManager(
+            RuntimeEnvironment.getApplication(),
+            Configuration.Builder().setMinimumLoggingLevel(android.util.Log.DEBUG).build()
+        )
     }
 
     @After
@@ -58,6 +64,27 @@ class SettingsViewModelWearableStandbyTest {
             .containsExactly(HealthConnectSleepTriggerSource.SOURCE)
         assertThat(repository.settingsSnapshot().wearableSleepTriggerEnabled).isFalse()
         assertThat(repository.settingsSnapshot().wearableSleepTriggerStatus).isEqualTo("Health Connect 周期检查已关闭")
+    }
+
+    @Test
+    fun checkWearableSleepNow_enablesPeriodicCheckWithoutStartingRecording() = runTest(dispatcher) {
+        val repository = createRepository()
+        val recordingController = FakeRecordingController()
+        val viewModel = SettingsViewModel(
+            context = RuntimeEnvironment.getApplication(),
+            preferencesRepository = repository,
+            recordingController = recordingController,
+            wearableStandbyPrerequisiteChecker = FakeWearableStandbyPrerequisiteChecker()
+        )
+
+        viewModel.checkWearableSleepNow()
+        advanceUntilIdle()
+
+        val settings = repository.settingsSnapshot()
+        assertThat(settings.wearableSleepTriggerEnabled).isTrue()
+        assertThat(settings.wearableSleepTriggerStatus).contains("不会开始录音")
+        assertThat(settings.wearableSleepTriggerStatus).contains("前台检测")
+        assertThat(recordingController.startedSources).isEmpty()
     }
 
     @Test

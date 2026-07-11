@@ -413,7 +413,7 @@ fun SettingsScreen(
                     HorizontalDivider(modifier = Modifier.padding(vertical = Spacing.sm))
                     SettingSwitchRow(
                         title = "睡眠结束后自动停止",
-                        supportingText = "读取到同步到 Health Connect 的睡眠结束记录后，自动结束鼾声检测。",
+                        supportingText = "读取到同步到 Health Connect 的睡眠结束记录后，仅自动结束睡前前台检测 / Health Connect 来源录音；手动录音不会被接管。",
                         checked = uiState.wearableStopOnSleepEndEnabled,
                         onCheckedChange = viewModel::onWearableStopOnSleepEndChange
                     )
@@ -493,8 +493,13 @@ fun SettingsScreen(
                     Button(
                         onClick = viewModel::checkWearableSleepNow
                     ) {
-                        Text("立即检查睡眠记录")
+                        Text("只检查睡眠记录")
                     }
+                    Text(
+                        "只读取最近同步睡眠；不会开始录音，但会开启 Health Connect 周期检查。",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                     Spacer(Modifier.height(Spacing.sm))
                     Button(
                         onClick = {
