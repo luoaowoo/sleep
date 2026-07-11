@@ -1,6 +1,8 @@
 package com.sleep.snore.recording
 
 import android.Manifest
+import androidx.work.Configuration
+import androidx.work.testing.WorkManagerTestInitHelper
 import com.google.common.truth.Truth.assertThat
 import com.sleep.snore.data.preferences.SettingsPreferences
 import com.sleep.snore.data.preferences.SettingsPreferencesRepository
@@ -90,5 +92,43 @@ class AndroidRecordingControllerTest {
 
         assertThat(stopped).isFalse()
         assertThat(shadowOf(context).nextStartedService).isNull()
+    }
+
+    @Test
+    fun stopFromSleepTrigger_whenActiveSourceMatchesSubmitsStopWithSleepEndTime() = runTest {
+        val context = RuntimeEnvironment.getApplication()
+        initializeWorkManager(context)
+        val settingsRepository = mockk<SettingsPreferencesRepository>(relaxed = true)
+        every { settingsRepository.settings } returns flowOf(
+            SettingsPreferences(
+                activeRecordingTriggerSource = "health_connect_sleep",
+                activeRecordingTriggerStartedAtMillis = 1_000L
+            )
+        )
+        val notifier = mockk<RecordingFailureNotifier>(relaxed = true)
+        val controller = AndroidRecordingController(
+            context = context,
+            settingsRepository = settingsRepository,
+            recordingFailureNotifier = notifier,
+            appVisibilityState = object : AppVisibilityState {
+                override val isAppVisible: Boolean = true
+            }
+        )
+
+        val stopped = controller.stopFromSleepTrigger("health_connect_sleep", 2_000L)
+
+        val startedService = shadowOf(context).nextStartedService
+        assertThat(stopped).isTrue()
+        assertThat(startedService.component?.className).isEqualTo(SleepRecordingService::class.java.name)
+        assertThat(startedService.action).isEqualTo(SleepRecordingService.ACTION_STOP)
+        assertThat(startedService.getStringExtra("expected_trigger_source")).isEqualTo("health_connect_sleep")
+        assertThat(startedService.getLongExtra("sleep_end_time_millis", 0L)).isEqualTo(2_000L)
+    }
+
+    private fun initializeWorkManager(context: android.content.Context) {
+        WorkManagerTestInitHelper.initializeTestWorkManager(
+            context,
+            Configuration.Builder().setMinimumLoggingLevel(android.util.Log.DEBUG).build()
+        )
     }
 }
