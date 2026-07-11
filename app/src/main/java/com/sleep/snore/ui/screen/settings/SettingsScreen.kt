@@ -566,6 +566,9 @@ fun SettingsScreen(
                                         wearableSleepTriggerStatus = uiState.wearableSleepTriggerStatus,
                                         wearableSleepTriggerLastCheckText = uiState.wearableSleepTriggerLastCheckText,
                                         latestWearableSleepSessionText = uiState.latestWearableSleepSessionText,
+                                        latestWearableSleepSessionStartMillis = uiState.latestWearableSleepSessionStartMillis,
+                                        latestWearableSleepSessionEndMillis = uiState.latestWearableSleepSessionEndMillis,
+                                        latestWearableSleepSessionStatus = uiState.latestWearableSleepSessionStatus,
                                         workManagerDiagnosticsText = workDiagnostics,
                                         databaseDiagnosticsText = databaseDiagnostics
                                     )

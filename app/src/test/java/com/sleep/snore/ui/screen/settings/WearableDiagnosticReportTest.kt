@@ -33,6 +33,9 @@ class WearableDiagnosticReportTest {
                 wearableSleepTriggerStatus = "睡前前台检测已开启",
                 wearableSleepTriggerLastCheckText = "07-11 23:20",
                 latestWearableSleepSessionText = "07-11 01:00 - 07-11 08:00（已读取睡眠结束）",
+                latestWearableSleepSessionStartMillis = 1_000_000L,
+                latestWearableSleepSessionEndMillis = 26_200_000L,
+                latestWearableSleepSessionStatus = "已读取睡眠结束",
                 workManagerDiagnosticsText = "health_connect_sleep_trigger: ENQUEUED(attempt=0)",
                 databaseDiagnosticsText = "activeRecord: id=9, start=1000000, end=1000000, active=true, events=3"
             )
@@ -55,6 +58,12 @@ class WearableDiagnosticReportTest {
         assertThat(report).contains("当前录音触发毫秒：1000000")
         assertThat(report).contains("录音开始-触发差值毫秒：500")
         assertThat(report).contains("最近同步睡眠：07-11 01:00 - 07-11 08:00")
+        assertThat(report).contains("最近睡眠开始毫秒：1000000")
+        assertThat(report).contains("最近睡眠结束毫秒：26200000")
+        assertThat(report).contains("最近睡眠状态：已读取睡眠结束")
+        assertThat(report).contains("最近睡眠时长分钟：420")
+        assertThat(report).contains("最近睡眠与触发重叠分钟：420")
+        assertThat(report).contains("最近睡眠自动停录规则判断：满足自动停录时间规则")
         assertThat(report).contains("后台任务：")
         assertThat(report).contains("health_connect_sleep_trigger: ENQUEUED(attempt=0)")
         assertThat(report).contains("数据库：")
@@ -75,6 +84,56 @@ class WearableDiagnosticReportTest {
     fun recordingTriggerOffsetMillis_returnsNullWhenTimingMissing() {
         assertThat(recordingTriggerOffsetMillis(0L, 1_000L)).isNull()
         assertThat(recordingTriggerOffsetMillis(1_000L, 0L)).isNull()
+    }
+
+    @Test
+    fun sleepOverlapAfterTriggerMinutes_reportsOverlapAfterTrigger() {
+        assertThat(
+            sleepOverlapAfterTriggerMinutes(
+                sleepStartMillis = 1_000L,
+                sleepEndMillis = 121_000L,
+                triggerStartedAtMillis = 61_000L
+            )
+        ).isEqualTo(1L)
+    }
+
+    @Test
+    fun sleepDurationMinutes_returnsNullForInvalidSleep() {
+        assertThat(sleepDurationMinutes(0L, 1_000L)).isNull()
+        assertThat(sleepDurationMinutes(2_000L, 1_000L)).isNull()
+    }
+
+    @Test
+    fun sleepAutoStopRuleDiagnostic_reportsInsufficientOverlapBeforeShortSleep() {
+        val diagnostic = sleepAutoStopRuleDiagnostic(
+            sleepStartMillis = 1_000L,
+            sleepEndMillis = 61_000L,
+            triggerStartedAtMillis = 60_000L
+        )
+
+        assertThat(diagnostic).contains("重叠不足")
+    }
+
+    @Test
+    fun sleepAutoStopRuleDiagnostic_reportsShortSleepAfterEnoughOverlap() {
+        val diagnostic = sleepAutoStopRuleDiagnostic(
+            sleepStartMillis = 1_000L,
+            sleepEndMillis = 3_601_000L,
+            triggerStartedAtMillis = 1_000L
+        )
+
+        assertThat(diagnostic).contains("睡眠时长不足")
+    }
+
+    @Test
+    fun sleepAutoStopRuleDiagnostic_reportsSatisfiedRules() {
+        val diagnostic = sleepAutoStopRuleDiagnostic(
+            sleepStartMillis = 1_000L,
+            sleepEndMillis = 7_201_000L,
+            triggerStartedAtMillis = 1_000L
+        )
+
+        assertThat(diagnostic).contains("满足自动停录")
     }
 
     @Test

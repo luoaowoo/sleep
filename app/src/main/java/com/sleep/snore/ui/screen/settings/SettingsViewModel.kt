@@ -49,6 +49,9 @@ data class SettingsUiState(
     val wearableSleepTriggerStatus: String = SettingsPreferencesRepository.DEFAULT_WEARABLE_SLEEP_TRIGGER_STATUS,
     val wearableSleepTriggerLastCheckText: String = "尚未检查",
     val latestWearableSleepSessionText: String = "尚未发现同步睡眠记录",
+    val latestWearableSleepSessionStartMillis: Long = 0L,
+    val latestWearableSleepSessionEndMillis: Long = 0L,
+    val latestWearableSleepSessionStatus: String = "",
     val activeRecordingTriggerSource: String = "",
     val activeRecordingTriggerStartedAtText: String = "无",
     val activeRecordingTriggerStartedAtMillis: Long = 0L,
@@ -112,6 +115,9 @@ class SettingsViewModel @Inject constructor(
                             endMillis = settings.latestWearableSleepSessionEndMillis,
                             status = settings.latestWearableSleepSessionStatus
                         ),
+                        latestWearableSleepSessionStartMillis = settings.latestWearableSleepSessionStartMillis,
+                        latestWearableSleepSessionEndMillis = settings.latestWearableSleepSessionEndMillis,
+                        latestWearableSleepSessionStatus = settings.latestWearableSleepSessionStatus,
                         activeRecordingTriggerSource = settings.activeRecordingTriggerSource,
                         activeRecordingTriggerStartedAtText = settings.activeRecordingTriggerStartedAtMillis.toTriggerStartText(),
                         activeRecordingTriggerStartedAtMillis = settings.activeRecordingTriggerStartedAtMillis

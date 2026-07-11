@@ -207,6 +207,31 @@ class SettingsViewModelWearableStandbyTest {
         assertThat(state.activeRecordingTriggerStartedAtText).isNotEqualTo("无")
     }
 
+    @Test
+    fun settingsUiState_exposesLatestWearableSleepSessionRawValues() = runTest(dispatcher) {
+        val repository = createRepository()
+        val viewModel = SettingsViewModel(
+            context = RuntimeEnvironment.getApplication(),
+            preferencesRepository = repository,
+            sleepRepository = fakeSleepRepository(),
+            recordingController = FakeRecordingController(),
+            wearableStandbyPrerequisiteChecker = FakeWearableStandbyPrerequisiteChecker()
+        )
+
+        repository.setLatestWearableSleepSession(
+            startMillis = 1_000L,
+            endMillis = 8_000L,
+            status = "已读取睡眠结束"
+        )
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertThat(state.latestWearableSleepSessionStartMillis).isEqualTo(1_000L)
+        assertThat(state.latestWearableSleepSessionEndMillis).isEqualTo(8_000L)
+        assertThat(state.latestWearableSleepSessionStatus).isEqualTo("已读取睡眠结束")
+        assertThat(state.latestWearableSleepSessionText).contains("已读取睡眠结束")
+    }
+
     private fun fakeSleepRepository(): SleepRepository = mockk(relaxed = true)
 
     private fun createRepository(): SettingsPreferencesRepository {
