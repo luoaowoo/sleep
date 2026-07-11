@@ -52,6 +52,13 @@
 
 ## 隐私边界
 
-- 手环/Health Connect 只作为睡眠触发信号，不上传原始音频。
+- 手环/Health Connect 只作为睡眠自动停止和校准信号，不上传原始音频。
 - 鼾声音频仍由本应用按片段保存在本地。
 - DeepSeek 只发送周摘要指标和用户自填信息，不发送原始音频。
+
+## 参考资料
+
+- Android Health Connect：用户授权后的健康数据读取与写入入口，可用于读取睡眠数据：https://developer.android.com/health-and-fitness/health-connect
+- Health Connect `SleepSessionRecord`：官方睡眠会话数据结构：https://developer.android.com/reference/kotlin/androidx/health/connect/client/records/SleepSessionRecord
+- Android 后台启动前台服务限制：Android 14+ 对需要 while-in-use 权限的前台服务有额外限制：https://developer.android.com/develop/background-work/services/fgs/restrictions-bg-start
+- Android 14 前台服务类型：麦克风服务必须声明对应类型和权限：https://developer.android.com/about/versions/14/changes/fgs-types-required

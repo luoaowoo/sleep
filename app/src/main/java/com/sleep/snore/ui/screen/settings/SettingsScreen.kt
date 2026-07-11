@@ -387,6 +387,17 @@ fun SettingsScreen(
                             MaterialTheme.colorScheme.error
                         }
                     )
+                    Spacer(Modifier.height(Spacing.xs))
+                    Text(
+                        wearableIntegrationStatusSummary(
+                            hasXiaomiCompanion = installedXiaomiCompanion != null,
+                            hasHealthConnectPermission = hasHealthConnectPermission,
+                            periodicCheckEnabled = uiState.wearableSleepTriggerEnabled,
+                            foregroundDetectionActive = wearableSleepDetectionActive
+                        ),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                     Spacer(Modifier.height(Spacing.sm))
                     SettingSwitchRow(
                         title = "Health Connect 周期检查",
