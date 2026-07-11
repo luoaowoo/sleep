@@ -6,6 +6,14 @@
         <package android:name="com.google.android.apps.healthdata" />
         <package android:name="com.xiaomi.wearable" />
         <package android:name="com.xiaomi.hm.health" />
+        <package android:name="com.miui.securitycenter" />
+        <package android:name="com.miui.powerkeeper" />
+        <intent>
+            <action android:name="miui.intent.action.OP_AUTO_START" />
+        </intent>
+        <intent>
+            <action android:name="miui.intent.action.POWER_HIDE_MODE_APP_LIST" />
+        </intent>
     </queries>
 
     <!-- 录音权限 -->
