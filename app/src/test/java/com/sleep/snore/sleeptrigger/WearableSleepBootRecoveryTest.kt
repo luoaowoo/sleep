@@ -43,6 +43,48 @@ class WearableSleepBootRecoveryTest {
         assertThat(shouldFinalizeWearableRecordingAfterBoot(settings, activeRecord = null)).isFalse()
     }
 
+    @Test
+    fun wearableRestartRecoveryPlan_appStartEnqueuesHealthConnectFinalizer() {
+        val plan = wearableRestartRecoveryPlan(
+            entryPoint = WearableRestartRecoveryEntryPoint.AppStart,
+            activeRecordExists = true,
+            activeRecordingTriggerSource = HealthConnectSleepTriggerSource.SOURCE
+        )
+
+        assertThat(plan?.expectedSource).isEqualTo(HealthConnectSleepTriggerSource.SOURCE)
+        assertThat(plan?.statusText).contains("应用启动")
+    }
+
+    @Test
+    fun wearableRestartRecoveryPlan_bootCompletedUsesRestartStatus() {
+        val plan = wearableRestartRecoveryPlan(
+            entryPoint = WearableRestartRecoveryEntryPoint.BootCompleted,
+            activeRecordExists = true,
+            activeRecordingTriggerSource = HealthConnectSleepTriggerSource.SOURCE
+        )
+
+        assertThat(plan?.expectedSource).isEqualTo(HealthConnectSleepTriggerSource.SOURCE)
+        assertThat(plan?.statusText).contains("重启/更新")
+    }
+
+    @Test
+    fun wearableRestartRecoveryPlan_rejectsManualOrMissingActiveRecord() {
+        assertThat(
+            wearableRestartRecoveryPlan(
+                entryPoint = WearableRestartRecoveryEntryPoint.AppStart,
+                activeRecordExists = true,
+                activeRecordingTriggerSource = ""
+            )
+        ).isNull()
+        assertThat(
+            wearableRestartRecoveryPlan(
+                entryPoint = WearableRestartRecoveryEntryPoint.AppStart,
+                activeRecordExists = false,
+                activeRecordingTriggerSource = HealthConnectSleepTriggerSource.SOURCE
+            )
+        ).isNull()
+    }
+
     private fun activeRecord(): SleepRecordEntity {
         return SleepRecordEntity(
             id = 1L,

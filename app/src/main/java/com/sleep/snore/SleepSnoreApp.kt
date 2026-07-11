@@ -5,9 +5,12 @@ import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import androidx.work.WorkManager
 import com.sleep.snore.data.preferences.SettingsPreferencesRepository
+import com.sleep.snore.data.repository.SleepRepository
 import com.sleep.snore.recording.AppVisibilityTracker
 import com.sleep.snore.sleeptrigger.BedtimeDetectionReminderWorker
 import com.sleep.snore.sleeptrigger.HealthConnectSleepTriggerWorker
+import com.sleep.snore.sleeptrigger.WearableRestartRecoveryEntryPoint
+import com.sleep.snore.sleeptrigger.recoverWearableRecordingAfterRestartIfNeeded
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
@@ -22,6 +25,7 @@ class SleepSnoreApp : Application() {
 
     @Inject lateinit var workerFactory: HiltWorkerFactory
     @Inject lateinit var settingsPreferencesRepository: SettingsPreferencesRepository
+    @Inject lateinit var sleepRepository: SleepRepository
     @Inject lateinit var appVisibilityTracker: AppVisibilityTracker
 
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -35,6 +39,14 @@ class SleepSnoreApp : Application() {
                 .build()
         )
         appVisibilityTracker.register(this)
+        appScope.launch {
+            recoverWearableRecordingAfterRestartIfNeeded(
+                context = this@SleepSnoreApp,
+                settingsRepository = settingsPreferencesRepository,
+                sleepRepository = sleepRepository,
+                entryPoint = WearableRestartRecoveryEntryPoint.AppStart
+            )
+        }
         appScope.launch {
             settingsPreferencesRepository.settings
                 .map { it.wearableSleepTriggerEnabled }
