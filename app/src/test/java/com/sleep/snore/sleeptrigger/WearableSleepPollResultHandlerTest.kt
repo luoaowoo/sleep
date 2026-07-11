@@ -93,7 +93,10 @@ class WearableSleepPollResultHandlerTest {
         )
 
         val result = handleWearableSleepPollResult(
-            pollResult = HealthConnectSleepTriggerSource.PollResult.DuplicateEvent(session),
+            pollResult = HealthConnectSleepTriggerSource.PollResult.DuplicateEvent(
+                observedSession = session,
+                eventKey = "SleepEnded:8000:1000"
+            ),
             stopOnSleepEnd = true,
             coordinator = AutoSnoreDetectionCoordinator(FakeRecordingController()),
             settingsRepository = settingsRepository,

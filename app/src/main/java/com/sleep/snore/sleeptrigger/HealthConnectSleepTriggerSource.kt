@@ -79,7 +79,10 @@ class HealthConnectSleepTriggerSource @Inject constructor(
         val interpretedEvent = actionableSession.event
         val interpretedSession = actionableSession.session
         if (interpretedEvent.eventKey == settingsRepository.getLastWearableSleepEventKey()) {
-            return PollResult.DuplicateEvent(interpretedSession)
+            return PollResult.DuplicateEvent(
+                observedSession = interpretedSession,
+                eventKey = interpretedEvent.eventKey
+            )
         }
         return PollResult.EventEmitted(interpretedEvent.event, interpretedEvent.eventKey, interpretedSession)
     }
@@ -96,7 +99,8 @@ class HealthConnectSleepTriggerSource @Inject constructor(
             val reason: NoActionableSleepReason
         ) : PollResult
         data class DuplicateEvent(
-            override val observedSession: SleepSessionSnapshot
+            override val observedSession: SleepSessionSnapshot,
+            val eventKey: String
         ) : PollResult
         data object ReadFailed : PollResult
         data class EventEmitted(

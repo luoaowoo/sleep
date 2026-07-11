@@ -7,6 +7,7 @@ import com.sleep.snore.data.preferences.SettingsPreferences
 import com.sleep.snore.data.preferences.SettingsPreferencesRepository
 import com.sleep.snore.sleeptrigger.HealthConnectSleepSessionPoller
 import com.sleep.snore.sleeptrigger.HealthConnectSleepTriggerSource
+import com.sleep.snore.sleeptrigger.SleepSessionSnapshot
 import com.sleep.snore.sleeptrigger.SleepTriggerEvent
 import java.time.Instant
 import kotlinx.coroutines.flow.flowOf
@@ -112,6 +113,34 @@ class WearableSleepEndTimeResolverTest {
         val result = WearableSleepEndTimeResolver(settingsRepository, poller).resolveResult(activeRecord())
 
         assertThat(result).isEqualTo(WearableSleepEndResolveResult.WaitingForSync)
+    }
+
+    @Test
+    fun resolveResult_resolvesDuplicateSleepEndFromObservedSession() = runTest {
+        val settingsRepository = settingsRepository(
+            SettingsPreferences(activeRecordingTriggerSource = HealthConnectSleepTriggerSource.SOURCE)
+        )
+        val poller = FakeSleepSessionPoller(
+            HealthConnectSleepTriggerSource.PollResult.DuplicateEvent(
+                observedSession = SleepSessionSnapshot(
+                    startTime = Instant.ofEpochMilli(1_000L),
+                    endTime = Instant.ofEpochMilli(8_000L),
+                    dataOriginPackageName = "com.xiaomi.wearable"
+                ),
+                eventKey = "SleepEnded:8000:1000"
+            )
+        )
+
+        val result = WearableSleepEndTimeResolver(settingsRepository, poller).resolveResult(activeRecord())
+
+        assertThat(result).isEqualTo(
+            WearableSleepEndResolveResult.Resolved(
+                ResolvedWearableSleepEnd(
+                    endTimeMillis = 8_000L,
+                    eventKey = "SleepEnded:8000:1000"
+                )
+            )
+        )
     }
 
     private fun settingsRepository(settings: SettingsPreferences): SettingsPreferencesRepository {

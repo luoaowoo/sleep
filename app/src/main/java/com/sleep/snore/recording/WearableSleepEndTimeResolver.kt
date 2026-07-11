@@ -68,6 +68,14 @@ class WearableSleepEndTimeResolver @Inject constructor(
                     )
                 )
             }
+            is HealthConnectSleepTriggerSource.PollResult.DuplicateEvent -> {
+                WearableSleepEndResolveResult.Resolved(
+                    ResolvedWearableSleepEnd(
+                        endTimeMillis = pollResult.observedSession.endTime.toEpochMilli(),
+                        eventKey = pollResult.eventKey
+                    )
+                )
+            }
             else -> WearableSleepEndResolveResult.WaitingForSync
         }
     }

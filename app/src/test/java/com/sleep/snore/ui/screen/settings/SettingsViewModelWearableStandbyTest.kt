@@ -117,7 +117,7 @@ class SettingsViewModelWearableStandbyTest {
     }
 
     @Test
-    fun startWearableSleepStandby_whenRecordingConfirmedWritesSuccessStatus() = runTest(dispatcher) {
+    fun startWearableSleepStandby_whenRecordingConfirmedStartsStandbyForegroundService() = runTest(dispatcher) {
         val context = RuntimeEnvironment.getApplication()
         val repository = createRepository()
         val recordingController = FakeRecordingController(
