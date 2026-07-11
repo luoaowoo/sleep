@@ -15,7 +15,7 @@ internal suspend fun handleWearableSleepPollResult(
     coordinator: AutoSnoreDetectionCoordinator,
     settingsRepository: SettingsPreferencesRepository,
     requireBackgroundRead: Boolean,
-    allowSleepStartRecording: Boolean = true
+    allowSleepStartRecording: Boolean = false
 ): WearableSleepPollHandleResult {
     if (pollResult !is HealthConnectSleepTriggerSource.PollResult.EventEmitted) {
         return WearableSleepPollHandleResult(

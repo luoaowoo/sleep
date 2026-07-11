@@ -4,7 +4,6 @@ import com.google.common.truth.Truth.assertThat
 import com.sleep.snore.data.preferences.SettingsPreferencesRepository
 import com.sleep.snore.recording.RecordingController
 import com.sleep.snore.recording.RecordingStartResult
-import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
@@ -28,7 +27,8 @@ class WearableSleepPollResultHandlerTest {
             stopOnSleepEnd = true,
             coordinator = coordinator,
             settingsRepository = settingsRepository,
-            requireBackgroundRead = false
+            requireBackgroundRead = false,
+            allowSleepStartRecording = true
         )
 
         assertThat(result.statusText).isEqualTo("started")
@@ -54,7 +54,8 @@ class WearableSleepPollResultHandlerTest {
             stopOnSleepEnd = true,
             coordinator = coordinator,
             settingsRepository = settingsRepository,
-            requireBackgroundRead = false
+            requireBackgroundRead = false,
+            allowSleepStartRecording = true
         )
 
         assertThat(result.statusText).isEqualTo("missing permission")
@@ -96,6 +97,30 @@ class WearableSleepPollResultHandlerTest {
             settingsRepository = settingsRepository,
             requireBackgroundRead = true,
             allowSleepStartRecording = false
+        )
+
+        assertThat(result.statusText).isEqualTo("检测到睡眠开始；后台轮询不会直接启动麦克风，请使用睡前前台检测")
+        assertThat(result.emittedSleepStart).isTrue()
+        assertThat(result.eventHandled).isFalse()
+        assertThat(controller.started).isFalse()
+        coVerify(exactly = 0) { settingsRepository.setLastWearableSleepEventKey(any()) }
+    }
+
+    @Test
+    fun handleWearableSleepPollResult_doesNotStartRecordingFromSleepStartByDefault() = runTest {
+        val settingsRepository = mockk<SettingsPreferencesRepository>(relaxed = true)
+        val controller = FakeRecordingController()
+        val pollResult = HealthConnectSleepTriggerSource.PollResult.EventEmitted(
+            event = SleepTriggerEvent.SleepStarted("health_connect_sleep", timestamp = 1L, confidence = 0.8f),
+            eventKey = "SleepStarted:1:1"
+        )
+
+        val result = handleWearableSleepPollResult(
+            pollResult = pollResult,
+            stopOnSleepEnd = true,
+            coordinator = AutoSnoreDetectionCoordinator(controller),
+            settingsRepository = settingsRepository,
+            requireBackgroundRead = true
         )
 
         assertThat(result.statusText).isEqualTo("检测到睡眠开始；后台轮询不会直接启动麦克风，请使用睡前前台检测")
