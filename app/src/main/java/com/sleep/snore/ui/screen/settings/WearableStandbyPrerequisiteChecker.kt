@@ -21,14 +21,14 @@ open class WearableStandbyPrerequisiteChecker @Inject constructor(
             context,
             Manifest.permission.RECORD_AUDIO
         ) == PackageManager.PERMISSION_GRANTED
-        if (!hasRecordAudio) return "缺少麦克风权限，请先在后台录音区域授权"
+        if (!hasRecordAudio) return "缺少麦克风权限，请先在前台检测保活区域授权"
 
         val hasNotificationPermission = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
             ContextCompat.checkSelfPermission(
                 context,
                 Manifest.permission.POST_NOTIFICATIONS
             ) == PackageManager.PERMISSION_GRANTED
-        if (!hasNotificationPermission) return "缺少通知权限，请先在后台录音区域授权"
+        if (!hasNotificationPermission) return "缺少通知权限，请先在前台检测保活区域授权"
 
         val healthConnectStatus = HealthConnectClient.getSdkStatus(context)
         healthConnectAvailabilityBlocker(healthConnectStatus)?.let { return it }

@@ -5,20 +5,24 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.room.Room
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.navigation.compose.rememberNavController
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.sleep.snore.data.db.SleepDatabase
 import com.sleep.snore.data.model.CardCornerStyle
 import com.sleep.snore.data.model.FontScale
 import com.sleep.snore.data.preferences.SecretTextCipher
 import com.sleep.snore.data.preferences.SettingsPreferencesRepository
+import com.sleep.snore.data.repository.SleepRepository
 import com.sleep.snore.recording.RecordingController
 import com.sleep.snore.recording.RecordingStartResult
 import com.sleep.snore.ui.theme.LocalUiPreferences
 import com.sleep.snore.ui.theme.SleepSnoreTheme
 import com.sleep.snore.ui.theme.UiPreferences
 import kotlinx.coroutines.runBlocking
+import org.junit.After
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -35,6 +39,7 @@ class SettingsScreenTest {
     val composeRule = createComposeRule()
 
     private val context: Context = InstrumentationRegistry.getInstrumentation().targetContext
+    private val databases = mutableListOf<SleepDatabase>()
 
     private fun createViewModel(
         cardCornerStyle: CardCornerStyle = CardCornerStyle.STANDARD,
@@ -58,11 +63,18 @@ class SettingsScreenTest {
         return SettingsViewModel(
             context,
             repository,
+            createSleepRepository(),
             FakeRecordingController,
             object : WearableStandbyPrerequisiteChecker(context) {
                 override suspend fun startBlocker(): String? = null
             }
         )
+    }
+
+    @After
+    fun tearDown() {
+        databases.forEach { it.close() }
+        databases.clear()
     }
 
     @Test
@@ -145,6 +157,38 @@ class SettingsScreenTest {
         val formatter = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault())
         val expectedText = "最近同步睡眠：${formatter.format(Date(startMillis))} - ${formatter.format(Date(endMillis))}（已处理）"
         composeRule.onNodeWithText(expectedText).assertExists()
+    }
+
+    @Test
+    fun foregroundKeepaliveSection_clarifiesNoBackgroundMicStart() {
+        val viewModel = createViewModel()
+        composeRule.setContent {
+            SleepSnoreTheme(dynamicColor = false) {
+                SettingsScreen(
+                    navController = rememberNavController(),
+                    viewModel = viewModel
+                )
+            }
+        }
+
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText("前台检测保活").assertExists()
+        composeRule.onNodeWithText("不会后台自动开麦", substring = true).assertExists()
+    }
+
+    private fun createSleepRepository(): SleepRepository {
+        val database = Room.inMemoryDatabaseBuilder(
+            context,
+            SleepDatabase::class.java
+        ).allowMainThreadQueries().build()
+        databases += database
+        return SleepRepository(
+            context = context,
+            sleepRecordDao = database.sleepRecordDao(),
+            snoreEventDao = database.snoreEventDao(),
+            factorLogDao = database.factorLogDao()
+        )
     }
 
     private object FakeSecretTextCipher : SecretTextCipher {

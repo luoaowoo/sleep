@@ -307,19 +307,19 @@ fun SettingsScreen(
                 }
             }
 
-            Text("后台录音", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+            Text("前台检测保活", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
             Card(shape = MaterialTheme.shapes.extraLarge) {
                 Column {
                     ListItem(
                         headlineContent = {
-                            Text(if (isIgnoringBatteryOptimizations) "电池优化已放行" else "建议允许后台整晚运行")
+                            Text(if (isIgnoringBatteryOptimizations) "电池优化已放行" else "建议允许前台检测整晚运行")
                         },
                         supportingContent = {
                             Text(
                                 if (isIgnoringBatteryOptimizations) {
-                                    "系统已允许本应用忽略电池优化，夜间录音更不容易被中断。"
+                                    "系统已允许本应用忽略电池优化，睡前已开启的前台检测更不容易被中断。"
                                 } else {
-                                    "若夜间录音被系统中断，请将本应用设为不受限制/允许后台运行。"
+                                    "若睡前开启的前台检测被系统中断，请将本应用设为不受限制/允许后台运行；应用不会后台自动开麦。"
                                 }
                             )
                         },
@@ -371,7 +371,7 @@ fun SettingsScreen(
                     HorizontalDivider()
                     ListItem(
                         headlineContent = { Text(if (hasNotificationPermission) "通知权限已授权" else "建议开启通知权限") },
-                        supportingContent = { Text("前台检测依赖可见通知；Android 13+ 未授权时后台稳定性会变差。点此授权。") },
+                        supportingContent = { Text("前台检测依赖可见通知；Android 13+ 未授权时前台服务稳定性会变差。点此授权。") },
                         modifier = Modifier
                             .heightIn(min = Spacing.touchTargetMin)
                             .clickable(
