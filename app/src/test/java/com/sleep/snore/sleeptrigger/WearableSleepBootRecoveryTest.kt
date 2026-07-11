@@ -113,11 +113,13 @@ class WearableSleepBootRecoveryTest {
             settingsRepository = settingsRepository,
             sleepRepository = sleepRepository,
             entryPoint = WearableRestartRecoveryEntryPoint.AppStart,
-            enqueueFinalizer = { _, expectedSource -> enqueuedSources += expectedSource }
+            enqueueFinalizer = { _, expectedSource, activeRecordingStartMillis ->
+                enqueuedSources += "$expectedSource:$activeRecordingStartMillis"
+            }
         )
 
         assertThat(recovered).isTrue()
-        assertThat(enqueuedSources).containsExactly(HealthConnectSleepTriggerSource.SOURCE)
+        assertThat(enqueuedSources).containsExactly("${HealthConnectSleepTriggerSource.SOURCE}:1000")
         assertThat(settingsRepository.settings.first().wearableSleepTriggerStatus).contains("应用启动")
     }
 
@@ -134,7 +136,9 @@ class WearableSleepBootRecoveryTest {
             settingsRepository = settingsRepository,
             sleepRepository = sleepRepository,
             entryPoint = WearableRestartRecoveryEntryPoint.AppStart,
-            enqueueFinalizer = { _, expectedSource -> enqueuedSources += expectedSource }
+            enqueueFinalizer = { _, expectedSource, activeRecordingStartMillis ->
+                enqueuedSources += "$expectedSource:$activeRecordingStartMillis"
+            }
         )
 
         assertThat(recovered).isFalse()

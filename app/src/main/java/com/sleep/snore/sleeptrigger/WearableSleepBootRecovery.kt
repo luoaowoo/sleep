@@ -59,10 +59,11 @@ internal suspend fun recoverWearableRecordingAfterRestartIfNeeded(
     settingsRepository: SettingsPreferencesRepository,
     sleepRepository: SleepRepository,
     entryPoint: WearableRestartRecoveryEntryPoint,
-    enqueueFinalizer: (Context, String) -> Unit = { appContext, expectedSource ->
+    enqueueFinalizer: (Context, String, Long?) -> Unit = { appContext, expectedSource, activeRecordingStartMillis ->
         ActiveRecordingFinalizerWorker.enqueueFallback(
             context = appContext,
-            expectedSource = expectedSource
+            expectedSource = expectedSource,
+            activeRecordingStartMillis = activeRecordingStartMillis
         )
     }
 ): Boolean {
@@ -73,7 +74,7 @@ internal suspend fun recoverWearableRecordingAfterRestartIfNeeded(
         activeRecordExists = activeRecord != null,
         activeRecordingTriggerSource = settings.activeRecordingTriggerSource
     ) ?: return false
-    enqueueFinalizer(context.applicationContext, plan.expectedSource)
+    enqueueFinalizer(context.applicationContext, plan.expectedSource, activeRecord?.startTime)
     settingsRepository.setWearableSleepTriggerStatus(plan.statusText)
     return true
 }

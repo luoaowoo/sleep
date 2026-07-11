@@ -1,6 +1,7 @@
 package com.sleep.snore.recording
 
 import android.content.Context
+import androidx.work.BackoffPolicy
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingWorkPolicy
@@ -30,6 +31,16 @@ class ActiveRecordingFinalizerWorker @AssistedInject constructor(
         val activeRecord = sleepRepository.getActiveRecordingRecord()
         val inputSleepEndTimeMillis = inputData.getLong(KEY_SLEEP_END_TIME_MILLIS, 0L)
             .takeIf { it > 0L }
+        val expectedActiveRecordingStartMillis = inputData.getLong(KEY_ACTIVE_RECORDING_START_MILLIS, 0L)
+            .takeIf { it > 0L }
+        if (
+            shouldSkipFinalizerForDifferentActiveRecording(
+                activeRecordStartMillis = activeRecord?.startTime,
+                expectedActiveRecordingStartMillis = expectedActiveRecordingStartMillis
+            )
+        ) {
+            return Result.success()
+        }
         val resolvedWearableSleepEnd = if (
             expectedSource == HealthConnectSleepTriggerSource.SOURCE &&
             activeRecord != null &&
@@ -78,32 +89,44 @@ class ActiveRecordingFinalizerWorker @AssistedInject constructor(
         const val WORK_NAME = "active_recording_finalizer"
         private const val KEY_EXPECTED_SOURCE = "expected_source"
         private const val KEY_SLEEP_END_TIME_MILLIS = "sleep_end_time_millis"
+        private const val KEY_ACTIVE_RECORDING_START_MILLIS = "active_recording_start_millis"
         private const val FALLBACK_DELAY_SECONDS = 90L
 
         fun enqueueFallback(
             context: Context,
             expectedSource: String,
-            sleepEndTimeMillis: Long? = null
+            sleepEndTimeMillis: Long? = null,
+            activeRecordingStartMillis: Long? = null
         ) {
             val request = OneTimeWorkRequestBuilder<ActiveRecordingFinalizerWorker>()
                 .setInitialDelay(FALLBACK_DELAY_SECONDS, TimeUnit.SECONDS)
+                .setBackoffCriteria(
+                    BackoffPolicy.LINEAR,
+                    HEALTH_CONNECT_RESOLVE_BACKOFF_MINUTES,
+                    TimeUnit.MINUTES
+                )
                 .setInputData(
                     workDataOf(
                         KEY_EXPECTED_SOURCE to expectedSource,
-                        KEY_SLEEP_END_TIME_MILLIS to (sleepEndTimeMillis ?: 0L)
+                        KEY_SLEEP_END_TIME_MILLIS to (sleepEndTimeMillis ?: 0L),
+                        KEY_ACTIVE_RECORDING_START_MILLIS to (activeRecordingStartMillis ?: 0L)
                     )
                 )
                 .build()
             WorkManager.getInstance(context).enqueueUniqueWork(
                 WORK_NAME,
-                activeRecordingFinalizerExistingWorkPolicy(sleepEndTimeMillis),
+                activeRecordingFinalizerExistingWorkPolicy(
+                    sleepEndTimeMillis = sleepEndTimeMillis,
+                    activeRecordingStartMillis = activeRecordingStartMillis
+                ),
                 request
             )
         }
     }
 }
 
-private const val MAX_HEALTH_CONNECT_RESOLVE_ATTEMPTS = 3
+internal const val MAX_HEALTH_CONNECT_RESOLVE_ATTEMPTS = 8
+internal const val HEALTH_CONNECT_RESOLVE_BACKOFF_MINUTES = 15L
 
 internal fun shouldRetryWearableFinalizer(
     expectedSource: String?,
@@ -120,9 +143,13 @@ internal fun shouldRetryWearableFinalizer(
 }
 
 internal fun activeRecordingFinalizerExistingWorkPolicy(
-    sleepEndTimeMillis: Long?
+    sleepEndTimeMillis: Long?,
+    activeRecordingStartMillis: Long? = null
 ): ExistingWorkPolicy {
-    return if (sleepEndTimeMillis != null && sleepEndTimeMillis > 0L) {
+    return if (
+        sleepEndTimeMillis != null && sleepEndTimeMillis > 0L ||
+        activeRecordingStartMillis != null && activeRecordingStartMillis > 0L
+    ) {
         ExistingWorkPolicy.REPLACE
     } else {
         ExistingWorkPolicy.KEEP
@@ -137,4 +164,12 @@ internal fun wearableFallbackEndTimeMillis(
     return inputSleepEndTimeMillis
         ?: resolvedSleepEndTimeMillis
         ?: fallbackNowMillis
+}
+
+internal fun shouldSkipFinalizerForDifferentActiveRecording(
+    activeRecordStartMillis: Long?,
+    expectedActiveRecordingStartMillis: Long?
+): Boolean {
+    if (expectedActiveRecordingStartMillis == null || expectedActiveRecordingStartMillis <= 0L) return false
+    return activeRecordStartMillis != expectedActiveRecordingStartMillis
 }

@@ -10,6 +10,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 
 sealed interface RecordingStartResult {
     val confirmed: Boolean
@@ -77,14 +78,25 @@ class AndroidRecordingController @Inject constructor(
     }
 
     override suspend fun stopFromSleepTrigger(source: String, sleepEndTimeMillis: Long?): Boolean {
-        if (settingsRepository.getActiveRecordingTriggerSource() != source) return false
+        val settings = settingsRepository.settings.first()
+        if (settings.activeRecordingTriggerSource != source) return false
         return runCatching {
             context.startService(SleepRecordingService.stopFromTriggerIntent(context, source, sleepEndTimeMillis))
-            ActiveRecordingFinalizerWorker.enqueueFallback(context, source, sleepEndTimeMillis)
+            ActiveRecordingFinalizerWorker.enqueueFallback(
+                context = context,
+                expectedSource = source,
+                sleepEndTimeMillis = sleepEndTimeMillis,
+                activeRecordingStartMillis = settings.activeRecordingTriggerStartedAtMillis
+            )
             true
         }.getOrElse {
             runCatching {
-                ActiveRecordingFinalizerWorker.enqueueFallback(context, source, sleepEndTimeMillis)
+                ActiveRecordingFinalizerWorker.enqueueFallback(
+                    context = context,
+                    expectedSource = source,
+                    sleepEndTimeMillis = sleepEndTimeMillis,
+                    activeRecordingStartMillis = settings.activeRecordingTriggerStartedAtMillis
+                )
                 true
             }.getOrDefault(false)
         }

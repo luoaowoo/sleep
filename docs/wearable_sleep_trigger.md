@@ -41,7 +41,7 @@
 - 真正录音仍由 `SleepRecordingService` 以前台麦克风服务运行，并持有有限时长 WakeLock。
 - 进程或服务状态丢失时，睡眠结束事件会尝试恢复数据库中的 active record 并完成结算，避免留下半截记录。
 - 睡眠结束停止请求会携带期望来源，录音服务会再次确认当前 active record 仍来自 Health Connect，避免旧的自动停止请求误停用户后来手动开启的录音。
-- 睡眠结束停止请求会额外排一个延迟兜底结算 Worker；若服务已经正常结算并清除 active record，Worker 会自动空跑；若仍有 active record，则优先按 Health Connect 睡眠结束时间结算。若小米同步暂未写入睡眠结束时间，Worker 会先重试等待同步，多次仍失败后才按当前时间截断兜底。
+- 睡眠结束停止请求会额外排一个延迟兜底结算 Worker；若服务已经正常结算并清除 active record，Worker 会自动空跑；若仍有 active record，则优先按 Health Connect 睡眠结束时间结算。若小米同步暂未写入睡眠结束时间，Worker 会按 15 分钟线性退避最多等待 8 次，多次仍失败后才按当前时间截断兜底。
 - 如果小米伴侣 App 或 Health Connect 长时间没有同步睡眠结束，手环/Health Connect 来源的前台检测会在运行满 16 小时后按当前时间安全截断结算，避免前台服务和 active 记录无限等待；普通手动录音不受这个自动截断影响。
 - 设备重启、应用更新或系统结束前台服务后，如果系统不允许后台恢复麦克风前台服务，应用会保留手环来源 active 状态并优先交给 `ActiveRecordingFinalizerWorker` 等待 Health Connect 睡眠结束时间；多次仍未同步后才按当前时间截断兜底，避免过早生成很短记录。
 

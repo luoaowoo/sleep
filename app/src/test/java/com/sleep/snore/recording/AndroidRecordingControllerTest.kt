@@ -2,12 +2,15 @@ package com.sleep.snore.recording
 
 import android.Manifest
 import com.google.common.truth.Truth.assertThat
+import com.sleep.snore.data.preferences.SettingsPreferences
 import com.sleep.snore.data.preferences.SettingsPreferencesRepository
 import com.sleep.snore.service.SleepRecordingService
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -70,7 +73,9 @@ class AndroidRecordingControllerTest {
     fun stopFromSleepTrigger_whenActiveSourceIsManualDoesNotStopService() = runTest {
         val context = RuntimeEnvironment.getApplication()
         val settingsRepository = mockk<SettingsPreferencesRepository>(relaxed = true)
-        coEvery { settingsRepository.getActiveRecordingTriggerSource() } returns "manual"
+        every { settingsRepository.settings } returns flowOf(
+            SettingsPreferences(activeRecordingTriggerSource = "manual")
+        )
         val notifier = mockk<RecordingFailureNotifier>(relaxed = true)
         val controller = AndroidRecordingController(
             context = context,

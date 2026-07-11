@@ -151,7 +151,8 @@ class SleepRecordingService : Service() {
                     ) {
                         ActiveRecordingFinalizerWorker.enqueueFallback(
                             context = applicationContext,
-                            expectedSource = HealthConnectSleepTriggerSource.SOURCE
+                            expectedSource = HealthConnectSleepTriggerSource.SOURCE,
+                            activeRecordingStartMillis = sessionStartTime
                         )
                         preferencesRepository.setWearableSleepTriggerStatus(
                             "前台服务被系统结束，已等待 Health Connect 睡眠结束兜底结算"
@@ -464,7 +465,8 @@ class SleepRecordingService : Service() {
                 Log.w(TAG, "stale wearable recording record will be finalized by worker: ${activeRecord.id}")
                 ActiveRecordingFinalizerWorker.enqueueFallback(
                     context = applicationContext,
-                    expectedSource = HealthConnectSleepTriggerSource.SOURCE
+                    expectedSource = HealthConnectSleepTriggerSource.SOURCE,
+                    activeRecordingStartMillis = activeRecord.startTime
                 )
                 preferencesRepository.setWearableSleepTriggerStatus(
                     "检测到超时未完成的手环鼾声记录，已等待 Health Connect 睡眠结束兜底结算"

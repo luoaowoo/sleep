@@ -119,7 +119,7 @@ class ActiveRecordingFinalizerWorkerTest {
     }
 
     @Test
-    fun doWork_afterRepeatedMissingHealthConnectEndFallsBackToNow() = runTest {
+    fun doWork_afterMaxMissingHealthConnectEndAttemptsFallsBackToNow() = runTest {
         val fixture = createFixture(activeRecord = activeRecord())
         coEvery { fixture.wearableSleepEndTimeResolver.resolve(any()) } returns null
         coEvery {
@@ -129,7 +129,7 @@ class ActiveRecordingFinalizerWorkerTest {
             )
         } returns true
 
-        val result = fixture.worker(runAttemptCount = 3).doWork()
+        val result = fixture.worker(runAttemptCount = MAX_HEALTH_CONNECT_RESOLVE_ATTEMPTS).doWork()
 
         assertThat(result).isEqualTo(ListenableWorker.Result.success())
         coVerify { fixture.activeRecordingFinalizer.finalizeIfActive(HealthConnectSleepTriggerSource.SOURCE, any()) }
@@ -139,6 +139,72 @@ class ActiveRecordingFinalizerWorkerTest {
                 any()
             )
         }
+    }
+
+    @Test
+    fun doWork_skipsOldFinalizerWhenActiveRecordingStartDoesNotMatch() = runTest {
+        val fixture = createFixture(
+            inputSleepEndTimeMillis = 8_000L,
+            activeRecordingStartMillis = 1_000L,
+            activeRecord = activeRecord(startTime = 10_000L)
+        )
+
+        val result = fixture.worker().doWork()
+
+        assertThat(result).isEqualTo(ListenableWorker.Result.success())
+        coVerify(exactly = 0) { fixture.wearableSleepEndTimeResolver.resolve(any()) }
+        coVerify(exactly = 0) { fixture.activeRecordingFinalizer.finalizeIfActive(any(), any()) }
+        coVerify(exactly = 0) { fixture.settingsRepository.setWearableSleepTriggerStatus(any(), any()) }
+    }
+
+    @Test
+    fun shouldRetryWearableFinalizer_waitsUntilMaxAttemptWindow() {
+        assertThat(
+            shouldRetryWearableFinalizer(
+                expectedSource = HealthConnectSleepTriggerSource.SOURCE,
+                activeRecordExists = true,
+                inputSleepEndTimeMillis = null,
+                resolvedWearableSleepEnd = null,
+                runAttemptCount = MAX_HEALTH_CONNECT_RESOLVE_ATTEMPTS - 1
+            )
+        ).isTrue()
+        assertThat(
+            shouldRetryWearableFinalizer(
+                expectedSource = HealthConnectSleepTriggerSource.SOURCE,
+                activeRecordExists = true,
+                inputSleepEndTimeMillis = null,
+                resolvedWearableSleepEnd = null,
+                runAttemptCount = MAX_HEALTH_CONNECT_RESOLVE_ATTEMPTS
+            )
+        ).isFalse()
+    }
+
+    @Test
+    fun healthConnectResolveBackoff_isLongEnoughForDelayedXiaomiSync() {
+        assertThat(HEALTH_CONNECT_RESOLVE_BACKOFF_MINUTES).isAtLeast(15L)
+        assertThat(MAX_HEALTH_CONNECT_RESOLVE_ATTEMPTS).isAtLeast(8)
+    }
+
+    @Test
+    fun shouldSkipFinalizerForDifferentActiveRecording_onlySkipsWhenTokenMismatches() {
+        assertThat(
+            shouldSkipFinalizerForDifferentActiveRecording(
+                activeRecordStartMillis = 10_000L,
+                expectedActiveRecordingStartMillis = 1_000L
+            )
+        ).isTrue()
+        assertThat(
+            shouldSkipFinalizerForDifferentActiveRecording(
+                activeRecordStartMillis = 1_000L,
+                expectedActiveRecordingStartMillis = 1_000L
+            )
+        ).isFalse()
+        assertThat(
+            shouldSkipFinalizerForDifferentActiveRecording(
+                activeRecordStartMillis = 10_000L,
+                expectedActiveRecordingStartMillis = null
+            )
+        ).isFalse()
     }
 
     @Test
@@ -188,9 +254,20 @@ class ActiveRecordingFinalizerWorkerTest {
             .isEqualTo(ExistingWorkPolicy.KEEP)
     }
 
+    @Test
+    fun activeRecordingFinalizerExistingWorkPolicy_replacesWhenSessionTokenProvided() {
+        assertThat(
+            activeRecordingFinalizerExistingWorkPolicy(
+                sleepEndTimeMillis = null,
+                activeRecordingStartMillis = 1_000L
+            )
+        ).isEqualTo(ExistingWorkPolicy.REPLACE)
+    }
+
     private fun createFixture(
         expectedSource: String = HealthConnectSleepTriggerSource.SOURCE,
         inputSleepEndTimeMillis: Long? = null,
+        activeRecordingStartMillis: Long? = null,
         activeRecord: SleepRecordEntity? = null
     ): WorkerFixture {
         val activeRecordingFinalizer = mockk<ActiveRecordingFinalizer>()
@@ -205,6 +282,7 @@ class ActiveRecordingFinalizerWorkerTest {
         return WorkerFixture(
             expectedSource = expectedSource,
             inputSleepEndTimeMillis = inputSleepEndTimeMillis,
+            activeRecordingStartMillis = activeRecordingStartMillis,
             activeRecordingFinalizer = activeRecordingFinalizer,
             sleepRepository = sleepRepository,
             settingsRepository = settingsRepository,
@@ -215,6 +293,7 @@ class ActiveRecordingFinalizerWorkerTest {
     private data class WorkerFixture(
         val expectedSource: String,
         val inputSleepEndTimeMillis: Long?,
+        val activeRecordingStartMillis: Long?,
         val activeRecordingFinalizer: ActiveRecordingFinalizer,
         val sleepRepository: SleepRepository,
         val settingsRepository: SettingsPreferencesRepository,
@@ -243,7 +322,8 @@ class ActiveRecordingFinalizerWorkerTest {
                 .setInputData(
                     workDataOf(
                         "expected_source" to expectedSource,
-                        "sleep_end_time_millis" to (inputSleepEndTimeMillis ?: 0L)
+                        "sleep_end_time_millis" to (inputSleepEndTimeMillis ?: 0L),
+                        "active_recording_start_millis" to (activeRecordingStartMillis ?: 0L)
                     )
                 )
                 .setWorkerFactory(factory)
@@ -252,10 +332,10 @@ class ActiveRecordingFinalizerWorkerTest {
         }
     }
 
-    private fun activeRecord(): SleepRecordEntity {
+    private fun activeRecord(startTime: Long = 1_000L): SleepRecordEntity {
         return SleepRecordEntity(
             id = 42L,
-            startTime = 1_000L,
+            startTime = startTime,
             endTime = 0L,
             sleepDurationMin = 0,
             snoreScore = 0,
@@ -273,7 +353,7 @@ class ActiveRecordingFinalizerWorkerTest {
             aiSummary = "recording",
             aiEvaluation = "",
             aiSuggestions = "[]",
-            createdAt = 1_000L
+            createdAt = startTime
         )
     }
 }
