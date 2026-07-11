@@ -54,6 +54,12 @@ $env:JAVA_HOME='C:\Program Files\Android\Android Studio\jbr'
 - Debug APK：`app/build/outputs/apk/debug/app-debug.apk`
 - Release APK：`app/build/outputs/apk/release/`
 
+### 构建排障
+
+- 若 Android Studio 复用旧 Gradle daemon 后出现 `Java heap space` / GC thrashing，先执行 `.\gradlew.bat --stop` 再重建；项目已在 `gradle.properties` 中把 Gradle 堆配置为 4GiB。
+- 若 KAPT/配置缓存偶发输出目录错误，优先用 `--no-configuration-cache` 重跑；频繁复现时再考虑清理构建缓存。
+- `*.hprof` 堆转储已被 `.gitignore` 忽略，如 OOM 后生成大文件可安全删除。
+
 ## 测试与质量门禁
 
 - JVM 单测：音频分析、鼾声评分、导出、主题、ViewModel。
