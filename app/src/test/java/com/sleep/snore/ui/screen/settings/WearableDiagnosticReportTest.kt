@@ -78,6 +78,8 @@ class WearableDiagnosticReportTest {
         assertThat(report).contains("数据库：")
         assertThat(report).contains("activeRecord: id=9")
         assertThat(report).contains("后台不能可靠直接开启麦克风")
+        assertThat(report).contains("只读取已同步到 Health Connect")
+        assertThat(report).contains("不是实时小米手环直连")
         assertThat(report).doesNotContain("API Key")
         assertThat(report).doesNotContain("原始音频")
     }

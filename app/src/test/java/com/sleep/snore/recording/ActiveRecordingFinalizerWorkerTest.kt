@@ -125,6 +125,21 @@ class ActiveRecordingFinalizerWorkerTest {
     }
 
     @Test
+    fun doWork_stopsWhenActiveRecordIsNoLongerWearableRecording() = runTest {
+        val fixture = createFixture(activeRecord = activeRecord())
+        coEvery {
+            fixture.wearableSleepEndTimeResolver.resolveResult(any())
+        } returns WearableSleepEndResolveResult.NotWearableRecording
+
+        val result = fixture.worker(runAttemptCount = 0).doWork()
+
+        assertThat(result).isEqualTo(ListenableWorker.Result.success())
+        coVerify { fixture.wearableSleepEndTimeResolver.resolveResult(activeRecord()) }
+        coVerify(exactly = 0) { fixture.activeRecordingFinalizer.finalizeIfActive(any(), any()) }
+        coVerify(exactly = 0) { fixture.settingsRepository.setWearableSleepTriggerStatus(any(), any()) }
+    }
+
+    @Test
     fun doWork_afterMaxMissingHealthConnectEndAttemptsFallsBackToNow() = runTest {
         val fixture = createFixture(activeRecord = activeRecord())
         coEvery {
@@ -297,6 +312,20 @@ class ActiveRecordingFinalizerWorkerTest {
                 inputSleepEndTimeMillis = null,
                 resolvedWearableSleepEnd = null,
                 runAttemptCount = MAX_HEALTH_CONNECT_RESOLVE_ATTEMPTS
+            )
+        ).isFalse()
+    }
+
+    @Test
+    fun shouldRetryWearableFinalizer_doesNotRetryNonWearableRecording() {
+        assertThat(
+            shouldRetryWearableFinalizer(
+                expectedSource = HealthConnectSleepTriggerSource.SOURCE,
+                activeRecordExists = true,
+                inputSleepEndTimeMillis = null,
+                resolvedWearableSleepEnd = null,
+                resolveResult = WearableSleepEndResolveResult.NotWearableRecording,
+                runAttemptCount = 0
             )
         ).isFalse()
     }

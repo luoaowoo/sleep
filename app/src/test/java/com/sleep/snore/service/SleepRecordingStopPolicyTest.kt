@@ -112,6 +112,30 @@ class SleepRecordingStopPolicyTest {
     }
 
     @Test
+    fun wearableSleepEndWatcherStopAction_exitsOnlyWhenWearableSourceStillActive() {
+        assertThat(
+            wearableSleepEndWatcherStopAction(
+                activeTriggerSource = "health_connect_sleep",
+                expectedTriggerSource = "health_connect_sleep"
+            )
+        ).isEqualTo(WearableSleepEndWatcherStopAction.StopAndExit)
+
+        assertThat(
+            wearableSleepEndWatcherStopAction(
+                activeTriggerSource = "manual",
+                expectedTriggerSource = "health_connect_sleep"
+            )
+        ).isEqualTo(WearableSleepEndWatcherStopAction.ContinuePolling)
+
+        assertThat(
+            wearableSleepEndWatcherStopAction(
+                activeTriggerSource = "",
+                expectedTriggerSource = "health_connect_sleep"
+            )
+        ).isEqualTo(WearableSleepEndWatcherStopAction.ContinuePolling)
+    }
+
+    @Test
     fun staleActiveRecordingRecoveryAction_recoversRecordWithinLimit() {
         assertThat(
             staleActiveRecordingRecoveryAction(

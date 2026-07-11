@@ -19,6 +19,22 @@ internal fun shouldStopWearableRecordingAfterMaxDuration(
     return elapsedMillis >= maxDurationMillis
 }
 
+internal enum class WearableSleepEndWatcherStopAction {
+    StopAndExit,
+    ContinuePolling
+}
+
+internal fun wearableSleepEndWatcherStopAction(
+    activeTriggerSource: String?,
+    expectedTriggerSource: String
+): WearableSleepEndWatcherStopAction {
+    return if (shouldAcceptStopRequest(activeTriggerSource, expectedTriggerSource)) {
+        WearableSleepEndWatcherStopAction.StopAndExit
+    } else {
+        WearableSleepEndWatcherStopAction.ContinuePolling
+    }
+}
+
 internal enum class StaleActiveRecordingRecoveryAction {
     Recover,
     FinalizeLocally,

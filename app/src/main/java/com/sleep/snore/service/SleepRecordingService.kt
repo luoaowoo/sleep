@@ -721,14 +721,26 @@ class SleepRecordingService : Service() {
                     RecordingSleepEndFallbackResult.ContinuePolling -> Unit
                     RecordingSleepEndFallbackResult.StopPolling -> return@launch
                     is RecordingSleepEndFallbackResult.StopRecording -> {
-                        serviceScope.launch {
-                            finishSessionAndStop(
-                                handledWearableSleepEndEventKey = pollResult.eventKey,
-                                wearableSleepEndTimeMillis = pollResult.endTimeMillis,
+                        when (
+                            wearableSleepEndWatcherStopAction(
+                                activeTriggerSource = preferencesRepository.getActiveRecordingTriggerSource(),
                                 expectedTriggerSource = HealthConnectSleepTriggerSource.SOURCE
                             )
+                        ) {
+                            WearableSleepEndWatcherStopAction.StopAndExit -> {
+                                serviceScope.launch {
+                                    finishSessionAndStop(
+                                        handledWearableSleepEndEventKey = pollResult.eventKey,
+                                        wearableSleepEndTimeMillis = pollResult.endTimeMillis,
+                                        expectedTriggerSource = HealthConnectSleepTriggerSource.SOURCE
+                                    )
+                                }
+                                return@launch
+                            }
+                            WearableSleepEndWatcherStopAction.ContinuePolling -> {
+                                Log.i(TAG, "keep wearable sleep end watcher active because trigger source changed")
+                            }
                         }
-                        return@launch
                     }
                 }
                 delay(WEARABLE_SLEEP_END_WATCH_INTERVAL_MS)

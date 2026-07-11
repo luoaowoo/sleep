@@ -109,7 +109,7 @@ internal fun wearableDiagnosticReport(input: WearableDiagnosticReportInput): Str
         appendLine(input.workManagerDiagnosticsText.ifBlank { "无" })
         appendLine("数据库：")
         appendLine(input.databaseDiagnosticsText.ifBlank { "无" })
-        appendLine("说明：Android 后台不能可靠直接开启麦克风；推荐睡前打开前台检测，睡醒后等待小米同步睡眠结束到 Health Connect 自动停录。")
+        appendLine("说明：Android 后台不能可靠直接开启麦克风；推荐睡前打开前台检测，睡醒后等待小米同步睡眠结束到 Health Connect 自动停录。本应用只读取已同步到 Health Connect 的睡眠会话；当前不是实时小米手环直连，也不承诺公开实时小米睡眠 API。")
     }.trimEnd()
 }
 

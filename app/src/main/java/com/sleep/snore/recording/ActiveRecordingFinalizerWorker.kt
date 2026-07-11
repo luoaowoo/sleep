@@ -52,12 +52,16 @@ class ActiveRecordingFinalizerWorker @AssistedInject constructor(
         }
         val resolvedWearableSleepEnd =
             (wearableSleepEndResolveResult as? WearableSleepEndResolveResult.Resolved)?.sleepEnd
+        if (wearableSleepEndResolveResult == WearableSleepEndResolveResult.NotWearableRecording) {
+            return Result.success()
+        }
         if (
             shouldRetryWearableFinalizer(
                 expectedSource = expectedSource,
                 activeRecordExists = activeRecord != null,
                 inputSleepEndTimeMillis = inputSleepEndTimeMillis,
                 resolvedWearableSleepEnd = resolvedWearableSleepEnd,
+                resolveResult = wearableSleepEndResolveResult,
                 runAttemptCount = runAttemptCount
             )
         ) {
@@ -135,13 +139,15 @@ internal fun shouldRetryWearableFinalizer(
     activeRecordExists: Boolean,
     inputSleepEndTimeMillis: Long?,
     resolvedWearableSleepEnd: ResolvedWearableSleepEnd?,
+    resolveResult: WearableSleepEndResolveResult? = null,
     runAttemptCount: Int
 ): Boolean {
     if (
         expectedSource != HealthConnectSleepTriggerSource.SOURCE ||
         !activeRecordExists ||
         inputSleepEndTimeMillis != null ||
-        resolvedWearableSleepEnd != null
+        resolvedWearableSleepEnd != null ||
+        resolveResult == WearableSleepEndResolveResult.NotWearableRecording
     ) {
         return false
     }
