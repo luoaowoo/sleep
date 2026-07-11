@@ -6,7 +6,8 @@ internal data class WearableSleepPollHandleResult(
     val statusText: String,
     val emittedSleepStart: Boolean = false,
     val emittedSleepEnd: Boolean = false,
-    val eventHandled: Boolean = false
+    val eventHandled: Boolean = false,
+    val eventKey: String? = null
 )
 
 internal suspend fun handleWearableSleepPollResult(
@@ -33,8 +34,21 @@ internal suspend fun handleWearableSleepPollResult(
     if (pollResult.event is SleepTriggerEvent.SleepStarted && !allowSleepStartRecording) {
         return WearableSleepPollHandleResult(
             statusText = "检测到睡眠开始；后台轮询不会直接启动麦克风，请使用睡前前台检测",
-            emittedSleepStart = true
+            emittedSleepStart = true,
+            eventKey = pollResult.eventKey
         )
+    }
+    if (pollResult.event is SleepTriggerEvent.SleepEnded && stopOnSleepEnd) {
+        val activeTriggerSource = settingsRepository.getActiveRecordingTriggerSource()
+        if (activeTriggerSource != pollResult.event.source) {
+            settingsRepository.setLastWearableSleepEventKey(pollResult.eventKey)
+            return WearableSleepPollHandleResult(
+                statusText = "检测到睡眠结束，但当前没有手环触发的前台鼾声检测；已作为诊断记录",
+                emittedSleepEnd = true,
+                eventHandled = true,
+                eventKey = pollResult.eventKey
+            )
+        }
     }
 
     val result = coordinator.handleEvent(
@@ -49,7 +63,8 @@ internal suspend fun handleWearableSleepPollResult(
         statusText = result.statusText ?: pollResult.toWearableSleepStatusText(requireBackgroundRead),
         emittedSleepStart = pollResult.event is SleepTriggerEvent.SleepStarted,
         emittedSleepEnd = pollResult.event is SleepTriggerEvent.SleepEnded,
-        eventHandled = result.handled
+        eventHandled = result.handled,
+        eventKey = pollResult.eventKey
     )
 }
 

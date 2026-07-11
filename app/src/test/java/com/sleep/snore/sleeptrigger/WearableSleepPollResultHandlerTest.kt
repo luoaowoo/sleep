@@ -4,9 +4,10 @@ import com.google.common.truth.Truth.assertThat
 import com.sleep.snore.data.preferences.SettingsPreferencesRepository
 import com.sleep.snore.recording.RecordingController
 import com.sleep.snore.recording.RecordingStartResult
+import io.mockk.coEvery
 import io.mockk.coVerify
-import java.time.Instant
 import io.mockk.mockk
+import java.time.Instant
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 
@@ -229,6 +230,7 @@ class WearableSleepPollResultHandlerTest {
         assertThat(result.statusText).isEqualTo("检测到睡眠开始；后台轮询不会直接启动麦克风，请使用睡前前台检测")
         assertThat(result.emittedSleepStart).isTrue()
         assertThat(result.eventHandled).isFalse()
+        assertThat(result.eventKey).isEqualTo("SleepStarted:1:1")
         assertThat(controller.started).isFalse()
         coVerify(exactly = 0) { settingsRepository.setLastWearableSleepEventKey(any()) }
     }
@@ -253,6 +255,7 @@ class WearableSleepPollResultHandlerTest {
         assertThat(result.statusText).isEqualTo("检测到睡眠开始；后台轮询不会直接启动麦克风，请使用睡前前台检测")
         assertThat(result.emittedSleepStart).isTrue()
         assertThat(result.eventHandled).isFalse()
+        assertThat(result.eventKey).isEqualTo("SleepStarted:1:1")
         assertThat(controller.started).isFalse()
         coVerify(exactly = 0) { settingsRepository.setLastWearableSleepEventKey(any()) }
     }
@@ -260,6 +263,7 @@ class WearableSleepPollResultHandlerTest {
     @Test
     fun handleWearableSleepPollResult_marksHandledSleepEnd() = runTest {
         val settingsRepository = mockk<SettingsPreferencesRepository>(relaxed = true)
+        coEvery { settingsRepository.getActiveRecordingTriggerSource() } returns "health_connect_sleep"
         val controller = FakeRecordingController()
         val coordinator = AutoSnoreDetectionCoordinator(controller)
         val pollResult = HealthConnectSleepTriggerSource.PollResult.EventEmitted(
@@ -286,6 +290,7 @@ class WearableSleepPollResultHandlerTest {
     @Test
     fun handleWearableSleepPollResult_doesNotRememberFailedSleepEnd() = runTest {
         val settingsRepository = mockk<SettingsPreferencesRepository>(relaxed = true)
+        coEvery { settingsRepository.getActiveRecordingTriggerSource() } returns "health_connect_sleep"
         val coordinator = AutoSnoreDetectionCoordinator(FakeRecordingController(stopResult = false))
         val pollResult = HealthConnectSleepTriggerSource.PollResult.EventEmitted(
             event = SleepTriggerEvent.SleepEnded("health_connect_sleep", timestamp = 2L),
@@ -304,6 +309,32 @@ class WearableSleepPollResultHandlerTest {
         assertThat(result.eventHandled).isFalse()
         assertThat(result.statusText).isEqualTo("检测到睡眠结束，但未能停止鼾声检测；将继续重试")
         coVerify(exactly = 0) { settingsRepository.setLastWearableSleepEventKey(any()) }
+    }
+
+    @Test
+    fun handleWearableSleepPollResult_remembersSleepEndWithoutActiveWearableRecording() = runTest {
+        val settingsRepository = mockk<SettingsPreferencesRepository>(relaxed = true)
+        coEvery { settingsRepository.getActiveRecordingTriggerSource() } returns null
+        val controller = FakeRecordingController()
+        val coordinator = AutoSnoreDetectionCoordinator(controller)
+        val pollResult = HealthConnectSleepTriggerSource.PollResult.EventEmitted(
+            event = SleepTriggerEvent.SleepEnded("health_connect_sleep", timestamp = 2L),
+            eventKey = "SleepEnded:2:1"
+        )
+
+        val result = handleWearableSleepPollResult(
+            pollResult = pollResult,
+            stopOnSleepEnd = true,
+            coordinator = coordinator,
+            settingsRepository = settingsRepository,
+            requireBackgroundRead = true
+        )
+
+        assertThat(result.emittedSleepEnd).isTrue()
+        assertThat(result.eventHandled).isTrue()
+        assertThat(result.statusText).contains("已作为诊断记录")
+        assertThat(controller.stoppedSource).isNull()
+        coVerify { settingsRepository.setLastWearableSleepEventKey("SleepEnded:2:1") }
     }
 
     @Test

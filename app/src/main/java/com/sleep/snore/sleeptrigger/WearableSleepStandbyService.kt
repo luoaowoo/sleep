@@ -15,6 +15,7 @@ import androidx.core.app.NotificationCompat
 import com.sleep.snore.MainActivity
 import com.sleep.snore.data.preferences.SettingsPreferencesRepository
 import com.sleep.snore.recording.RecordingController
+import com.sleep.snore.recording.RecordingFailureNotifier
 import dagger.hilt.android.AndroidEntryPoint
 import java.time.Instant
 import javax.inject.Inject
@@ -47,11 +48,13 @@ class WearableSleepStandbyService : Service() {
     @Inject lateinit var healthConnectSleepTriggerSource: HealthConnectSleepTriggerSource
     @Inject lateinit var coordinator: AutoSnoreDetectionCoordinator
     @Inject lateinit var recordingController: RecordingController
+    @Inject lateinit var recordingFailureNotifier: RecordingFailureNotifier
 
     private var serviceJob = SupervisorJob()
     private var serviceScope = CoroutineScope(Dispatchers.IO + serviceJob)
     private var standbyJob: Job? = null
     private var standbyStartedAtMillis: Long = 0L
+    private var lastPromptedSleepStartEventKey: String? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -163,6 +166,7 @@ class WearableSleepStandbyService : Service() {
         val status = handleResult.statusText
         persistStandbyStatus(status)
         updateStandbyStatus(status)
+        notifySleepStartNeedsUserActionIfNeeded(handleResult)
         return if (handleResult.emittedSleepEnd && handleResult.eventHandled) {
             stopStandby("已检测到睡眠结束并请求停止鼾声检测")
             true
@@ -175,10 +179,21 @@ class WearableSleepStandbyService : Service() {
         standbyJob?.cancel()
         standbyJob = null
         standbyStartedAtMillis = 0L
+        lastPromptedSleepStartEventKey = null
         _standbyState.value = WearableSleepStandbyState(statusText = status)
         persistStandbyMessageAsync(status)
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
+    }
+
+    private fun notifySleepStartNeedsUserActionIfNeeded(handleResult: WearableSleepPollHandleResult) {
+        if (!handleResult.emittedSleepStart || handleResult.eventHandled) return
+        val eventKey = handleResult.eventKey ?: return
+        if (eventKey == lastPromptedSleepStartEventKey) return
+        lastPromptedSleepStartEventKey = eventKey
+        recordingFailureNotifier.notifyWearableStartIssue(
+            "检测到手环/Health Connect 睡眠开始；Android 不允许后台直接打开麦克风。请点开应用并使用睡前前台检测。"
+        )
     }
 
     private suspend fun persistStandbyStatus(status: String) {

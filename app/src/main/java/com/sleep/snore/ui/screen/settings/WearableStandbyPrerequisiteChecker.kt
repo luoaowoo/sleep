@@ -37,12 +37,17 @@ open class WearableStandbyPrerequisiteChecker @Inject constructor(
         }.getOrElse {
             return "无法检查 Health Connect 权限，请重新授权"
         }
-        if (!grantedPermissions.contains(HealthConnectSleepTriggerSource.READ_SLEEP_PERMISSION)) {
-            return "缺少 Health Connect 睡眠读取权限，请先授权 Health Connect"
-        }
-        if (!grantedPermissions.contains(HealthConnectSleepTriggerSource.BACKGROUND_READ_PERMISSION)) {
-            return "缺少 Health Connect 后台读取权限，请先授权 Health Connect；否则只能手动检查最近睡眠"
-        }
-        return null
+        return wearableStandbyStartBlocker(
+            hasHealthConnectSleepReadPermission = grantedPermissions.contains(
+                HealthConnectSleepTriggerSource.READ_SLEEP_PERMISSION
+            )
+        )
     }
+}
+
+internal fun wearableStandbyStartBlocker(hasHealthConnectSleepReadPermission: Boolean): String? {
+    if (!hasHealthConnectSleepReadPermission) {
+        return "缺少 Health Connect 睡眠读取权限，请先授权 Health Connect"
+    }
+    return null
 }

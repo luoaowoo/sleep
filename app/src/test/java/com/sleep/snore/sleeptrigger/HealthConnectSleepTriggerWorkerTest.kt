@@ -136,7 +136,8 @@ class HealthConnectSleepTriggerWorkerTest {
                 wearableSleepTriggerEnabled = true,
                 wearableStopOnSleepEndEnabled = true
             ),
-            recordingController = recordingController
+            recordingController = recordingController,
+            activeRecordingTriggerSource = HealthConnectSleepTriggerSource.SOURCE
         )
         coEvery {
             fixture.source.pollLatestSleepSession(any(), any(), any())
@@ -165,10 +166,12 @@ class HealthConnectSleepTriggerWorkerTest {
         settings: SettingsPreferences,
         inputRequireBackgroundRead: Boolean = true,
         includeRequireBackgroundReadInput: Boolean = true,
-        recordingController: RecordingController = FakeRecordingController()
+        recordingController: RecordingController = FakeRecordingController(),
+        activeRecordingTriggerSource: String? = null
     ): WorkerFixture {
         val settingsRepository = mockk<SettingsPreferencesRepository>(relaxed = true)
         every { settingsRepository.settings } returns flowOf(settings)
+        coEvery { settingsRepository.getActiveRecordingTriggerSource() } returns activeRecordingTriggerSource
         val source = mockk<HealthConnectSleepTriggerSource>()
         coEvery {
             source.pollLatestSleepSession(any(), any(), any())

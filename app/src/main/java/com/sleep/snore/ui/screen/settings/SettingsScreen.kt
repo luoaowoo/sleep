@@ -404,10 +404,7 @@ fun SettingsScreen(
                             hasRecordAudioPermission &&
                             hasNotificationPermission &&
                             hasHealthConnectSleepReadPermission &&
-                            hasHealthConnectBackgroundReadPermission &&
-                            isIgnoringBatteryOptimizations &&
                             installedXiaomiCompanion != null &&
-                            uiState.wearableSleepTriggerEnabled &&
                             uiState.wearableStopOnSleepEndEnabled
                         ) {
                             MaterialTheme.colorScheme.primary
