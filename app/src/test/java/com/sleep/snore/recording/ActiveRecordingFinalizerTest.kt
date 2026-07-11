@@ -65,10 +65,32 @@ class ActiveRecordingFinalizerTest {
         coVerify(exactly = 0) { settingsRepository.clearActiveRecordingTriggerSource() }
     }
 
-    private fun activeRecord(): SleepRecordEntity {
+    @Test
+    fun finalizeIfActive_clampsEndTimeAfterRecordStart() = runTest {
+        val repository = mockk<SleepRepository>()
+        val settingsRepository = mockk<SettingsPreferencesRepository>(relaxed = true)
+        val finalizer = ActiveRecordingFinalizer(repository, settingsRepository)
+        val activeRecord = activeRecord(startTime = 10_000L)
+        val updatedRecord = slot<SleepRecordEntity>()
+        coEvery { repository.getActiveRecordingRecord() } returns activeRecord
+        coEvery { settingsRepository.getActiveRecordingTriggerSource() } returns "health_connect_sleep"
+        coEvery { repository.getEventsSnapshotByRecordId(activeRecord.id) } returns emptyList()
+        coEvery { repository.getAllRecords() } returns flowOf(emptyList())
+        coEvery { repository.updateRecord(capture(updatedRecord)) } returns Unit
+
+        val finalized = finalizer.finalizeIfActive(
+            expectedTriggerSource = "health_connect_sleep",
+            endTimeMillis = 5_000L
+        )
+
+        assertThat(finalized).isTrue()
+        assertThat(updatedRecord.captured.endTime).isEqualTo(10_001L)
+    }
+
+    private fun activeRecord(startTime: Long = 0L): SleepRecordEntity {
         return SleepRecordEntity(
             id = 42L,
-            startTime = 0L,
+            startTime = startTime,
             endTime = 0L,
             sleepDurationMin = 0,
             snoreScore = 0,
@@ -86,7 +108,7 @@ class ActiveRecordingFinalizerTest {
             aiSummary = "recording",
             aiEvaluation = "",
             aiSuggestions = "[]",
-            createdAt = 0L
+            createdAt = startTime
         )
     }
 

@@ -82,10 +82,20 @@ class ActiveRecordingFinalizerWorker @AssistedInject constructor(
                 .build()
             WorkManager.getInstance(context).enqueueUniqueWork(
                 WORK_NAME,
-                ExistingWorkPolicy.REPLACE,
+                activeRecordingFinalizerExistingWorkPolicy(sleepEndTimeMillis),
                 request
             )
         }
+    }
+}
+
+internal fun activeRecordingFinalizerExistingWorkPolicy(
+    sleepEndTimeMillis: Long?
+): ExistingWorkPolicy {
+    return if (sleepEndTimeMillis != null && sleepEndTimeMillis > 0L) {
+        ExistingWorkPolicy.REPLACE
+    } else {
+        ExistingWorkPolicy.KEEP
     }
 }
 

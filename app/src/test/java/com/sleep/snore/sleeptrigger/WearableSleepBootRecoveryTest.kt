@@ -18,6 +18,16 @@ class WearableSleepBootRecoveryTest {
     }
 
     @Test
+    fun shouldFinalizeWearableRecordingAfterBoot_allowsWearableActiveRecordWhenPeriodicCheckDisabled() {
+        val settings = SettingsPreferences(
+            wearableSleepTriggerEnabled = false,
+            activeRecordingTriggerSource = HealthConnectSleepTriggerSource.SOURCE
+        )
+
+        assertThat(shouldFinalizeWearableRecordingAfterBoot(settings, activeRecord())).isTrue()
+    }
+
+    @Test
     fun shouldFinalizeWearableRecordingAfterBoot_rejectsManualActiveRecord() {
         val settings = SettingsPreferences(activeRecordingTriggerSource = "")
 
