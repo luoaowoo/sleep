@@ -39,6 +39,20 @@ class ActiveRecordingFinalizerWorker @AssistedInject constructor(
         } else {
             null
         }
+        if (
+            shouldRetryWearableFinalizer(
+                expectedSource = expectedSource,
+                activeRecordExists = activeRecord != null,
+                inputSleepEndTimeMillis = inputSleepEndTimeMillis,
+                resolvedWearableSleepEnd = resolvedWearableSleepEnd,
+                runAttemptCount = runAttemptCount
+            )
+        ) {
+            settingsRepository.setWearableSleepTriggerStatus(
+                "尚未读取到 Health Connect 睡眠结束时间，将继续等待同步后兜底结算"
+            )
+            return Result.retry()
+        }
         val finalized = activeRecordingFinalizer.finalizeIfActive(
             expectedTriggerSource = expectedSource,
             endTimeMillis = wearableFallbackEndTimeMillis(
@@ -54,7 +68,7 @@ class ActiveRecordingFinalizerWorker @AssistedInject constructor(
                 settingsRepository.setLastWearableSleepEventKey(resolvedWearableSleepEnd.eventKey)
                 settingsRepository.setWearableSleepTriggerStatus("已按 Health Connect 睡眠结束时间兜底结算")
             } else {
-                settingsRepository.setWearableSleepTriggerStatus("未能读取 Health Connect 睡眠结束时间，已按当前时间兜底结算")
+                settingsRepository.setWearableSleepTriggerStatus("多次未能读取 Health Connect 睡眠结束时间，已按当前时间截断兜底结算")
             }
         }
         return Result.success()
@@ -87,6 +101,22 @@ class ActiveRecordingFinalizerWorker @AssistedInject constructor(
             )
         }
     }
+}
+
+private const val MAX_HEALTH_CONNECT_RESOLVE_ATTEMPTS = 3
+
+internal fun shouldRetryWearableFinalizer(
+    expectedSource: String?,
+    activeRecordExists: Boolean,
+    inputSleepEndTimeMillis: Long?,
+    resolvedWearableSleepEnd: ResolvedWearableSleepEnd?,
+    runAttemptCount: Int
+): Boolean {
+    return expectedSource == HealthConnectSleepTriggerSource.SOURCE &&
+        activeRecordExists &&
+        inputSleepEndTimeMillis == null &&
+        resolvedWearableSleepEnd == null &&
+        runAttemptCount < MAX_HEALTH_CONNECT_RESOLVE_ATTEMPTS
 }
 
 internal fun activeRecordingFinalizerExistingWorkPolicy(
