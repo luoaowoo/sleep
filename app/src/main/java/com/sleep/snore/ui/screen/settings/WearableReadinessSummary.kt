@@ -40,7 +40,7 @@ internal fun wearableIntegrationStatusSummary(
             "小米手环/Health Connect 辅助链路运行中：前台鼾声检测已开启，但自动停录已关闭；睡醒后需要手动停止。"
         }
         foregroundDetectionActive -> {
-            "小米手环/Health Connect 辅助链路运行中：前台鼾声检测已开启，应用会等待同步后的睡眠结束记录用于自动停录。"
+            "小米手环/Health Connect 辅助链路运行中：前台鼾声检测已开启，应用会等待同步后的睡眠结束记录用于自动停录；若睡醒后仍未停止，请先打开小米伴侣确认已同步到 Health Connect，再点立即检查。"
         }
         !hasXiaomiCompanion -> {
             "小米接入待配置：请先安装并打开 Mi Fitness/小米运动健康或 Zepp Life，确认该版本支持 Health Connect 睡眠同步。"
@@ -58,7 +58,7 @@ internal fun wearableIntegrationStatusSummary(
             "小米伴侣 + Health Connect 链路已配置，但自动停录已关闭；睡醒后需要手动停止鼾声检测。"
         }
         else -> {
-            "小米伴侣 + Health Connect 链路已配置：睡前点击“睡前开启前台检测”，睡醒后等待小米同步睡眠结束记录。"
+            "小米伴侣 + Health Connect 链路已配置：睡前点击“睡前开启前台检测”，睡醒后等待小米同步睡眠结束记录；若未自动停录，请打开小米伴侣确认同步后再点立即检查。"
         }
     }
 }

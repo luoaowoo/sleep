@@ -5,9 +5,9 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
-import androidx.room.Room
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.navigation.compose.rememberNavController
+import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.sleep.snore.data.db.SleepDatabase
@@ -45,7 +45,7 @@ class SettingsScreenTest {
         cardCornerStyle: CardCornerStyle = CardCornerStyle.STANDARD,
         fontScale: FontScale = FontScale.STANDARD,
         compactMode: Boolean = false,
-        latestWearableSleepSession: Triple<Long, Long, String>? = null
+        latestWearableSleepSession: LatestWearableSleepSession? = null
     ): SettingsViewModel {
         val repository = SettingsPreferencesRepository(context.testSettingsDataStore, FakeSecretTextCipher)
         runBlocking {
@@ -56,7 +56,8 @@ class SettingsScreenTest {
                 repository.setLatestWearableSleepSession(
                     startMillis = startMillis,
                     endMillis = endMillis,
-                    status = status
+                    status = status,
+                    sourcePackage = latestWearableSleepSession.sourcePackage
                 )
             }
         }
@@ -141,7 +142,7 @@ class SettingsScreenTest {
         val startMillis = 1_000L
         val endMillis = 8_000L
         val viewModel = createViewModel(
-            latestWearableSleepSession = Triple(startMillis, endMillis, "已处理")
+            latestWearableSleepSession = LatestWearableSleepSession(startMillis, endMillis, "已处理")
         )
         composeRule.setContent {
             SleepSnoreTheme(dynamicColor = false) {
@@ -157,6 +158,31 @@ class SettingsScreenTest {
         val formatter = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault())
         val expectedText = "最近同步睡眠：${formatter.format(Date(startMillis))} - ${formatter.format(Date(endMillis))}（已处理）"
         composeRule.onNodeWithText(expectedText).assertExists()
+    }
+
+    @Test
+    fun wearableLatestSleepSession_showsNonXiaomiDiagnosticWarning() {
+        val viewModel = createViewModel(
+            latestWearableSleepSession = LatestWearableSleepSession(
+                startMillis = 1_000L,
+                endMillis = 8_000L,
+                status = "非小米来源，仅诊断",
+                sourcePackage = "com.example.sleep"
+            )
+        )
+        composeRule.setContent {
+            SleepSnoreTheme(dynamicColor = false) {
+                SettingsScreen(
+                    navController = rememberNavController(),
+                    viewModel = viewModel
+                )
+            }
+        }
+
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText("自动停录判断：会被忽略", substring = true).assertExists()
+        composeRule.onNodeWithText("该睡眠记录仅用于诊断", substring = true).assertExists()
     }
 
     @Test
@@ -190,6 +216,13 @@ class SettingsScreenTest {
             factorLogDao = database.factorLogDao()
         )
     }
+
+    private data class LatestWearableSleepSession(
+        val startMillis: Long,
+        val endMillis: Long,
+        val status: String,
+        val sourcePackage: String = ""
+    )
 
     private object FakeSecretTextCipher : SecretTextCipher {
         override fun encrypt(plainText: String): String = "enc:$plainText"

@@ -525,6 +525,31 @@ fun SettingsScreen(
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    val latestSleepAutoStopRuleText = sleepAutoStopRuleDiagnostic(
+                        sleepStartMillis = uiState.latestWearableSleepSessionStartMillis,
+                        sleepEndMillis = uiState.latestWearableSleepSessionEndMillis,
+                        triggerStartedAtMillis = uiState.activeRecordingTriggerStartedAtMillis,
+                        sourcePackage = uiState.latestWearableSleepSessionSourcePackage
+                    )
+                    Text(
+                        "自动停录判断：$latestSleepAutoStopRuleText",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (latestSleepAutoStopRuleText.startsWith("会被忽略")) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        }
+                    )
+                    if (
+                        uiState.latestWearableSleepSessionSourcePackage.isNotBlank() &&
+                        uiState.latestWearableSleepSessionSourcePackage !in XiaomiSleepCompanionApps.packageNames
+                    ) {
+                        Text(
+                            "该睡眠记录仅用于诊断，不会自动停录；请确认 Mi Fitness/小米运动健康/Zepp Life 已同步睡眠到 Health Connect。",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
                     if (wearableSleepDetectionActive) {
                         Text(
                             standbyState.statusText.takeIf { standbyState.isActive }
