@@ -10,7 +10,8 @@ class WearableReadinessSummaryTest {
         val summary = wearableReadinessSummary(
             hasRecordAudioPermission = true,
             hasNotificationPermission = true,
-            hasHealthConnectPermission = true,
+            hasHealthConnectSleepReadPermission = true,
+            hasHealthConnectBackgroundReadPermission = true,
             isIgnoringBatteryOptimizations = true,
             hasXiaomiCompanion = true,
             periodicCheckEnabled = true,
@@ -26,7 +27,8 @@ class WearableReadinessSummaryTest {
         val summary = wearableReadinessSummary(
             hasRecordAudioPermission = false,
             hasNotificationPermission = false,
-            hasHealthConnectPermission = false,
+            hasHealthConnectSleepReadPermission = false,
+            hasHealthConnectBackgroundReadPermission = false,
             isIgnoringBatteryOptimizations = false,
             hasXiaomiCompanion = false,
             periodicCheckEnabled = false,
@@ -35,7 +37,8 @@ class WearableReadinessSummaryTest {
 
         assertThat(summary).contains("麦克风权限")
         assertThat(summary).contains("通知权限")
-        assertThat(summary).contains("Health Connect 睡眠/后台读取授权")
+        assertThat(summary).contains("Health Connect 睡眠读取授权")
+        assertThat(summary).contains("Health Connect 后台读取授权")
         assertThat(summary).contains("电池优化放行")
         assertThat(summary).contains("小米伴侣 App")
         assertThat(summary).contains("Health Connect 周期检查")
@@ -46,7 +49,8 @@ class WearableReadinessSummaryTest {
     fun wearableIntegrationStatusSummary_reportsForegroundDetectionActive() {
         val summary = wearableIntegrationStatusSummary(
             hasXiaomiCompanion = true,
-            hasHealthConnectPermission = true,
+            hasHealthConnectSleepReadPermission = true,
+            hasHealthConnectBackgroundReadPermission = true,
             periodicCheckEnabled = true,
             stopOnSleepEndEnabled = true,
             foregroundDetectionActive = true
@@ -60,7 +64,8 @@ class WearableReadinessSummaryTest {
     fun wearableIntegrationStatusSummary_guidesMissingCompanionFirst() {
         val summary = wearableIntegrationStatusSummary(
             hasXiaomiCompanion = false,
-            hasHealthConnectPermission = false,
+            hasHealthConnectSleepReadPermission = false,
+            hasHealthConnectBackgroundReadPermission = false,
             periodicCheckEnabled = false,
             stopOnSleepEndEnabled = false,
             foregroundDetectionActive = false
@@ -74,7 +79,8 @@ class WearableReadinessSummaryTest {
     fun wearableIntegrationStatusSummary_guidesHealthConnectAuthorization() {
         val summary = wearableIntegrationStatusSummary(
             hasXiaomiCompanion = true,
-            hasHealthConnectPermission = false,
+            hasHealthConnectSleepReadPermission = false,
+            hasHealthConnectBackgroundReadPermission = false,
             periodicCheckEnabled = false,
             stopOnSleepEndEnabled = false,
             foregroundDetectionActive = false
@@ -84,10 +90,26 @@ class WearableReadinessSummaryTest {
     }
 
     @Test
+    fun wearableIntegrationStatusSummary_guidesBackgroundReadAuthorization() {
+        val summary = wearableIntegrationStatusSummary(
+            hasXiaomiCompanion = true,
+            hasHealthConnectSleepReadPermission = true,
+            hasHealthConnectBackgroundReadPermission = false,
+            periodicCheckEnabled = true,
+            stopOnSleepEndEnabled = true,
+            foregroundDetectionActive = false
+        )
+
+        assertThat(summary).contains("可手动检查最近睡眠")
+        assertThat(summary).contains("后台读取授权")
+    }
+
+    @Test
     fun wearableIntegrationStatusSummary_guidesPeriodicCheckBeforeBedtimeStart() {
         val summary = wearableIntegrationStatusSummary(
             hasXiaomiCompanion = true,
-            hasHealthConnectPermission = true,
+            hasHealthConnectSleepReadPermission = true,
+            hasHealthConnectBackgroundReadPermission = true,
             periodicCheckEnabled = false,
             stopOnSleepEndEnabled = true,
             foregroundDetectionActive = false
@@ -101,7 +123,8 @@ class WearableReadinessSummaryTest {
     fun wearableIntegrationStatusSummary_reportsConfiguredButNotStarted() {
         val summary = wearableIntegrationStatusSummary(
             hasXiaomiCompanion = true,
-            hasHealthConnectPermission = true,
+            hasHealthConnectSleepReadPermission = true,
+            hasHealthConnectBackgroundReadPermission = true,
             periodicCheckEnabled = true,
             stopOnSleepEndEnabled = true,
             foregroundDetectionActive = false
@@ -115,7 +138,8 @@ class WearableReadinessSummaryTest {
     fun wearableIntegrationStatusSummary_reportsAutoStopDisabled() {
         val summary = wearableIntegrationStatusSummary(
             hasXiaomiCompanion = true,
-            hasHealthConnectPermission = true,
+            hasHealthConnectSleepReadPermission = true,
+            hasHealthConnectBackgroundReadPermission = true,
             periodicCheckEnabled = true,
             stopOnSleepEndEnabled = false,
             foregroundDetectionActive = false
@@ -129,7 +153,8 @@ class WearableReadinessSummaryTest {
     fun wearableIntegrationStatusSummary_reportsForegroundActiveWithAutoStopDisabled() {
         val summary = wearableIntegrationStatusSummary(
             hasXiaomiCompanion = true,
-            hasHealthConnectPermission = true,
+            hasHealthConnectSleepReadPermission = true,
+            hasHealthConnectBackgroundReadPermission = true,
             periodicCheckEnabled = true,
             stopOnSleepEndEnabled = false,
             foregroundDetectionActive = true

@@ -147,15 +147,24 @@ fun SettingsScreen(
                 Manifest.permission.POST_NOTIFICATIONS
             ) == PackageManager.PERMISSION_GRANTED
     }
-    var hasHealthConnectPermission by remember(context) { mutableStateOf(false) }
+    var hasHealthConnectSleepReadPermission by remember(context) { mutableStateOf(false) }
+    var hasHealthConnectBackgroundReadPermission by remember(context) { mutableStateOf(false) }
     LaunchedEffect(context, healthConnectPermissionRefreshTick) {
-        hasHealthConnectPermission = runCatching {
-            HealthConnectClient.getSdkStatus(context) == HealthConnectClient.SDK_AVAILABLE &&
+        val grantedPermissions = runCatching {
+            if (HealthConnectClient.getSdkStatus(context) != HealthConnectClient.SDK_AVAILABLE) {
+                emptySet<String>()
+            } else {
                 HealthConnectClient.getOrCreate(context)
                     .permissionController
                     .getGrantedPermissions()
-                    .containsAll(HealthConnectSleepTriggerSource.BACKGROUND_REQUIRED_PERMISSIONS)
-        }.getOrDefault(false)
+            }
+        }.getOrDefault(emptySet())
+        hasHealthConnectSleepReadPermission = grantedPermissions.contains(
+            HealthConnectSleepTriggerSource.READ_SLEEP_PERMISSION
+        )
+        hasHealthConnectBackgroundReadPermission = grantedPermissions.contains(
+            HealthConnectSleepTriggerSource.BACKGROUND_READ_PERMISSION
+        )
     }
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -370,7 +379,8 @@ fun SettingsScreen(
                         wearableReadinessSummary(
                             hasRecordAudioPermission = hasRecordAudioPermission,
                             hasNotificationPermission = hasNotificationPermission,
-                            hasHealthConnectPermission = hasHealthConnectPermission,
+                            hasHealthConnectSleepReadPermission = hasHealthConnectSleepReadPermission,
+                            hasHealthConnectBackgroundReadPermission = hasHealthConnectBackgroundReadPermission,
                             isIgnoringBatteryOptimizations = isIgnoringBatteryOptimizations,
                             hasXiaomiCompanion = installedXiaomiCompanion != null,
                             periodicCheckEnabled = uiState.wearableSleepTriggerEnabled,
@@ -380,7 +390,8 @@ fun SettingsScreen(
                         color = if (
                             hasRecordAudioPermission &&
                             hasNotificationPermission &&
-                            hasHealthConnectPermission &&
+                            hasHealthConnectSleepReadPermission &&
+                            hasHealthConnectBackgroundReadPermission &&
                             isIgnoringBatteryOptimizations &&
                             installedXiaomiCompanion != null &&
                             uiState.wearableSleepTriggerEnabled &&
@@ -395,7 +406,8 @@ fun SettingsScreen(
                     Text(
                         wearableIntegrationStatusSummary(
                             hasXiaomiCompanion = installedXiaomiCompanion != null,
-                            hasHealthConnectPermission = hasHealthConnectPermission,
+                            hasHealthConnectSleepReadPermission = hasHealthConnectSleepReadPermission,
+                            hasHealthConnectBackgroundReadPermission = hasHealthConnectBackgroundReadPermission,
                             periodicCheckEnabled = uiState.wearableSleepTriggerEnabled,
                             stopOnSleepEndEnabled = uiState.wearableStopOnSleepEndEnabled,
                             foregroundDetectionActive = wearableSleepDetectionActive

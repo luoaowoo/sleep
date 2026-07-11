@@ -3,7 +3,8 @@ package com.sleep.snore.ui.screen.settings
 internal fun wearableReadinessSummary(
     hasRecordAudioPermission: Boolean,
     hasNotificationPermission: Boolean,
-    hasHealthConnectPermission: Boolean,
+    hasHealthConnectSleepReadPermission: Boolean,
+    hasHealthConnectBackgroundReadPermission: Boolean,
     isIgnoringBatteryOptimizations: Boolean,
     hasXiaomiCompanion: Boolean,
     periodicCheckEnabled: Boolean,
@@ -12,7 +13,8 @@ internal fun wearableReadinessSummary(
     val missingItems = buildList {
         if (!hasRecordAudioPermission) add("麦克风权限")
         if (!hasNotificationPermission) add("通知权限")
-        if (!hasHealthConnectPermission) add("Health Connect 睡眠/后台读取授权")
+        if (!hasHealthConnectSleepReadPermission) add("Health Connect 睡眠读取授权")
+        if (!hasHealthConnectBackgroundReadPermission) add("Health Connect 后台读取授权")
         if (!isIgnoringBatteryOptimizations) add("电池优化放行")
         if (!hasXiaomiCompanion) add("小米伴侣 App")
         if (!periodicCheckEnabled) add("Health Connect 周期检查")
@@ -27,7 +29,8 @@ internal fun wearableReadinessSummary(
 
 internal fun wearableIntegrationStatusSummary(
     hasXiaomiCompanion: Boolean,
-    hasHealthConnectPermission: Boolean,
+    hasHealthConnectSleepReadPermission: Boolean,
+    hasHealthConnectBackgroundReadPermission: Boolean,
     periodicCheckEnabled: Boolean,
     stopOnSleepEndEnabled: Boolean,
     foregroundDetectionActive: Boolean
@@ -42,8 +45,11 @@ internal fun wearableIntegrationStatusSummary(
         !hasXiaomiCompanion -> {
             "小米接入待配置：请先安装并打开 Mi Fitness/小米运动健康或 Zepp Life，确认该版本支持 Health Connect 睡眠同步。"
         }
-        !hasHealthConnectPermission -> {
-            "小米伴侣 App 已就绪：下一步授权本应用读取 Health Connect 睡眠和后台读取数据。"
+        !hasHealthConnectSleepReadPermission -> {
+            "小米伴侣 App 已就绪：下一步授权本应用读取 Health Connect 睡眠数据。"
+        }
+        !hasHealthConnectBackgroundReadPermission -> {
+            "Health Connect 睡眠读取已授权：可手动检查最近睡眠；后台周期检查和睡眠结束自动停录仍需后台读取授权。"
         }
         !periodicCheckEnabled -> {
             "Health Connect 睡眠读取已就绪：下一步开启周期检查，并在睡前点击“睡前开启前台检测”。"
