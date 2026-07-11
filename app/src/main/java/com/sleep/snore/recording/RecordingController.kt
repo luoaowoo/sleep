@@ -42,7 +42,8 @@ interface RecordingController {
 class AndroidRecordingController @Inject constructor(
     @ApplicationContext private val context: Context,
     private val settingsRepository: SettingsPreferencesRepository,
-    private val recordingFailureNotifier: RecordingFailureNotifier
+    private val recordingFailureNotifier: RecordingFailureNotifier,
+    private val appVisibilityState: AppVisibilityState
 ) : RecordingController {
 
     override suspend fun startFromSleepTrigger(source: String): RecordingStartResult {
@@ -56,6 +57,9 @@ class AndroidRecordingController @Inject constructor(
         val missingPermissionStatus = missingRequiredPermissionStatus()
         if (missingPermissionStatus != null) {
             return startIssue(missingPermissionStatus)
+        }
+        if (!appVisibilityState.isAppVisible) {
+            return startIssue("应用不在前台，系统可能拒绝启动麦克风；请睡前打开应用并点击前台检测")
         }
         return runCatching {
             ContextCompat.startForegroundService(context, SleepRecordingService.startIntent(context, source))

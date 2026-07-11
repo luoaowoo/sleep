@@ -13,4 +13,8 @@ abstract class RecordingControllerModule {
     @Binds
     @Singleton
     abstract fun bindRecordingController(controller: AndroidRecordingController): RecordingController
+
+    @Binds
+    @Singleton
+    abstract fun bindAppVisibilityState(tracker: AppVisibilityTracker): AppVisibilityState
 }
