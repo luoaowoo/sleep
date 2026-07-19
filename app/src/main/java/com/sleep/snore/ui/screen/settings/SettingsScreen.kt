@@ -106,10 +106,6 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val accentColor by viewModel.accentColor.collectAsStateWithLifecycle()
-    val customAccentColorArgb by viewModel.customAccentColorArgb.collectAsStateWithLifecycle()
-    val fontScale by viewModel.fontScale.collectAsStateWithLifecycle()
-    val cardCornerStyle by viewModel.cardCornerStyle.collectAsStateWithLifecycle()
     val standbyState by WearableSleepStandbyService.standbyState.collectAsStateWithLifecycle()
     val recordingState by SleepRecordingService.recordingState.collectAsStateWithLifecycle()
     val wearableForegroundRecordingActive = recordingState.isActive &&
