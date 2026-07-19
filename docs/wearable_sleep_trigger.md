@@ -7,6 +7,12 @@
 - Health Connect 睡眠记录通常不是秒级实时数据，适合自动停止、校准和辅助提示；可靠的整晚录音方式是用户睡前开启前台检测，入口会先启动前台鼾声检测，再用手环/Health Connect 记录做自动停止和校准。
 - Android 对麦克风属于 while-in-use 权限，后台 Worker/广播不能可靠、合规地在用户睡着后再启动麦克风前台服务；因此当前版本明确不做“纯后台睡眠开始即开麦”，而是做“睡前合法前台开麦 + 手环睡眠结束自动停录”。
 
+## 官方资料复核（2026-07-19）
+
+- 小米官方健康云开放平台是面向米家 IoT 生态企业和合作机构的云端数据平台，不等同于面向普通 Android App 的公开“小米手环实时睡眠事件 API”；当前仓库不把它作为默认集成链路。
+- Health Connect 官方睡眠会话模型以 `SleepSessionRecord` 表达一次睡眠，写入体验要求睡眠结束后再写入完整 session；因此它更适合处理已同步的睡眠结束、校准和诊断，不适合当作“手环刚睡着”的秒级触发源。
+- Android 官方前台服务限制要求 while-in-use 权限（如麦克风）相关前台服务在用户可见/合规场景启动；后台 WorkManager、开机广播或私有轮询不应尝试绕过系统策略直接开麦。
+
 ## 当前实现
 
 - `sleeptrigger/HealthConnectSleepTriggerSource`：读取最近 Health Connect 睡眠会话，优先读取 Mi Fitness（`com.xiaomi.wearable`）、小米运动健康/小米健康（`com.mi.health`）和 Zepp Life（`com.xiaomi.hm.health`）写入的数据；若没有小米来源记录会回退读取全部来源用于诊断，但不会用非小米来源自动停录；主要使用已同步的 `SleepEnded`，`SleepStarted` 不作为可靠实时开麦依据。
@@ -61,6 +67,8 @@
 ## 参考资料
 
 - Android Health Connect：用户授权后的健康数据读取与写入入口，可用于读取睡眠数据：https://developer.android.com/health-and-fitness/health-connect
+- Health Connect 睡眠会话体验：建议睡眠结束后写入完整 `SleepSessionRecord`，本应用据此只把 Health Connect 作为结束/校准信号：https://developer.android.com/health-and-fitness/health-connect/features/sleep-sessions
 - Health Connect `SleepSessionRecord`：官方睡眠会话数据结构：https://developer.android.com/reference/kotlin/androidx/health/connect/client/records/SleepSessionRecord
 - Android 后台启动前台服务限制：Android 14+ 对需要 while-in-use 权限的前台服务有额外限制：https://developer.android.com/develop/background-work/services/fgs/restrictions-bg-start
 - Android 14 前台服务类型：麦克风服务必须声明对应类型和权限：https://developer.android.com/about/versions/14/changes/fgs-types-required
+- 小米健康云开放平台：面向合作机构/生态企业的数据平台，当前不作为本应用的普通用户端直连手环实时 API：https://dev.mi.com/docs/micloud/health/
