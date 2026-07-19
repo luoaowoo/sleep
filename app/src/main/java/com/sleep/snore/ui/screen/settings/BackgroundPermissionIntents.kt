@@ -46,6 +46,47 @@ internal fun backgroundPermissionIntents(
     ) + systemFallbacks
 }
 
+internal fun miuiAutoStartIntents(packageName: String): List<Intent> {
+    return listOf(
+        Intent("miui.intent.action.OP_AUTO_START").addCategory(Intent.CATEGORY_DEFAULT),
+        Intent().setComponent(
+            ComponentName(
+                "com.miui.securitycenter",
+                "com.miui.permcenter.autostart.AutoStartManagementActivity"
+            )
+        ),
+        appDetailsIntent(packageName),
+        Intent(Settings.ACTION_SETTINGS)
+    )
+}
+
+internal fun miuiBatterySaverIntents(
+    packageName: String,
+    packageLabel: String
+): List<Intent> {
+    return listOf(
+        Intent().setComponent(
+            ComponentName(
+                "com.miui.powerkeeper",
+                "com.miui.powerkeeper.ui.HiddenAppsConfigActivity"
+            )
+        ).apply {
+            putExtra("package_name", packageName)
+            putExtra("package_label", packageLabel)
+        },
+        Intent("miui.intent.action.POWER_HIDE_MODE_APP_LIST"),
+        Intent().setComponent(
+            ComponentName(
+                "com.miui.securitycenter",
+                "com.miui.powercenter.PowerSettings"
+            )
+        ),
+        appDetailsIntent(packageName),
+        Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS),
+        Intent(Settings.ACTION_SETTINGS)
+    )
+}
+
 internal fun openFirstAvailableSettingsIntent(
     context: Context,
     intents: List<Intent>

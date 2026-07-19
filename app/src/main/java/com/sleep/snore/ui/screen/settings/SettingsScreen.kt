@@ -355,16 +355,31 @@ fun SettingsScreen(
                     )
                     HorizontalDivider()
                     ListItem(
-                        headlineContent = { Text("小米/MIUI 后台权限") },
-                        supportingContent = { Text("小米/红米/POCO 会优先打开 MIUI 自启动/省电入口；若进入列表页，请找到本应用并开启自启动、后台运行和省电“不限制”。") },
+                        headlineContent = { Text("小米/MIUI 自启动") },
+                        supportingContent = { Text("小米/红米/POCO 设备请开启本应用自启动；若进入列表页，请找到本应用并允许自启动。") },
                         modifier = Modifier
                             .heightIn(min = Spacing.touchTargetMin)
                             .clickable(role = Role.Button) {
                                 openFirstAvailableSettingsIntent(
                                     context = context,
-                                    intents = backgroundPermissionIntents(
+                                    intents = miuiAutoStartIntents(context.packageName)
+                                )
+                            }
+                    )
+                    HorizontalDivider()
+                    ListItem(
+                        headlineContent = { Text("小米/MIUI 省电不限制") },
+                        supportingContent = { Text("睡前前台检测整晚运行还需要把省电策略设为“不限制/允许后台运行”；Android 电池优化放行不等同于 MIUI 省电放行。") },
+                        modifier = Modifier
+                            .heightIn(min = Spacing.touchTargetMin)
+                            .clickable(role = Role.Button) {
+                                val packageLabel =
+                                    context.applicationInfo.loadLabel(context.packageManager).toString()
+                                openFirstAvailableSettingsIntent(
+                                    context = context,
+                                    intents = miuiBatterySaverIntents(
                                         packageName = context.packageName,
-                                        packageLabel = context.applicationInfo.loadLabel(context.packageManager).toString()
+                                        packageLabel = packageLabel
                                     )
                                 )
                             }
@@ -612,14 +627,18 @@ fun SettingsScreen(
                         stopOnSleepEndEnabled = uiState.wearableStopOnSleepEndEnabled,
                         recordingActive = recordingState.isActive,
                         activeRecordingTriggerSource = uiState.activeRecordingTriggerSource,
-                        hasHealthConnectSleepReadPermission = hasHealthConnectSleepReadPermission
+                        hasHealthConnectSleepReadPermission = hasHealthConnectSleepReadPermission,
+                        hasHealthConnectBackgroundReadPermission = hasHealthConnectBackgroundReadPermission,
+                        healthConnectBackgroundReadAvailable = healthConnectBackgroundReadSupported
                     )
                     Text(
                         "自动停录判断：$latestSleepAutoStopRuleText",
                         style = MaterialTheme.typography.labelSmall,
                         color = if (
                             latestSleepAutoStopRuleText.startsWith("会被忽略") ||
-                            latestSleepAutoStopRuleText.startsWith("不会自动停录")
+                            latestSleepAutoStopRuleText.startsWith("不会自动停录") ||
+                            latestSleepAutoStopRuleText.startsWith("不会稳定自动停录") ||
+                            latestSleepAutoStopRuleText.startsWith("无法自动停录")
                         ) {
                             MaterialTheme.colorScheme.error
                         } else {

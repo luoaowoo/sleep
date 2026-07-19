@@ -19,6 +19,7 @@ sealed interface WearableSleepEndResolveResult {
     data class Resolved(val sleepEnd: ResolvedWearableSleepEnd) : WearableSleepEndResolveResult
     data object WaitingForSync : WearableSleepEndResolveResult
     data object PermissionMissing : WearableSleepEndResolveResult
+    data object BackgroundReadUnavailable : WearableSleepEndResolveResult
     data object ReadFailed : WearableSleepEndResolveResult
     data object NotWearableRecording : WearableSleepEndResolveResult
 }
@@ -54,7 +55,9 @@ class WearableSleepEndTimeResolver @Inject constructor(
             HealthConnectSleepTriggerSource.PollResult.PermissionMissing -> {
                 WearableSleepEndResolveResult.PermissionMissing
             }
-            HealthConnectSleepTriggerSource.PollResult.BackgroundReadUnavailable,
+            HealthConnectSleepTriggerSource.PollResult.BackgroundReadUnavailable -> {
+                WearableSleepEndResolveResult.BackgroundReadUnavailable
+            }
             HealthConnectSleepTriggerSource.PollResult.ReadFailed,
             HealthConnectSleepTriggerSource.PollResult.HealthConnectUnavailable -> {
                 WearableSleepEndResolveResult.ReadFailed
@@ -70,6 +73,9 @@ class WearableSleepEndTimeResolver @Inject constructor(
                 )
             }
             is HealthConnectSleepTriggerSource.PollResult.DuplicateEvent -> {
+                if (!pollResult.eventKey.startsWith(SLEEP_ENDED_EVENT_KEY_PREFIX)) {
+                    return WearableSleepEndResolveResult.WaitingForSync
+                }
                 WearableSleepEndResolveResult.Resolved(
                     ResolvedWearableSleepEnd(
                         endTimeMillis = pollResult.observedSession.endTime.toEpochMilli(),
@@ -79,5 +85,9 @@ class WearableSleepEndTimeResolver @Inject constructor(
             }
             else -> WearableSleepEndResolveResult.WaitingForSync
         }
+    }
+
+    private companion object {
+        const val SLEEP_ENDED_EVENT_KEY_PREFIX = "SleepEnded:"
     }
 }

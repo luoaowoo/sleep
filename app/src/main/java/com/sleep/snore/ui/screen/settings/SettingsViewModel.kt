@@ -2,7 +2,6 @@ package com.sleep.snore.ui.screen.settings
 
 import android.content.Context
 import android.content.Intent
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sleep.snore.data.model.AccentColor
@@ -440,12 +439,6 @@ class SettingsViewModel @Inject constructor(
                     waitForActiveWearableRecording()
                 }
                 if (confirmed) {
-                    runCatching {
-                        ContextCompat.startForegroundService(
-                            context,
-                            WearableSleepStandbyService.startIntent(context)
-                        )
-                    }
                     val status = if (_uiState.value.wearableStopOnSleepEndEnabled) {
                         "睡前前台检测已开启，录音服务将低频检查 Health Connect 睡眠结束"
                     } else {

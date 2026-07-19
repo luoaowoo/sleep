@@ -353,6 +353,16 @@ class ActiveRecordingFinalizerWorkerTest {
     }
 
     @Test
+    fun wearableFinalizerRetryStatus_reportsBackgroundReadUnavailable() {
+        val status = wearableFinalizerRetryStatus(
+            WearableSleepEndResolveResult.BackgroundReadUnavailable
+        )
+
+        assertThat(status).contains("不支持后台读取")
+        assertThat(status).contains("安全上限")
+    }
+
+    @Test
     fun healthConnectResolveBackoff_isLongEnoughForDelayedXiaomiSync() {
         assertThat(HEALTH_CONNECT_RESOLVE_BACKOFF_MINUTES).isAtLeast(15L)
         assertThat(MAX_HEALTH_CONNECT_RESOLVE_ATTEMPTS).isAtLeast(8)

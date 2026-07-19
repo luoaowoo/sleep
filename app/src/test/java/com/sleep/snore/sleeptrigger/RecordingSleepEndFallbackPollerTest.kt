@@ -114,6 +114,33 @@ class RecordingSleepEndFallbackPollerTest {
     }
 
     @Test
+    fun pollOnce_ignoresDuplicateThatIsNotSleepEnd() = runTest {
+        val repository = createRepository()
+        repository.setWearableSleepTriggerEnabled(true)
+        repository.setWearableStopOnSleepEndEnabled(true)
+        repository.setActiveRecordingTriggerSource(HealthConnectSleepTriggerSource.SOURCE, 1234L)
+        val poller = RecordingSleepEndFallbackPoller(
+            settingsRepository = repository,
+            sleepSessionPoller = FakeSleepSessionPoller(
+                HealthConnectSleepTriggerSource.PollResult.DuplicateEvent(
+                    observedSession = SleepSessionSnapshot(
+                        startTime = Instant.ofEpochMilli(1234L),
+                        endTime = Instant.ofEpochMilli(2000L),
+                        dataOriginPackageName = "com.xiaomi.wearable"
+                    ),
+                    eventKey = "SleepStarted:1234:1234"
+                )
+            )
+        )
+
+        val result = poller.pollOnce(sessionStartTimeMillis = 999L)
+
+        assertThat(result).isEqualTo(RecordingSleepEndFallbackResult.ContinuePolling)
+        assertThat(repository.settings.first().wearableSleepTriggerStatus)
+            .contains("等待新记录")
+    }
+
+    @Test
     fun pollOnce_ignoresSleepStartedWithoutRememberingEvent() = runTest {
         val repository = createRepository()
         repository.setWearableSleepTriggerEnabled(true)
@@ -170,6 +197,26 @@ class RecordingSleepEndFallbackPollerTest {
         assertThat(result).isEqualTo(RecordingSleepEndFallbackResult.ContinuePolling)
         assertThat(repository.settings.first().wearableSleepTriggerStatus)
             .isEqualTo("录音服务等待睡眠结束：缺少 Health Connect 睡眠/后台读取权限")
+    }
+
+    @Test
+    fun pollOnce_recordsUnsupportedBackgroundReadStatusAndContinues() = runTest {
+        val repository = createRepository()
+        repository.setWearableSleepTriggerEnabled(true)
+        repository.setWearableStopOnSleepEndEnabled(true)
+        repository.setActiveRecordingTriggerSource(HealthConnectSleepTriggerSource.SOURCE, 1234L)
+        val poller = RecordingSleepEndFallbackPoller(
+            settingsRepository = repository,
+            sleepSessionPoller = FakeSleepSessionPoller(
+                HealthConnectSleepTriggerSource.PollResult.BackgroundReadUnavailable
+            )
+        )
+
+        val result = poller.pollOnce(sessionStartTimeMillis = 999L)
+
+        assertThat(result).isEqualTo(RecordingSleepEndFallbackResult.ContinuePolling)
+        assertThat(repository.settings.first().wearableSleepTriggerStatus)
+            .contains("不支持后台读取")
     }
 
     @Test

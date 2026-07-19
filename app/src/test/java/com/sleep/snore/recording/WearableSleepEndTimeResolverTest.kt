@@ -92,6 +92,20 @@ class WearableSleepEndTimeResolverTest {
     }
 
     @Test
+    fun resolveResult_reportsBackgroundReadUnavailable() = runTest {
+        val settingsRepository = settingsRepository(
+            SettingsPreferences(activeRecordingTriggerSource = HealthConnectSleepTriggerSource.SOURCE)
+        )
+        val poller = FakeSleepSessionPoller(
+            HealthConnectSleepTriggerSource.PollResult.BackgroundReadUnavailable
+        )
+
+        val result = WearableSleepEndTimeResolver(settingsRepository, poller).resolveResult(activeRecord())
+
+        assertThat(result).isEqualTo(WearableSleepEndResolveResult.BackgroundReadUnavailable)
+    }
+
+    @Test
     fun resolveResult_reportsReadFailed() = runTest {
         val settingsRepository = settingsRepository(
             SettingsPreferences(activeRecordingTriggerSource = HealthConnectSleepTriggerSource.SOURCE)
@@ -141,6 +155,27 @@ class WearableSleepEndTimeResolverTest {
                 )
             )
         )
+    }
+
+    @Test
+    fun resolveResult_waitsForSyncWhenDuplicateIsNotSleepEnd() = runTest {
+        val settingsRepository = settingsRepository(
+            SettingsPreferences(activeRecordingTriggerSource = HealthConnectSleepTriggerSource.SOURCE)
+        )
+        val poller = FakeSleepSessionPoller(
+            HealthConnectSleepTriggerSource.PollResult.DuplicateEvent(
+                observedSession = SleepSessionSnapshot(
+                    startTime = Instant.ofEpochMilli(1_000L),
+                    endTime = Instant.ofEpochMilli(8_000L),
+                    dataOriginPackageName = "com.xiaomi.wearable"
+                ),
+                eventKey = "SleepStarted:1000:1000"
+            )
+        )
+
+        val result = WearableSleepEndTimeResolver(settingsRepository, poller).resolveResult(activeRecord())
+
+        assertThat(result).isEqualTo(WearableSleepEndResolveResult.WaitingForSync)
     }
 
     private fun settingsRepository(settings: SettingsPreferences): SettingsPreferencesRepository {

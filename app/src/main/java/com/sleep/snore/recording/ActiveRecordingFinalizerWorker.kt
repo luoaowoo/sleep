@@ -172,6 +172,9 @@ internal fun wearableFinalizerRetryStatus(resolveResult: WearableSleepEndResolve
         WearableSleepEndResolveResult.PermissionMissing -> {
             "缺少 Health Connect 睡眠/后台读取权限，恢复授权后继续等待同步兜底结算"
         }
+        WearableSleepEndResolveResult.BackgroundReadUnavailable -> {
+            "当前设备或 Health Connect 版本不支持后台读取，将继续等待；若仍不支持，最终按安全上限兜底结算"
+        }
         WearableSleepEndResolveResult.ReadFailed -> {
             "Health Connect 读取失败，将继续等待同步后兜底结算"
         }

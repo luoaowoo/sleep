@@ -194,7 +194,7 @@ class SettingsViewModelWearableStandbyTest {
     }
 
     @Test
-    fun startWearableSleepStandby_whenRecordingConfirmedStartsStandbyForegroundService() = runTest(dispatcher) {
+    fun startWearableSleepStandby_whenRecordingConfirmedDoesNotStartExtraStandbyService() = runTest(dispatcher) {
         val context = RuntimeEnvironment.getApplication()
         val repository = createRepository()
         val recordingController = FakeRecordingController(
@@ -213,11 +213,7 @@ class SettingsViewModelWearableStandbyTest {
 
         assertThat(recordingController.startedSources)
             .containsExactly(HealthConnectSleepTriggerSource.SOURCE)
-        val startedService = shadowOf(context).nextStartedService
-        assertThat(startedService.component?.className)
-            .isEqualTo(WearableSleepStandbyService::class.java.name)
-        assertThat(startedService.action)
-            .isEqualTo(WearableSleepStandbyService.ACTION_START)
+        assertThat(shadowOf(context).nextStartedService).isNull()
         assertThat(repository.settingsSnapshot().wearableSleepTriggerStatus)
             .isEqualTo("睡前前台检测已开启，录音服务将低频检查 Health Connect 睡眠结束")
     }

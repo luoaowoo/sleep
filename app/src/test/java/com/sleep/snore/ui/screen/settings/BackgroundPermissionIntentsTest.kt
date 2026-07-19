@@ -55,4 +55,30 @@ class BackgroundPermissionIntentsTest {
         assertThat(intents[1].action).isEqualTo(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
         assertThat(intents[2].action).isEqualTo(Settings.ACTION_SETTINGS)
     }
+
+    @Test
+    fun miuiAutoStartIntents_openAutostartBeforeFallbacks() {
+        val intents = miuiAutoStartIntents("com.sleep.snore")
+
+        assertThat(intents[0].action).isEqualTo("miui.intent.action.OP_AUTO_START")
+        assertThat(intents[1].component?.className).contains("AutoStartManagementActivity")
+        assertThat(intents[2].action).isEqualTo(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+        assertThat(intents[2].data.toString()).isEqualTo("package:com.sleep.snore")
+    }
+
+    @Test
+    fun miuiBatterySaverIntents_openPowerKeeperBeforeFallbacks() {
+        val intents = miuiBatterySaverIntents(
+            packageName = "com.sleep.snore",
+            packageLabel = "睡眠鼾声"
+        )
+
+        assertThat(intents[0].component?.packageName).isEqualTo("com.miui.powerkeeper")
+        assertThat(intents[0].getStringExtra("package_name")).isEqualTo("com.sleep.snore")
+        assertThat(intents[0].getStringExtra("package_label")).isEqualTo("睡眠鼾声")
+        assertThat(intents[1].action).isEqualTo("miui.intent.action.POWER_HIDE_MODE_APP_LIST")
+        assertThat(intents[2].component?.className).contains("PowerSettings")
+        assertThat(intents[3].action).isEqualTo(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+        assertThat(intents[4].action).isEqualTo(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+    }
 }

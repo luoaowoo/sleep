@@ -38,7 +38,7 @@ data class WearableSleepStandbyState(
     val isActive: Boolean = false,
     val startedAtMillis: Long = 0L,
     val lastCheckMillis: Long = 0L,
-    val statusText: String = "睡前待命未开启"
+    val statusText: String = "睡眠结束辅助检查未开启"
 )
 
 @AndroidEntryPoint
@@ -65,7 +65,7 @@ class WearableSleepStandbyService : Service() {
         return when (intent?.action) {
             ACTION_STOP -> {
                 stopPreStartedRecordingAsync()
-                stopStandby("睡前待命已停止，前台鼾声检测也已请求停止")
+                stopStandby("睡眠结束辅助检查已停止，前台鼾声检测也已请求停止")
                 START_NOT_STICKY
             }
             ACTION_START -> {
@@ -83,7 +83,7 @@ class WearableSleepStandbyService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onTimeout(startId: Int, fgsType: Int) {
-        val status = "睡前待命已达到系统前台服务时长限制，请重新打开应用后再开启"
+        val status = "睡眠结束辅助检查已达到系统前台服务时长限制，请重新打开应用后再开启"
         Log.w(TAG, "foreground service timed out: startId=$startId type=$fgsType")
         stopStandby(status)
     }
@@ -101,7 +101,7 @@ class WearableSleepStandbyService : Service() {
             updateNotification(_standbyState.value.statusText)
             return
         }
-        val initialStatus = "睡前待命已开启，正在等待手环/Health Connect 睡眠记录"
+        val initialStatus = "睡眠结束辅助检查已开启，正在等待手环/Health Connect 睡眠记录"
         standbyStartedAtMillis = System.currentTimeMillis()
         _standbyState.value = WearableSleepStandbyState(
             isActive = true,
@@ -110,7 +110,7 @@ class WearableSleepStandbyService : Service() {
             statusText = initialStatus
         )
         if (!startForegroundNotification(initialStatus)) {
-            _standbyState.value = WearableSleepStandbyState(statusText = "睡前待命启动失败")
+            _standbyState.value = WearableSleepStandbyState(statusText = "睡眠结束辅助检查启动失败")
             stopSelf()
             return
         }
@@ -120,7 +120,7 @@ class WearableSleepStandbyService : Service() {
             settingsRepository.setWearableSleepTriggerStatus(initialStatus)
             while (isActive) {
                 if (System.currentTimeMillis() - standbyStartedAtMillis >= MAX_STANDBY_DURATION_MS) {
-                    stopStandby("睡前待命已接近 Android 前台服务 6 小时限制，请重新打开应用后再开启")
+                    stopStandby("睡眠结束辅助检查已接近 Android 前台服务 6 小时限制，请重新打开应用后再开启")
                     return@launch
                 }
                 val shouldStop = pollOnce()
@@ -135,7 +135,7 @@ class WearableSleepStandbyService : Service() {
     private suspend fun pollOnce(): Boolean {
         val settings = settingsRepository.settings.first()
         if (!settings.wearableSleepTriggerEnabled) {
-            stopStandby("Health Connect 周期检查已关闭，兼容待命停止")
+            stopStandby("Health Connect 周期检查已关闭，兼容辅助检查停止")
             return true
         }
 
@@ -149,7 +149,7 @@ class WearableSleepStandbyService : Service() {
                 )
             )
         }.getOrElse { throwable ->
-            val status = "睡前待命检查失败：${throwable.message.orEmpty()}".trimEnd('：')
+            val status = "睡眠结束辅助检查失败：${throwable.message.orEmpty()}".trimEnd('：')
             persistStandbyStatus(status)
             updateStandbyStatus(status)
             return false
@@ -228,10 +228,10 @@ class WearableSleepStandbyService : Service() {
     private fun createNotificationChannel() {
         val channel = NotificationChannel(
             CHANNEL_ID,
-            "手环睡眠待命",
+            "手环睡眠结束辅助检查",
             NotificationManager.IMPORTANCE_LOW
         ).apply {
-            description = "睡前保持前台待命，辅助检查 Health Connect 睡眠结束"
+            description = "兼容入口：辅助检查 Health Connect 睡眠结束"
         }
         getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
     }
@@ -275,7 +275,7 @@ class WearableSleepStandbyService : Service() {
         )
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_menu_recent_history)
-            .setContentTitle("手环睡眠待命中")
+            .setContentTitle("手环睡眠结束辅助检查中")
             .setContentText(status)
             .setOngoing(true)
             .setContentIntent(contentIntent)
