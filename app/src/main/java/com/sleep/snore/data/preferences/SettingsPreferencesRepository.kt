@@ -38,6 +38,12 @@ data class SettingsPreferences(
     val wearableSleepTriggerEnabled: Boolean = SettingsPreferencesRepository.DEFAULT_WEARABLE_SLEEP_TRIGGER_ENABLED,
     val wearableAutoStartOnSleepStartEnabled: Boolean =
         SettingsPreferencesRepository.DEFAULT_WEARABLE_AUTO_START_ON_SLEEP_START_ENABLED,
+    val wearableAutoStartAttemptCount: Int = 0,
+    val wearableAutoStartSubmittedCount: Int = 0,
+    val wearableAutoStartFailureCount: Int = 0,
+    val wearableAutoStartLastAttemptMillis: Long = 0L,
+    val wearableAutoStartLastResult: String = "",
+    val wearableAutoStartLastSource: String = "",
     val wearableStopOnSleepEndEnabled: Boolean = SettingsPreferencesRepository.DEFAULT_WEARABLE_STOP_ON_SLEEP_END_ENABLED,
     val bedtimeReminderEnabled: Boolean = SettingsPreferencesRepository.DEFAULT_BEDTIME_REMINDER_ENABLED,
     val bedtimeReminderMinuteOfDay: Int = SettingsPreferencesRepository.DEFAULT_BEDTIME_REMINDER_MINUTE_OF_DAY,
@@ -100,6 +106,19 @@ class SettingsPreferencesRepository @Inject constructor(
                     ?: DEFAULT_WEARABLE_SLEEP_TRIGGER_ENABLED,
                 wearableAutoStartOnSleepStartEnabled = preferences[Keys.WEARABLE_AUTO_START_ON_SLEEP_START_ENABLED]
                     ?: DEFAULT_WEARABLE_AUTO_START_ON_SLEEP_START_ENABLED,
+                wearableAutoStartAttemptCount = preferences[Keys.WEARABLE_AUTO_START_ATTEMPT_COUNT]
+                    ?.coerceAtLeast(0)
+                    ?: 0,
+                wearableAutoStartSubmittedCount = preferences[Keys.WEARABLE_AUTO_START_SUBMITTED_COUNT]
+                    ?.coerceAtLeast(0)
+                    ?: 0,
+                wearableAutoStartFailureCount = preferences[Keys.WEARABLE_AUTO_START_FAILURE_COUNT]
+                    ?.coerceAtLeast(0)
+                    ?: 0,
+                wearableAutoStartLastAttemptMillis = preferences[Keys.WEARABLE_AUTO_START_LAST_ATTEMPT_MILLIS]
+                    ?: 0L,
+                wearableAutoStartLastResult = preferences[Keys.WEARABLE_AUTO_START_LAST_RESULT].orEmpty(),
+                wearableAutoStartLastSource = preferences[Keys.WEARABLE_AUTO_START_LAST_SOURCE].orEmpty(),
                 wearableStopOnSleepEndEnabled = preferences[Keys.WEARABLE_STOP_ON_SLEEP_END_ENABLED]
                     ?: DEFAULT_WEARABLE_STOP_ON_SLEEP_END_ENABLED,
                 bedtimeReminderEnabled = preferences[Keys.BEDTIME_REMINDER_ENABLED]
@@ -267,6 +286,27 @@ class SettingsPreferencesRepository @Inject constructor(
         }
     }
 
+    suspend fun recordWearableAutoStartResult(
+        source: String,
+        status: String,
+        submitted: Boolean,
+        checkedAtMillis: Long = System.currentTimeMillis()
+    ) {
+        dataStore.edit { preferences ->
+            preferences[Keys.WEARABLE_AUTO_START_ATTEMPT_COUNT] =
+                (preferences[Keys.WEARABLE_AUTO_START_ATTEMPT_COUNT] ?: 0) + 1
+            val outcomeCountKey = if (submitted) {
+                Keys.WEARABLE_AUTO_START_SUBMITTED_COUNT
+            } else {
+                Keys.WEARABLE_AUTO_START_FAILURE_COUNT
+            }
+            preferences[outcomeCountKey] = (preferences[outcomeCountKey] ?: 0) + 1
+            preferences[Keys.WEARABLE_AUTO_START_LAST_ATTEMPT_MILLIS] = checkedAtMillis
+            preferences[Keys.WEARABLE_AUTO_START_LAST_RESULT] = status
+            preferences[Keys.WEARABLE_AUTO_START_LAST_SOURCE] = source
+        }
+    }
+
     suspend fun setWearableStopOnSleepEndEnabled(enabled: Boolean) {
         dataStore.edit { preferences ->
             preferences[Keys.WEARABLE_STOP_ON_SLEEP_END_ENABLED] = enabled
@@ -401,6 +441,13 @@ class SettingsPreferencesRepository @Inject constructor(
         val WEARABLE_SLEEP_TRIGGER_ENABLED = booleanPreferencesKey("wearable_sleep_trigger_enabled")
         val WEARABLE_AUTO_START_ON_SLEEP_START_ENABLED =
             booleanPreferencesKey("wearable_auto_start_on_sleep_start_enabled")
+        val WEARABLE_AUTO_START_ATTEMPT_COUNT = intPreferencesKey("wearable_auto_start_attempt_count")
+        val WEARABLE_AUTO_START_SUBMITTED_COUNT = intPreferencesKey("wearable_auto_start_submitted_count")
+        val WEARABLE_AUTO_START_FAILURE_COUNT = intPreferencesKey("wearable_auto_start_failure_count")
+        val WEARABLE_AUTO_START_LAST_ATTEMPT_MILLIS =
+            longPreferencesKey("wearable_auto_start_last_attempt_millis")
+        val WEARABLE_AUTO_START_LAST_RESULT = stringPreferencesKey("wearable_auto_start_last_result")
+        val WEARABLE_AUTO_START_LAST_SOURCE = stringPreferencesKey("wearable_auto_start_last_source")
         val WEARABLE_STOP_ON_SLEEP_END_ENABLED = booleanPreferencesKey("wearable_stop_on_sleep_end_enabled")
         val BEDTIME_REMINDER_ENABLED = booleanPreferencesKey("bedtime_reminder_enabled")
         val BEDTIME_REMINDER_MINUTE_OF_DAY = intPreferencesKey("bedtime_reminder_minute_of_day")

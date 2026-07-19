@@ -107,6 +107,14 @@ class AndroidRecordingControllerTest {
         assertThat(startedService.action).isEqualTo(SleepRecordingService.ACTION_START)
         assertThat(startedService.getStringExtra("trigger_source"))
             .isEqualTo(HealthConnectSleepTriggerSource.SOURCE)
+        coVerify {
+            settingsRepository.recordWearableAutoStartResult(
+                HealthConnectSleepTriggerSource.SOURCE,
+                match { it.contains("正在等待服务确认") },
+                true,
+                any()
+            )
+        }
     }
 
     @Test

@@ -552,6 +552,16 @@ fun SettingsScreen(
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    Text(
+                        "实验开录统计：${uiState.wearableAutoStartStatsText}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        "最近实验结果：${uiState.wearableAutoStartLastResultText}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                     val wearableDiagnosticInput = WearableDiagnosticReportInput(
                         generatedAtText = "",
                         appText = "",
@@ -571,6 +581,8 @@ fun SettingsScreen(
                         periodicCheckEnabled = uiState.wearableSleepTriggerEnabled,
                         stopOnSleepEndEnabled = uiState.wearableStopOnSleepEndEnabled,
                         autoStartOnSleepStartEnabled = uiState.wearableAutoStartOnSleepStartEnabled,
+                        autoStartStatsText = uiState.wearableAutoStartStatsText,
+                        autoStartLastResultText = uiState.wearableAutoStartLastResultText,
                         bedtimeReminderEnabled = uiState.bedtimeReminderEnabled,
                         bedtimeReminderTimeText = uiState.bedtimeReminderTimeText,
                         foregroundDetectionActive = wearableForegroundRecordingActive,
@@ -711,6 +723,8 @@ fun SettingsScreen(
                                         periodicCheckEnabled = uiState.wearableSleepTriggerEnabled,
                                         stopOnSleepEndEnabled = uiState.wearableStopOnSleepEndEnabled,
                                         autoStartOnSleepStartEnabled = uiState.wearableAutoStartOnSleepStartEnabled,
+                                        autoStartStatsText = uiState.wearableAutoStartStatsText,
+                                        autoStartLastResultText = uiState.wearableAutoStartLastResultText,
                                         bedtimeReminderEnabled = uiState.bedtimeReminderEnabled,
                                         bedtimeReminderTimeText = uiState.bedtimeReminderTimeText,
                                         foregroundDetectionActive = wearableForegroundRecordingActive,

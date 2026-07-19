@@ -8,6 +8,7 @@ import com.sleep.snore.data.model.AccentColor
 import com.sleep.snore.data.model.CardCornerStyle
 import com.sleep.snore.data.model.FontScale
 import com.sleep.snore.data.model.Sensitivity
+import com.sleep.snore.data.preferences.SettingsPreferences
 import com.sleep.snore.data.preferences.SettingsPreferencesRepository
 import com.sleep.snore.data.preferences.defaultArgb
 import com.sleep.snore.data.repository.SleepRepository
@@ -62,6 +63,8 @@ data class SettingsUiState(
     val bedtimeReminderTimeText: String = SettingsPreferencesRepository.DEFAULT_BEDTIME_REMINDER_MINUTE_OF_DAY.toMinuteOfDayText(),
     val wearableSleepTriggerStatus: String = SettingsPreferencesRepository.DEFAULT_WEARABLE_SLEEP_TRIGGER_STATUS,
     val wearableSleepTriggerLastCheckText: String = "尚未检查",
+    val wearableAutoStartStatsText: String = "实验开录尚未尝试",
+    val wearableAutoStartLastResultText: String = "无",
     val latestWearableSleepSessionText: String = "尚未发现同步睡眠记录",
     val latestWearableSleepSessionStartMillis: Long = 0L,
     val latestWearableSleepSessionEndMillis: Long = 0L,
@@ -133,6 +136,8 @@ class SettingsViewModel @Inject constructor(
                         bedtimeReminderTimeText = settings.bedtimeReminderMinuteOfDay.toMinuteOfDayText(),
                         wearableSleepTriggerStatus = settings.wearableSleepTriggerStatus,
                         wearableSleepTriggerLastCheckText = settings.wearableSleepTriggerLastCheckMillis.toLastCheckText(),
+                        wearableAutoStartStatsText = settings.toWearableAutoStartStatsText(),
+                        wearableAutoStartLastResultText = settings.toWearableAutoStartLastResultText(),
                         latestWearableSleepSessionText = toSleepSessionText(
                             startMillis = settings.latestWearableSleepSessionStartMillis,
                             endMillis = settings.latestWearableSleepSessionEndMillis,
@@ -608,6 +613,22 @@ class SettingsViewModel @Inject constructor(
         } else {
             "$startText - $endText（$status）"
         }
+    }
+
+    private fun SettingsPreferences.toWearableAutoStartStatsText(): String {
+        val attempts = wearableAutoStartAttemptCount.coerceAtLeast(0)
+        if (attempts == 0) return "实验开录尚未尝试"
+        val submitted = wearableAutoStartSubmittedCount.coerceIn(0, attempts)
+        val failures = wearableAutoStartFailureCount.coerceAtLeast(0)
+        val submittedRate = submitted * 100 / attempts
+        return "尝试 ${attempts} 次，已提交 ${submitted} 次，失败 ${failures} 次，提交率 ${submittedRate}%"
+    }
+
+    private fun SettingsPreferences.toWearableAutoStartLastResultText(): String {
+        if (wearableAutoStartLastAttemptMillis <= 0L) return "无"
+        val source = wearableAutoStartLastSource.ifBlank { "未知来源" }
+        val result = wearableAutoStartLastResult.ifBlank { "无状态" }
+        return "${wearableAutoStartLastAttemptMillis.toLastCheckText()} / $source / $result"
     }
 
     private companion object {

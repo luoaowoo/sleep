@@ -362,6 +362,34 @@ class SettingsViewModelWearableStandbyTest {
         assertThat(state.latestWearableSleepSessionText).contains("已读取睡眠结束")
     }
 
+    @Test
+    fun settingsUiState_exposesWearableAutoStartStatsAndLastResult() = runTest(dispatcher) {
+        val repository = createRepository()
+        val viewModel = SettingsViewModel(
+            context = RuntimeEnvironment.getApplication(),
+            preferencesRepository = repository,
+            sleepRepository = fakeSleepRepository(),
+            recordingController = FakeRecordingController(),
+            wearableStandbyPrerequisiteChecker = FakeWearableStandbyPrerequisiteChecker()
+        )
+
+        repository.recordWearableAutoStartResult(
+            source = "Health Connect",
+            status = "等待录音服务确认",
+            submitted = true,
+            checkedAtMillis = 1_700_000_000_000L
+        )
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertThat(state.wearableAutoStartStatsText).contains("尝试 1 次")
+        assertThat(state.wearableAutoStartStatsText).contains("已提交 1 次")
+        assertThat(state.wearableAutoStartStatsText).contains("失败 0 次")
+        assertThat(state.wearableAutoStartStatsText).contains("提交率 100%")
+        assertThat(state.wearableAutoStartLastResultText).contains("Health Connect")
+        assertThat(state.wearableAutoStartLastResultText).contains("等待录音服务确认")
+    }
+
     private fun fakeSleepRepository(): SleepRepository = mockk(relaxed = true)
 
     private fun createRepository(): SettingsPreferencesRepository {

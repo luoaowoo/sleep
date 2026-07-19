@@ -79,6 +79,32 @@ class SettingsPreferencesRepositoryTest {
     }
 
     @Test
+    fun wearableAutoStartResult_accumulatesSubmittedAndFailedAttempts() = runTest {
+        val repository = createFixture().repository
+
+        repository.recordWearableAutoStartResult(
+            source = "health_connect_sleep",
+            status = "submitted",
+            submitted = true,
+            checkedAtMillis = 1234L
+        )
+        repository.recordWearableAutoStartResult(
+            source = "health_connect_sleep",
+            status = "permission denied",
+            submitted = false,
+            checkedAtMillis = 5678L
+        )
+
+        val settings = repository.settings.first()
+        assertThat(settings.wearableAutoStartAttemptCount).isEqualTo(2)
+        assertThat(settings.wearableAutoStartSubmittedCount).isEqualTo(1)
+        assertThat(settings.wearableAutoStartFailureCount).isEqualTo(1)
+        assertThat(settings.wearableAutoStartLastAttemptMillis).isEqualTo(5678L)
+        assertThat(settings.wearableAutoStartLastResult).isEqualTo("permission denied")
+        assertThat(settings.wearableAutoStartLastSource).isEqualTo("health_connect_sleep")
+    }
+
+    @Test
     fun wearableSleepTriggerStatus_persistsStatusAndLastCheckTime() = runTest {
         val repository = createFixture().repository
 

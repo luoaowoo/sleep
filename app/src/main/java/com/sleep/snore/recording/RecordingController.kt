@@ -50,20 +50,36 @@ class AndroidRecordingController @Inject constructor(
 ) : RecordingController {
 
     override suspend fun startFromSleepTrigger(source: String): RecordingStartResult {
+        val settings = runCatching { settingsRepository.settings.first() }
+            .getOrDefault(SettingsPreferences())
+        val allowBackgroundSleepStart = !appVisibilityState.isAppVisible &&
+            source == HealthConnectSleepTriggerSource.SOURCE &&
+            settings.wearableSleepTriggerEnabled &&
+            settings.wearableAutoStartOnSleepStartEnabled
         if (isRecordingActive()) {
-            return if (settingsRepository.getActiveRecordingTriggerSource() == source) {
+            val result = if (settingsRepository.getActiveRecordingTriggerSource() == source) {
                 RecordingStartResult.Confirmed("检测到睡眠，鼾声检测已在运行")
             } else {
                 startIssue("检测到睡眠，但当前已有检测在运行；不会接管手动录音")
             }
+            if (allowBackgroundSleepStart) {
+                settingsRepository.recordWearableAutoStartResult(
+                    source = source,
+                    status = result.statusText,
+                    submitted = result.requestSubmitted
+                )
+            }
+            return result
         }
-        val settings = runCatching { settingsRepository.settings.first() }
-            .getOrDefault(SettingsPreferences())
-        val allowBackgroundSleepStart = source == HealthConnectSleepTriggerSource.SOURCE &&
-            settings.wearableSleepTriggerEnabled &&
-            settings.wearableAutoStartOnSleepStartEnabled
         val missingPermissionStatus = missingRequiredPermissionStatus()
         if (missingPermissionStatus != null) {
+            if (allowBackgroundSleepStart) {
+                settingsRepository.recordWearableAutoStartResult(
+                    source = source,
+                    status = missingPermissionStatus,
+                    submitted = false
+                )
+            }
             return startIssue(missingPermissionStatus)
         }
         if (!appVisibilityState.isAppVisible && !allowBackgroundSleepStart) {
@@ -72,7 +88,13 @@ class AndroidRecordingController @Inject constructor(
         return runCatching {
             ContextCompat.startForegroundService(context, SleepRecordingService.startIntent(context, source))
             if (allowBackgroundSleepStart) {
-                RecordingStartResult.Submitted("检测到睡眠，已请求开启鼾声检测，正在等待服务确认")
+                RecordingStartResult.Submitted("检测到睡眠，已请求开启鼾声检测，正在等待服务确认").also { result ->
+                    settingsRepository.recordWearableAutoStartResult(
+                        source = source,
+                        status = result.statusText,
+                        submitted = true
+                    )
+                }
             } else if (waitForConfirmedSource(source)) {
                 RecordingStartResult.Confirmed("检测到睡眠，已开启鼾声检测")
             } else if (isRecordingActive()) {
@@ -82,6 +104,13 @@ class AndroidRecordingController @Inject constructor(
             }
         }.getOrElse {
             val status = "后台启动麦克风服务失败，请睡前开启前台检测"
+            if (allowBackgroundSleepStart) {
+                settingsRepository.recordWearableAutoStartResult(
+                    source = source,
+                    status = status,
+                    submitted = false
+                )
+            }
             startIssue(status)
         }
     }
