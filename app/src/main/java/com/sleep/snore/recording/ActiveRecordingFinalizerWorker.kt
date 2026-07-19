@@ -34,6 +34,15 @@ class ActiveRecordingFinalizerWorker @AssistedInject constructor(
         val expectedActiveRecordingStartMillis = inputData.getLong(KEY_ACTIVE_RECORDING_START_MILLIS, 0L)
             .takeIf { it > 0L }
         if (
+            shouldSkipHealthConnectFinalizerWithoutToken(
+                expectedSource = expectedSource,
+                activeRecordExists = activeRecord != null,
+                expectedActiveRecordingStartMillis = expectedActiveRecordingStartMillis
+            )
+        ) {
+            return Result.success()
+        }
+        if (
             shouldSkipFinalizerForDifferentActiveRecording(
                 activeRecordStartMillis = activeRecord?.startTime,
                 expectedActiveRecordingStartMillis = expectedActiveRecordingStartMillis
@@ -209,4 +218,14 @@ internal fun shouldSkipFinalizerForDifferentActiveRecording(
 ): Boolean {
     if (expectedActiveRecordingStartMillis == null || expectedActiveRecordingStartMillis <= 0L) return false
     return activeRecordStartMillis != expectedActiveRecordingStartMillis
+}
+
+internal fun shouldSkipHealthConnectFinalizerWithoutToken(
+    expectedSource: String?,
+    activeRecordExists: Boolean,
+    expectedActiveRecordingStartMillis: Long?
+): Boolean {
+    if (expectedSource != HealthConnectSleepTriggerSource.SOURCE) return false
+    if (!activeRecordExists) return false
+    return expectedActiveRecordingStartMillis == null || expectedActiveRecordingStartMillis <= 0L
 }

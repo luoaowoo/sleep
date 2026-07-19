@@ -29,11 +29,13 @@ class SleepRecordingServiceIntentTest {
         val intent = SleepRecordingService.stopFromTriggerIntent(
             context = context,
             expectedTriggerSource = "health_connect_sleep",
-            sleepEndTimeMillis = 2_000L
+            sleepEndTimeMillis = 2_000L,
+            expectedActiveRecordingStartMillis = 1_000L
         )
 
         assertThat(intent.action).isEqualTo(SleepRecordingService.ACTION_STOP)
         assertThat(intent.getStringExtra("expected_trigger_source")).isEqualTo("health_connect_sleep")
         assertThat(intent.getLongExtra("sleep_end_time_millis", 0L)).isEqualTo(2_000L)
+        assertThat(intent.getLongExtra("expected_active_recording_start_millis", 0L)).isEqualTo(1_000L)
     }
 }

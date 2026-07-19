@@ -126,6 +126,7 @@ class AndroidRecordingControllerTest {
         assertThat(startedService.action).isEqualTo(SleepRecordingService.ACTION_STOP)
         assertThat(startedService.getStringExtra("expected_trigger_source")).isEqualTo("health_connect_sleep")
         assertThat(startedService.getLongExtra("sleep_end_time_millis", 0L)).isEqualTo(2_000L)
+        assertThat(startedService.getLongExtra("expected_active_recording_start_millis", 0L)).isEqualTo(1_000L)
         val workManager = WorkManagerImpl.getInstance(context)
         val workSpecIds = workManager.workDatabase.workNameDao().getWorkSpecIdsWithName(WORK_NAME)
         val workSpec = workManager.workDatabase.workSpecDao().getWorkSpec(workSpecIds.single())

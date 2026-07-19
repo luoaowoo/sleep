@@ -275,6 +275,22 @@ class ActiveRecordingFinalizerWorkerTest {
     }
 
     @Test
+    fun doWork_skipsHealthConnectFinalizerWhenSessionTokenMissing() = runTest {
+        val fixture = createFixture(
+            inputSleepEndTimeMillis = 8_000L,
+            activeRecordingStartMillis = 0L,
+            activeRecord = activeRecord()
+        )
+
+        val result = fixture.worker().doWork()
+
+        assertThat(result).isEqualTo(ListenableWorker.Result.success())
+        coVerify(exactly = 0) { fixture.wearableSleepEndTimeResolver.resolveResult(any()) }
+        coVerify(exactly = 0) { fixture.activeRecordingFinalizer.finalizeIfActive(any(), any(), any()) }
+        coVerify(exactly = 0) { fixture.settingsRepository.setWearableSleepTriggerStatus(any(), any()) }
+    }
+
+    @Test
     fun shouldRetryWearableFinalizer_waitsUntilMaxAttemptWindow() {
         assertThat(
             shouldRetryWearableFinalizer(
@@ -359,6 +375,38 @@ class ActiveRecordingFinalizerWorkerTest {
         assertThat(
             shouldSkipFinalizerForDifferentActiveRecording(
                 activeRecordStartMillis = 10_000L,
+                expectedActiveRecordingStartMillis = null
+            )
+        ).isFalse()
+    }
+
+    @Test
+    fun shouldSkipHealthConnectFinalizerWithoutToken_onlyRequiresTokenForActiveHealthConnectRecords() {
+        assertThat(
+            shouldSkipHealthConnectFinalizerWithoutToken(
+                expectedSource = HealthConnectSleepTriggerSource.SOURCE,
+                activeRecordExists = true,
+                expectedActiveRecordingStartMillis = null
+            )
+        ).isTrue()
+        assertThat(
+            shouldSkipHealthConnectFinalizerWithoutToken(
+                expectedSource = HealthConnectSleepTriggerSource.SOURCE,
+                activeRecordExists = true,
+                expectedActiveRecordingStartMillis = 1_000L
+            )
+        ).isFalse()
+        assertThat(
+            shouldSkipHealthConnectFinalizerWithoutToken(
+                expectedSource = "manual",
+                activeRecordExists = true,
+                expectedActiveRecordingStartMillis = null
+            )
+        ).isFalse()
+        assertThat(
+            shouldSkipHealthConnectFinalizerWithoutToken(
+                expectedSource = HealthConnectSleepTriggerSource.SOURCE,
+                activeRecordExists = false,
                 expectedActiveRecordingStartMillis = null
             )
         ).isFalse()
@@ -476,7 +524,7 @@ class ActiveRecordingFinalizerWorkerTest {
         return WorkerFixture(
             expectedSource = expectedSource,
             inputSleepEndTimeMillis = inputSleepEndTimeMillis,
-            activeRecordingStartMillis = activeRecordingStartMillis,
+            activeRecordingStartMillis = activeRecordingStartMillis ?: activeRecord?.startTime,
             activeRecordingFinalizer = activeRecordingFinalizer,
             sleepRepository = sleepRepository,
             settingsRepository = settingsRepository,

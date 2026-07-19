@@ -46,6 +46,35 @@ class SleepRecordingStopPolicyTest {
     }
 
     @Test
+    fun shouldAcceptStopRequest_requiresMatchingRecordingStartTokenWhenProvided() {
+        assertThat(
+            shouldAcceptStopRequest(
+                activeTriggerSource = "health_connect_sleep",
+                expectedTriggerSource = "health_connect_sleep",
+                activeRecordingStartMillis = 2_000L,
+                expectedActiveRecordingStartMillis = 2_000L
+            )
+        ).isTrue()
+        assertThat(
+            shouldAcceptStopRequest(
+                activeTriggerSource = "health_connect_sleep",
+                expectedTriggerSource = "health_connect_sleep",
+                activeRecordingStartMillis = 3_000L,
+                expectedActiveRecordingStartMillis = 2_000L
+            )
+        ).isFalse()
+        assertThat(
+            shouldAcceptStopRequest(
+                activeTriggerSource = "health_connect_sleep",
+                expectedTriggerSource = "health_connect_sleep",
+                activeRecordingStartMillis = 2_000L,
+                expectedActiveRecordingStartMillis = null,
+                requireActiveRecordingStartToken = true
+            )
+        ).isFalse()
+    }
+
+    @Test
     fun shouldConfirmSleepTriggerRecording_requiresStartedDetectorAndTriggerSource() {
         assertThat(
             shouldConfirmSleepTriggerRecording(
@@ -144,23 +173,66 @@ class SleepRecordingStopPolicyTest {
         assertThat(
             wearableSleepEndWatcherStopAction(
                 activeTriggerSource = "health_connect_sleep",
-                expectedTriggerSource = "health_connect_sleep"
+                expectedTriggerSource = "health_connect_sleep",
+                activeRecordingStartMillis = 2_000L,
+                expectedActiveRecordingStartMillis = 2_000L
             )
         ).isEqualTo(WearableSleepEndWatcherStopAction.StopAndExit)
 
         assertThat(
             wearableSleepEndWatcherStopAction(
                 activeTriggerSource = "manual",
-                expectedTriggerSource = "health_connect_sleep"
+                expectedTriggerSource = "health_connect_sleep",
+                activeRecordingStartMillis = 2_000L,
+                expectedActiveRecordingStartMillis = 2_000L
             )
         ).isEqualTo(WearableSleepEndWatcherStopAction.ContinuePolling)
 
         assertThat(
             wearableSleepEndWatcherStopAction(
                 activeTriggerSource = "",
-                expectedTriggerSource = "health_connect_sleep"
+                expectedTriggerSource = "health_connect_sleep",
+                activeRecordingStartMillis = 2_000L,
+                expectedActiveRecordingStartMillis = 2_000L
             )
         ).isEqualTo(WearableSleepEndWatcherStopAction.ContinuePolling)
+    }
+
+    @Test
+    fun wearableSleepEndWatcherStopAction_continuesWhenRecordingTokenChanged() {
+        assertThat(
+            wearableSleepEndWatcherStopAction(
+                activeTriggerSource = "health_connect_sleep",
+                expectedTriggerSource = "health_connect_sleep",
+                activeRecordingStartMillis = 3_000L,
+                expectedActiveRecordingStartMillis = 2_000L
+            )
+        ).isEqualTo(WearableSleepEndWatcherStopAction.ContinuePolling)
+    }
+
+    @Test
+    fun wearableRecordingEndTimeWithCap_capsEndTimeToMaxDuration() {
+        assertThat(
+            wearableRecordingEndTimeWithCap(
+                requestedEndTimeMillis = 30_000L,
+                activeRecordingStartMillis = 10_000L,
+                maxDurationMillis = 10_000L
+            )
+        ).isEqualTo(20_000L)
+        assertThat(
+            wearableRecordingEndTimeWithCap(
+                requestedEndTimeMillis = 15_000L,
+                activeRecordingStartMillis = 10_000L,
+                maxDurationMillis = 10_000L
+            )
+        ).isEqualTo(15_000L)
+        assertThat(
+            wearableRecordingEndTimeWithCap(
+                requestedEndTimeMillis = null,
+                activeRecordingStartMillis = 10_000L,
+                maxDurationMillis = 10_000L
+            )
+        ).isNull()
     }
 
     @Test

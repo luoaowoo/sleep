@@ -2,10 +2,17 @@ package com.sleep.snore.service
 
 internal fun shouldAcceptStopRequest(
     activeTriggerSource: String?,
-    expectedTriggerSource: String?
+    expectedTriggerSource: String?,
+    activeRecordingStartMillis: Long? = null,
+    expectedActiveRecordingStartMillis: Long? = null,
+    requireActiveRecordingStartToken: Boolean = false
 ): Boolean {
     if (expectedTriggerSource.isNullOrBlank()) return true
-    return activeTriggerSource == expectedTriggerSource
+    if (activeTriggerSource != expectedTriggerSource) return false
+    if (expectedActiveRecordingStartMillis == null || expectedActiveRecordingStartMillis <= 0L) {
+        return !requireActiveRecordingStartToken
+    }
+    return activeRecordingStartMillis == expectedActiveRecordingStartMillis
 }
 
 internal fun shouldConfirmSleepTriggerRecording(
@@ -33,13 +40,34 @@ internal enum class WearableSleepEndWatcherStopAction {
 
 internal fun wearableSleepEndWatcherStopAction(
     activeTriggerSource: String?,
-    expectedTriggerSource: String
+    expectedTriggerSource: String,
+    activeRecordingStartMillis: Long? = null,
+    expectedActiveRecordingStartMillis: Long? = null,
+    requireActiveRecordingStartToken: Boolean = false
 ): WearableSleepEndWatcherStopAction {
-    return if (shouldAcceptStopRequest(activeTriggerSource, expectedTriggerSource)) {
+    return if (
+        shouldAcceptStopRequest(
+            activeTriggerSource = activeTriggerSource,
+            expectedTriggerSource = expectedTriggerSource,
+            activeRecordingStartMillis = activeRecordingStartMillis,
+            expectedActiveRecordingStartMillis = expectedActiveRecordingStartMillis,
+            requireActiveRecordingStartToken = requireActiveRecordingStartToken
+        )
+    ) {
         WearableSleepEndWatcherStopAction.StopAndExit
     } else {
         WearableSleepEndWatcherStopAction.ContinuePolling
     }
+}
+
+internal fun wearableRecordingEndTimeWithCap(
+    requestedEndTimeMillis: Long?,
+    activeRecordingStartMillis: Long,
+    maxDurationMillis: Long
+): Long? {
+    if (requestedEndTimeMillis == null || requestedEndTimeMillis <= 0L) return null
+    if (activeRecordingStartMillis <= 0L || maxDurationMillis <= 0L) return requestedEndTimeMillis
+    return requestedEndTimeMillis.coerceAtMost(activeRecordingStartMillis + maxDurationMillis)
 }
 
 internal enum class StaleActiveRecordingRecoveryAction {

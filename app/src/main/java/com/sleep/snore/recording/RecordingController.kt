@@ -81,7 +81,14 @@ class AndroidRecordingController @Inject constructor(
         val settings = settingsRepository.settings.first()
         if (settings.activeRecordingTriggerSource != source) return false
         return runCatching {
-            context.startService(SleepRecordingService.stopFromTriggerIntent(context, source, sleepEndTimeMillis))
+            context.startService(
+                SleepRecordingService.stopFromTriggerIntent(
+                    context = context,
+                    expectedTriggerSource = source,
+                    sleepEndTimeMillis = sleepEndTimeMillis,
+                    expectedActiveRecordingStartMillis = settings.activeRecordingTriggerStartedAtMillis
+                )
+            )
             ActiveRecordingFinalizerWorker.enqueueFallback(
                 context = context,
                 expectedSource = source,

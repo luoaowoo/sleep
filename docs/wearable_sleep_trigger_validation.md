@@ -2,7 +2,7 @@
 
 ## 验收目标
 
-- 小米运动健康 / Zepp Life 能把睡眠同步到 Health Connect。
+- Mi Fitness / 小米运动健康 / Zepp Life 能把睡眠同步到 Health Connect。
 - 本应用能读取 Health Connect 睡眠记录。
 - 睡前开启前台检测后，鼾声检测能整晚保持前台运行。
 - Health Connect 同步到睡眠结束后，应用能自动停止并结算记录。

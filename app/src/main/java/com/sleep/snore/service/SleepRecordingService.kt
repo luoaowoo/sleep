@@ -104,7 +104,8 @@ class SleepRecordingService : Service() {
             ACTION_STOP -> {
                 finishSessionAndStop(
                     wearableSleepEndTimeMillis = intent.sleepEndTimeMillisExtra(),
-                    expectedTriggerSource = intent.expectedTriggerSourceExtra()
+                    expectedTriggerSource = intent.expectedTriggerSourceExtra(),
+                    expectedActiveRecordingStartMillis = intent.expectedActiveRecordingStartMillisExtra()
                 )
                 START_NOT_STICKY
             }
@@ -261,18 +262,32 @@ class SleepRecordingService : Service() {
     private fun finishSessionAndStop(
         handledWearableSleepEndEventKey: String? = null,
         wearableSleepEndTimeMillis: Long? = null,
-        expectedTriggerSource: String? = null
+        expectedTriggerSource: String? = null,
+        expectedActiveRecordingStartMillis: Long? = null
     ) {
         if (!expectedTriggerSource.isNullOrBlank()) {
             ensureServiceScope()
             serviceScope.launch {
-                if (matchesExpectedTriggerSource(expectedTriggerSource)) {
+                val settings = preferencesRepository.settings.first()
+                if (
+                    shouldAcceptStopRequest(
+                        activeTriggerSource = settings.activeRecordingTriggerSource,
+                        expectedTriggerSource = expectedTriggerSource,
+                        activeRecordingStartMillis = settings.activeRecordingTriggerStartedAtMillis,
+                        expectedActiveRecordingStartMillis = expectedActiveRecordingStartMillis,
+                        requireActiveRecordingStartToken = expectedTriggerSource == HealthConnectSleepTriggerSource.SOURCE
+                    )
+                ) {
                     finishSessionAndStop(
                         handledWearableSleepEndEventKey = handledWearableSleepEndEventKey,
-                        wearableSleepEndTimeMillis = wearableSleepEndTimeMillis
+                        wearableSleepEndTimeMillis = wearableRecordingEndTimeWithCap(
+                            requestedEndTimeMillis = wearableSleepEndTimeMillis,
+                            activeRecordingStartMillis = settings.activeRecordingTriggerStartedAtMillis,
+                            maxDurationMillis = MAX_SESSION_RECOVERY_MS
+                        )
                     )
                 } else {
-                    Log.i(TAG, "skip stop because trigger source changed")
+                    Log.i(TAG, "skip stop because trigger source or recording token changed")
                 }
             }
             return
@@ -368,13 +383,6 @@ class SleepRecordingService : Service() {
                 serviceScope.cancel()
             }
         }
-    }
-
-    private suspend fun matchesExpectedTriggerSource(expectedTriggerSource: String?): Boolean {
-        return shouldAcceptStopRequest(
-            activeTriggerSource = preferencesRepository.getActiveRecordingTriggerSource(),
-            expectedTriggerSource = expectedTriggerSource
-        )
     }
 
     private suspend fun finalizeCurrentSession(wearableSleepEndTimeMillis: Long? = null) {
@@ -711,7 +719,8 @@ class SleepRecordingService : Service() {
                     serviceScope.launch {
                         finishSessionAndStop(
                             wearableSleepEndTimeMillis = now,
-                            expectedTriggerSource = HealthConnectSleepTriggerSource.SOURCE
+                            expectedTriggerSource = HealthConnectSleepTriggerSource.SOURCE,
+                            expectedActiveRecordingStartMillis = sessionStartTime
                         )
                     }
                     return@launch
@@ -723,7 +732,10 @@ class SleepRecordingService : Service() {
                         when (
                             wearableSleepEndWatcherStopAction(
                                 activeTriggerSource = preferencesRepository.getActiveRecordingTriggerSource(),
-                                expectedTriggerSource = HealthConnectSleepTriggerSource.SOURCE
+                                expectedTriggerSource = HealthConnectSleepTriggerSource.SOURCE,
+                                activeRecordingStartMillis = sessionStartTime,
+                                expectedActiveRecordingStartMillis = sessionStartTime,
+                                requireActiveRecordingStartToken = true
                             )
                         ) {
                             WearableSleepEndWatcherStopAction.StopAndExit -> {
@@ -731,7 +743,8 @@ class SleepRecordingService : Service() {
                                     finishSessionAndStop(
                                         handledWearableSleepEndEventKey = pollResult.eventKey,
                                         wearableSleepEndTimeMillis = pollResult.endTimeMillis,
-                                        expectedTriggerSource = HealthConnectSleepTriggerSource.SOURCE
+                                        expectedTriggerSource = HealthConnectSleepTriggerSource.SOURCE,
+                                        expectedActiveRecordingStartMillis = sessionStartTime
                                     )
                                 }
                                 return@launch
@@ -1002,15 +1015,22 @@ class SleepRecordingService : Service() {
         fun stopFromTriggerIntent(
             context: Context,
             expectedTriggerSource: String,
-            sleepEndTimeMillis: Long? = null
+            sleepEndTimeMillis: Long? = null,
+            expectedActiveRecordingStartMillis: Long? = null
         ): Intent = stopIntent(context, sleepEndTimeMillis)
             .putExtra(EXTRA_EXPECTED_TRIGGER_SOURCE, expectedTriggerSource)
+            .apply {
+                if (expectedActiveRecordingStartMillis != null && expectedActiveRecordingStartMillis > 0L) {
+                    putExtra(EXTRA_EXPECTED_ACTIVE_RECORDING_START_MILLIS, expectedActiveRecordingStartMillis)
+                }
+            }
 
         fun refreshNotificationIntent(context: Context): Intent =
             Intent(context, SleepRecordingService::class.java).setAction(ACTION_REFRESH_NOTIFICATION)
         private const val EXTRA_TRIGGER_SOURCE = "trigger_source"
         private const val EXTRA_SLEEP_END_TIME_MILLIS = "sleep_end_time_millis"
         private const val EXTRA_EXPECTED_TRIGGER_SOURCE = "expected_trigger_source"
+        private const val EXTRA_EXPECTED_ACTIVE_RECORDING_START_MILLIS = "expected_active_recording_start_millis"
     }
 }
 
@@ -1020,6 +1040,10 @@ private fun Intent.sleepEndTimeMillisExtra(): Long? {
 
 private fun Intent.expectedTriggerSourceExtra(): String? {
     return getStringExtra("expected_trigger_source")?.takeIf { it.isNotBlank() }
+}
+
+private fun Intent.expectedActiveRecordingStartMillisExtra(): Long? {
+    return getLongExtra("expected_active_recording_start_millis", 0L).takeIf { it > 0L }
 }
 
 private data class ApneaStats(
