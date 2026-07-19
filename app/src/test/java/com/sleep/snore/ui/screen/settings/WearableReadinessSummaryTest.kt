@@ -64,6 +64,25 @@ class WearableReadinessSummaryTest {
     }
 
     @Test
+    fun wearableReadinessSummary_reportsUnsupportedBackgroundRead() {
+        val summary = wearableReadinessSummary(
+            hasRecordAudioPermission = true,
+            hasNotificationPermission = true,
+            hasHealthConnectSleepReadPermission = true,
+            hasHealthConnectBackgroundReadPermission = false,
+            healthConnectBackgroundReadAvailable = false,
+            isIgnoringBatteryOptimizations = true,
+            hasXiaomiCompanion = true,
+            periodicCheckEnabled = true,
+            stopOnSleepEndEnabled = true,
+            latestWearableSleepSessionSourcePackage = "com.xiaomi.wearable"
+        )
+
+        assertThat(summary).contains("Health Connect 后台读取支持")
+        assertThat(summary).doesNotContain("Health Connect 后台读取授权")
+    }
+
+    @Test
     fun wearableReadinessSummary_allowsStartWithOnlyRecommendedItemsMissing() {
         val summary = wearableReadinessSummary(
             hasRecordAudioPermission = true,
@@ -180,6 +199,23 @@ class WearableReadinessSummaryTest {
 
         assertThat(summary).contains("可手动检查最近睡眠")
         assertThat(summary).contains("后台读取授权")
+    }
+
+    @Test
+    fun wearableIntegrationStatusSummary_reportsUnsupportedBackgroundRead() {
+        val summary = wearableIntegrationStatusSummary(
+            hasXiaomiCompanion = true,
+            hasHealthConnectSleepReadPermission = true,
+            hasHealthConnectBackgroundReadPermission = false,
+            healthConnectBackgroundReadAvailable = false,
+            periodicCheckEnabled = true,
+            stopOnSleepEndEnabled = true,
+            foregroundDetectionActive = false,
+            latestWearableSleepSessionSourcePackage = ""
+        )
+
+        assertThat(summary).contains("不支持后台读取")
+        assertThat(summary).contains("手动确认")
     }
 
     @Test

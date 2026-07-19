@@ -11,11 +11,11 @@
 
 - `sleeptrigger/HealthConnectSleepTriggerSource`：读取最近 Health Connect 睡眠会话，优先读取 Mi Fitness（`com.xiaomi.wearable`）、小米运动健康/小米健康（`com.mi.health`）和 Zepp Life（`com.xiaomi.hm.health`）写入的数据；若没有小米来源记录会回退读取全部来源用于诊断，但不会用非小米来源自动停录；主要使用已同步的 `SleepEnded`，`SleepStarted` 不作为可靠实时开麦依据。
 - `sleeptrigger/HealthConnectSleepEventInterpreter`：过滤未来/非法睡眠记录，再选择最新有效记录，避免错误事件抢占。
-- `sleeptrigger/HealthConnectSleepTriggerWorker`：15 分钟周期轮询；立即检查只要求前台睡眠读取权限，后台轮询要求后台读取权限。Worker 不会直接启动麦克风，只处理已结束睡眠和状态提示，避免触发 Android 后台麦克风前台服务限制。
+- `sleeptrigger/HealthConnectSleepTriggerWorker`：15 分钟周期轮询；立即检查只要求前台睡眠读取权限，后台轮询要求后台读取权限和 Health Connect 后台读取 feature 支持。Worker 不会直接启动麦克风，只处理已结束睡眠和状态提示，避免触发 Android 后台麦克风前台服务限制。
 - Worker、录音服务兜底轮询和兼容待命服务都会按当前手环触发录音的开始时间过滤旧 `SleepEnded`；自动停录还会忽略短于 2 小时、或与本次前台检测重叠不足 30 分钟的睡眠记录，避免短午睡、延迟同步的旧记录误停当前录音。
 - `sleeptrigger/RecordingSleepEndFallbackPoller`：当前手环触发录音运行期间，由前台麦克风服务低频读取 Health Connect；当前实现同样要求 Health Connect 睡眠/后台读取权限，缺失时会提示并等待恢复授权，不能保证锁屏后自动停录。只处理 `SleepEnded`，不会因 `SleepStarted` 再次自触发启动录音。
 - `sleeptrigger/WearableSleepStandbyService`：保留为兼容的前台待命/停止入口；Android 15 对 `dataSync` 前台服务有 6 小时/24 小时额度，因此主链路不再依赖它整晚轮询，也不再用它在睡眠开始后拉起麦克风。
-- `ui/screen/settings/SettingsViewModel`：启动睡前待命前会硬性检查麦克风、通知、Health Connect 睡眠/后台读取权限；权限齐全后通过 `RecordingController` 合法启动前台麦克风检测，由录音服务承担睡眠结束兜底轮询。
+- `ui/screen/settings/SettingsViewModel`：启动睡前待命前会硬性检查麦克风、通知、Health Connect 睡眠读取、后台读取权限和后台读取 feature 支持；条件齐全后通过 `RecordingController` 合法启动前台麦克风检测，由录音服务承担睡眠结束兜底轮询。
 - `ui/screen/settings/SettingsScreen`：检测并打开 Mi Fitness（`com.xiaomi.wearable`）、小米运动健康/小米健康（`com.mi.health`）或 Zepp Life（`com.xiaomi.hm.health`），方便用户到小米伴侣 App 中开启 Health Connect 睡眠同步。
 - `sleeptrigger/WearableSleepPollResultHandler`：Worker 和待命服务共用事件处理逻辑；只有录音确认成功后才记住事件 key，失败时保留重试机会。
 - `recording/RecordingController`：统一外部触发的录音启动/停止入口，预检麦克风权限并等待前台录音服务确认。
@@ -27,7 +27,7 @@
 ## 小米接入步骤
 
 1. 在 Mi Fitness/小米运动健康中打开 Health Connect 同步，并允许同步睡眠数据；是否提供该入口取决于设备、地区和 App 版本，旧手环或旧账号生态可能使用 Zepp Life。
-2. 在本应用设置页授权 Health Connect 睡眠读取和后台读取权限；仅有睡眠读取时只能手动检查最近睡眠，后台周期检查和自动停录仍需要后台读取权限。如果 Health Connect 未安装、需更新或授权页不可用，可点击“打开 Health Connect 设置/安装更新”进入系统设置、应用详情或商店兜底入口。
+2. 在本应用设置页授权 Health Connect 睡眠读取和后台读取权限；仅有睡眠读取时只能手动检查最近睡眠，后台周期检查和自动停录仍需要后台读取权限以及设备/Health Connect 版本支持后台读取 feature。如果 Health Connect 未安装、需更新或授权页不可用，可点击“打开 Health Connect 设置/安装更新”进入系统设置、应用详情或商店兜底入口。
 3. 睡前授予麦克风、通知、Health Connect 睡眠/后台读取权限，并将应用电池策略设为不受限制/允许后台运行；设置页“小米/MIUI 后台权限”会在小米/红米/POCO 设备上优先尝试打开 MIUI 自启动/省电入口，找不到或启动失败时继续回退到应用详情、电池优化和系统设置。
 4. 推荐点击“睡前开启前台检测”；它会先开始前台鼾声检测，再等待 Health Connect 睡眠记录用于自动停止/校准。单独打开“Health Connect 周期检查”只负责系统调度读取记录，不等同于整晚前台录音。
 

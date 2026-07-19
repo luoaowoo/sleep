@@ -54,6 +54,7 @@ class WearableSleepEndTimeResolver @Inject constructor(
             HealthConnectSleepTriggerSource.PollResult.PermissionMissing -> {
                 WearableSleepEndResolveResult.PermissionMissing
             }
+            HealthConnectSleepTriggerSource.PollResult.BackgroundReadUnavailable,
             HealthConnectSleepTriggerSource.PollResult.ReadFailed,
             HealthConnectSleepTriggerSource.PollResult.HealthConnectUnavailable -> {
                 WearableSleepEndResolveResult.ReadFailed

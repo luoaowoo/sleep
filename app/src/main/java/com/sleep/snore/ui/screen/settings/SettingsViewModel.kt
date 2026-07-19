@@ -24,6 +24,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import javax.inject.Inject
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -33,6 +34,12 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
+enum class WearableActionState {
+    Idle,
+    Starting,
+    Stopping
+}
 
 data class SettingsUiState(
     val silenceThresholdDb: Float = SettingsPreferencesRepository.DEFAULT_SILENCE_THRESHOLD_DB,
@@ -62,8 +69,12 @@ data class SettingsUiState(
     val activeRecordingTriggerSource: String = "",
     val activeRecordingTriggerStartedAtText: String = "无",
     val activeRecordingTriggerStartedAtMillis: Long = 0L,
+    val wearableActionState: WearableActionState = WearableActionState.Idle,
     val storageUsageText: String = "计算中..."
-)
+) {
+    val wearableActionInProgress: Boolean
+        get() = wearableActionState != WearableActionState.Idle
+}
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
@@ -267,6 +278,7 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun onWearableSleepTriggerChange(enabled: Boolean) {
+        if (_uiState.value.wearableActionInProgress) return
         _uiState.update { it.copy(wearableSleepTriggerEnabled = enabled) }
         viewModelScope.launch {
             preferencesRepository.setWearableSleepTriggerEnabled(enabled)
@@ -286,12 +298,27 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun onHealthConnectPermissionsResult(grantedPermissions: Set<String>) {
+        onHealthConnectPermissionsResult(
+            grantedPermissions = grantedPermissions,
+            backgroundReadAvailable = true
+        )
+    }
+
+    fun onHealthConnectPermissionsResult(
+        grantedPermissions: Set<String>,
+        backgroundReadAvailable: Boolean
+    ) {
         when {
-            grantedPermissions.containsAll(HealthConnectSleepTriggerSource.BACKGROUND_REQUIRED_PERMISSIONS) -> {
+            backgroundReadAvailable &&
+                grantedPermissions.containsAll(HealthConnectSleepTriggerSource.BACKGROUND_REQUIRED_PERMISSIONS) -> {
                 checkWearableSleepNow("Health Connect 已授权，正在检查最近睡眠记录；这不会开始录音，睡前仍需开启前台检测")
             }
             grantedPermissions.containsAll(HealthConnectSleepTriggerSource.FOREGROUND_REQUIRED_PERMISSIONS) -> {
-                val status = "已授权睡眠读取，但后台轮询和锁屏后自动停录仍需后台读取权限"
+                val status = if (backgroundReadAvailable) {
+                    "已授权睡眠读取，但后台轮询和锁屏后自动停录仍需后台读取权限"
+                } else {
+                    "已授权睡眠读取，但当前设备或 Health Connect 版本不支持后台读取；可立即检查，锁屏后需手动确认停录"
+                }
                 _uiState.update {
                     it.copy(
                         wearableSleepTriggerEnabled = false,
@@ -301,6 +328,7 @@ class SettingsViewModel @Inject constructor(
                 viewModelScope.launch {
                     preferencesRepository.setWearableSleepTriggerEnabled(false)
                     preferencesRepository.setWearableSleepTriggerStatus(status)
+                    HealthConnectSleepTriggerWorker.enqueueNow(context)
                 }
             }
             else -> {
@@ -314,16 +342,14 @@ class SettingsViewModel @Inject constructor(
     fun checkWearableSleepNow(
         status: String = "正在检查最近睡眠记录；这不会开始录音，睡前仍需开启前台检测"
     ) {
+        if (_uiState.value.wearableActionInProgress) return
         _uiState.update {
             it.copy(
-                wearableSleepTriggerEnabled = true,
                 wearableSleepTriggerStatus = status
             )
         }
         viewModelScope.launch {
-            preferencesRepository.setWearableSleepTriggerEnabled(true)
             preferencesRepository.setWearableSleepTriggerStatus(status)
-            HealthConnectSleepTriggerWorker.enqueue(context)
             HealthConnectSleepTriggerWorker.enqueueNow(context)
         }
     }
@@ -370,68 +396,151 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun startWearableSleepStandby() {
+        if (_uiState.value.wearableActionInProgress) return
         _uiState.update {
             it.copy(
                 wearableSleepTriggerEnabled = true,
+                wearableActionState = WearableActionState.Starting,
                 wearableSleepTriggerStatus = "睡前前台检测正在开启，录音服务将等待 Health Connect 睡眠结束"
             )
         }
         viewModelScope.launch {
-            val blocker = wearableStandbyPrerequisiteChecker.startBlocker()
-            if (blocker != null) {
+            try {
+                val blocker = wearableStandbyPrerequisiteChecker.startBlocker()
+                if (blocker != null) {
+                    _uiState.update {
+                        it.copy(
+                            wearableSleepTriggerEnabled = false,
+                            wearableActionState = WearableActionState.Idle,
+                            wearableSleepTriggerStatus = blocker
+                        )
+                    }
+                    preferencesRepository.setWearableSleepTriggerEnabled(false)
+                    preferencesRepository.setWearableSleepTriggerStatus(blocker)
+                    return@launch
+                }
+                preferencesRepository.setWearableSleepTriggerEnabled(true)
+                preferencesRepository.setWearableSleepTriggerStatus("睡前前台检测正在开启，录音服务将等待 Health Connect 睡眠结束")
+                val recordingStartResult = recordingController.startFromSleepTrigger(
+                    HealthConnectSleepTriggerSource.SOURCE
+                )
+                if (!recordingStartResult.requestSubmitted) {
+                    _uiState.update { state ->
+                        state.copy(
+                            wearableActionState = WearableActionState.Idle,
+                            wearableSleepTriggerStatus = recordingStartResult.statusText
+                        )
+                    }
+                    preferencesRepository.setWearableSleepTriggerStatus(recordingStartResult.statusText)
+                    return@launch
+                }
+                val confirmed = if (recordingStartResult.confirmed) {
+                    true
+                } else {
+                    waitForActiveWearableRecording()
+                }
+                if (confirmed) {
+                    runCatching {
+                        ContextCompat.startForegroundService(
+                            context,
+                            WearableSleepStandbyService.startIntent(context)
+                        )
+                    }
+                    val status = if (_uiState.value.wearableStopOnSleepEndEnabled) {
+                        "睡前前台检测已开启，录音服务将低频检查 Health Connect 睡眠结束"
+                    } else {
+                        "睡前前台检测已开启，但自动停录已关闭；睡醒后请手动停止"
+                    }
+                    _uiState.update { state ->
+                        state.copy(
+                            wearableActionState = WearableActionState.Idle,
+                            wearableSleepTriggerStatus = status
+                        )
+                    }
+                    preferencesRepository.setWearableSleepTriggerStatus(status)
+                } else {
+                    val status = recordingStartResult.statusText
+                    _uiState.update { state ->
+                        state.copy(
+                            wearableActionState = WearableActionState.Idle,
+                            wearableSleepTriggerStatus = status
+                        )
+                    }
+                    preferencesRepository.setWearableSleepTriggerStatus(status)
+                    return@launch
+                }
+            } catch (throwable: Exception) {
+                val status = "睡前前台检测开启失败：${throwable.message.orEmpty()}".trimEnd('：')
                 _uiState.update {
                     it.copy(
-                        wearableSleepTriggerEnabled = false,
-                        wearableSleepTriggerStatus = blocker
+                        wearableActionState = WearableActionState.Idle,
+                        wearableSleepTriggerStatus = status
                     )
                 }
-                preferencesRepository.setWearableSleepTriggerEnabled(false)
-                preferencesRepository.setWearableSleepTriggerStatus(blocker)
-                return@launch
+                preferencesRepository.setWearableSleepTriggerStatus(status)
             }
-            preferencesRepository.setWearableSleepTriggerEnabled(true)
-            preferencesRepository.setWearableSleepTriggerStatus("睡前前台检测正在开启，录音服务将等待 Health Connect 睡眠结束")
-            val recordingStartResult = recordingController.startFromSleepTrigger(
-                HealthConnectSleepTriggerSource.SOURCE
-            )
-            if (!recordingStartResult.confirmed) {
-                _uiState.update { state ->
-                    state.copy(wearableSleepTriggerStatus = recordingStartResult.statusText)
-                }
-                preferencesRepository.setWearableSleepTriggerStatus(recordingStartResult.statusText)
-                return@launch
-            }
-            runCatching {
-                ContextCompat.startForegroundService(
-                    context,
-                    WearableSleepStandbyService.startIntent(context)
-                )
-            }
-            val status = if (_uiState.value.wearableStopOnSleepEndEnabled) {
-                "睡前前台检测已开启，录音服务将低频检查 Health Connect 睡眠结束"
-            } else {
-                "睡前前台检测已开启，但自动停录已关闭；睡醒后请手动停止"
-            }
-            _uiState.update { state -> state.copy(wearableSleepTriggerStatus = status) }
-            preferencesRepository.setWearableSleepTriggerStatus(status)
         }
     }
 
+    private suspend fun waitForActiveWearableRecording(): Boolean {
+        repeat(ACTION_CONFIRM_ATTEMPTS) {
+            if (preferencesRepository.getActiveRecordingTriggerSource() == HealthConnectSleepTriggerSource.SOURCE) {
+                return true
+            }
+            delay(ACTION_CONFIRM_INTERVAL_MS)
+        }
+        return preferencesRepository.getActiveRecordingTriggerSource() == HealthConnectSleepTriggerSource.SOURCE
+    }
+
+    private suspend fun waitForWearableRecordingToStop(): Boolean {
+        repeat(ACTION_CONFIRM_ATTEMPTS) {
+            if (preferencesRepository.getActiveRecordingTriggerSource() != HealthConnectSleepTriggerSource.SOURCE) {
+                return true
+            }
+            delay(ACTION_CONFIRM_INTERVAL_MS)
+        }
+        return preferencesRepository.getActiveRecordingTriggerSource() != HealthConnectSleepTriggerSource.SOURCE
+    }
+
     fun stopWearableSleepStandby() {
+        if (_uiState.value.wearableActionInProgress) return
+        _uiState.update {
+            it.copy(
+                wearableActionState = WearableActionState.Stopping,
+                wearableSleepTriggerStatus = "正在停止睡前前台检测和 Health Connect 来源录音"
+            )
+        }
         runCatching {
             context.stopService(Intent(context, WearableSleepStandbyService::class.java))
         }
         viewModelScope.launch {
-            val stoppedRecording = recordingController.stopFromSleepTrigger(
-                HealthConnectSleepTriggerSource.SOURCE
-            )
-            val status = if (stoppedRecording) {
-                "睡前前台检测已停止，鼾声检测也已请求停止"
-            } else {
-                "睡前前台检测已停止"
+            try {
+                val stoppedRecording = recordingController.stopFromSleepTrigger(
+                    HealthConnectSleepTriggerSource.SOURCE
+                )
+                val sourceCleared = !stoppedRecording || waitForWearableRecordingToStop()
+                val status = when {
+                    stoppedRecording && sourceCleared -> "睡前前台检测已停止，鼾声检测也已请求停止"
+                    stoppedRecording -> "已请求停止睡前前台检测；录音服务仍在收尾，请稍后查看"
+                    else -> "睡前前台检测已停止"
+                }
+                _uiState.update {
+                    it.copy(
+                        wearableActionState = WearableActionState.Idle,
+                        wearableSleepTriggerStatus = status
+                    )
+                }
+                preferencesRepository.setWearableSleepTriggerMessage(status)
+            } catch (throwable: Exception) {
+                val status = "睡前前台检测停止失败：${throwable.message.orEmpty()}".trimEnd('：')
+                _uiState.update {
+                    it.copy(
+                        wearableActionState = WearableActionState.Idle,
+                        wearableSleepTriggerStatus = status
+                    )
+                }
+                preferencesRepository.setWearableSleepTriggerMessage(status)
             }
-            _uiState.update { it.copy(wearableSleepTriggerStatus = status) }
-            preferencesRepository.setWearableSleepTriggerMessage(status)
         }
     }
 
@@ -495,6 +604,8 @@ class SettingsViewModel @Inject constructor(
     private companion object {
         const val ALPHA_MASK = -0x1000000
         const val MINUTES_PER_DAY = 24 * 60
+        const val ACTION_CONFIRM_ATTEMPTS = 15
+        const val ACTION_CONFIRM_INTERVAL_MS = 200L
         const val PERIODIC_CHECK_ENABLED_STATUS = "已开启 Health Connect 周期检查；它不会开始录音，睡前请点击前台检测"
     }
 }

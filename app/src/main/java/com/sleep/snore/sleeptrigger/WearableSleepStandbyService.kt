@@ -279,7 +279,7 @@ class WearableSleepStandbyService : Service() {
             .setContentText(status)
             .setOngoing(true)
             .setContentIntent(contentIntent)
-            .addAction(android.R.drawable.ic_menu_close_clear_cancel, "停止待命", stopIntent)
+            .addAction(android.R.drawable.ic_menu_close_clear_cancel, "停止睡前检测", stopIntent)
             .build()
     }
 

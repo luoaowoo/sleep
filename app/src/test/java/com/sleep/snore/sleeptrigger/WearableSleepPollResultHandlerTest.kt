@@ -84,6 +84,22 @@ class WearableSleepPollResultHandlerTest {
     }
 
     @Test
+    fun handleWearableSleepPollResult_mapsUnsupportedBackgroundReadStatus() = runTest {
+        val result = handleWearableSleepPollResult(
+            pollResult = HealthConnectSleepTriggerSource.PollResult.BackgroundReadUnavailable,
+            stopOnSleepEnd = true,
+            coordinator = AutoSnoreDetectionCoordinator(FakeRecordingController()),
+            settingsRepository = mockk(relaxed = true),
+            requireBackgroundRead = true
+        )
+
+        assertThat(result.statusText).contains("不支持后台读取")
+        assertThat(result.emittedSleepStart).isFalse()
+        assertThat(result.emittedSleepEnd).isFalse()
+        assertThat(result.eventHandled).isFalse()
+    }
+
+    @Test
     fun handleWearableSleepPollResult_savesObservedSleepSessionForDuplicateEvent() = runTest {
         val settingsRepository = mockk<SettingsPreferencesRepository>(relaxed = true)
         val session = SleepSessionSnapshot(

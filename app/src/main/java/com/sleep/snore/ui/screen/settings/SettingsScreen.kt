@@ -90,6 +90,8 @@ import com.sleep.snore.sleeptrigger.HealthConnectSleepTriggerSource
 import com.sleep.snore.sleeptrigger.HealthConnectSleepTriggerWorker
 import com.sleep.snore.sleeptrigger.WearableSleepStandbyService
 import com.sleep.snore.sleeptrigger.XiaomiSleepCompanionApps
+import com.sleep.snore.sleeptrigger.healthConnectPermissionsForRequest
+import com.sleep.snore.sleeptrigger.isBackgroundReadAvailable
 import com.sleep.snore.ui.theme.LocalThemePreviewController
 import com.sleep.snore.ui.theme.LocalUiPreferences
 import com.sleep.snore.ui.theme.Spacing
@@ -110,8 +112,9 @@ fun SettingsScreen(
     val cardCornerStyle by viewModel.cardCornerStyle.collectAsStateWithLifecycle()
     val standbyState by WearableSleepStandbyService.standbyState.collectAsStateWithLifecycle()
     val recordingState by SleepRecordingService.recordingState.collectAsStateWithLifecycle()
-    val wearableSleepDetectionActive = standbyState.isActive ||
+    val wearableForegroundRecordingActive = recordingState.isActive &&
         uiState.activeRecordingTriggerSource == HealthConnectSleepTriggerSource.SOURCE
+    val wearableControlActive = standbyState.isActive || wearableForegroundRecordingActive
     val uiPreferences = LocalUiPreferences.current
     val powerManager = remember(context) { context.getSystemService(PowerManager::class.java) }
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -120,6 +123,7 @@ fun SettingsScreen(
     var healthConnectPermissionRefreshTick by remember { mutableStateOf(0) }
     var powerStateRefreshTick by remember { mutableStateOf(0) }
     var companionAppRefreshTick by remember { mutableStateOf(0) }
+    var healthConnectBackgroundReadSupported by remember(context) { mutableStateOf(true) }
     val installedXiaomiCompanion = remember(context, companionAppRefreshTick) {
         findInstalledXiaomiCompanion(context)
     }
@@ -127,7 +131,10 @@ fun SettingsScreen(
         PermissionController.createRequestPermissionResultContract()
     ) { grantedPermissions ->
         healthConnectPermissionRefreshTick++
-        viewModel.onHealthConnectPermissionsResult(grantedPermissions)
+        viewModel.onHealthConnectPermissionsResult(
+            grantedPermissions = grantedPermissions,
+            backgroundReadAvailable = healthConnectBackgroundReadSupported
+        )
     }
     val audioPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -163,15 +170,17 @@ fun SettingsScreen(
     var healthConnectGrantedPermissionsText by remember(context) { mutableStateOf("未读取") }
     LaunchedEffect(context, healthConnectPermissionRefreshTick) {
         healthConnectSdkStatus = HealthConnectClient.getSdkStatus(context)
+        var backgroundReadSupported = false
         val grantedPermissions = runCatching {
             if (healthConnectSdkStatus != HealthConnectClient.SDK_AVAILABLE) {
                 emptySet<String>()
             } else {
-                HealthConnectClient.getOrCreate(context)
-                    .permissionController
-                    .getGrantedPermissions()
+                val client = HealthConnectClient.getOrCreate(context)
+                backgroundReadSupported = client.isBackgroundReadAvailable()
+                client.permissionController.getGrantedPermissions()
             }
         }.getOrDefault(emptySet())
+        healthConnectBackgroundReadSupported = backgroundReadSupported
         hasHealthConnectSleepReadPermission = grantedPermissions.contains(
             HealthConnectSleepTriggerSource.READ_SLEEP_PERMISSION
         )
@@ -395,6 +404,7 @@ fun SettingsScreen(
                             hasNotificationPermission = hasNotificationPermission,
                             hasHealthConnectSleepReadPermission = hasHealthConnectSleepReadPermission,
                             hasHealthConnectBackgroundReadPermission = hasHealthConnectBackgroundReadPermission,
+                            healthConnectBackgroundReadAvailable = healthConnectBackgroundReadSupported,
                             isIgnoringBatteryOptimizations = isIgnoringBatteryOptimizations,
                             hasXiaomiCompanion = installedXiaomiCompanion != null,
                             periodicCheckEnabled = uiState.wearableSleepTriggerEnabled,
@@ -407,6 +417,7 @@ fun SettingsScreen(
                             hasNotificationPermission &&
                             hasHealthConnectSleepReadPermission &&
                             hasHealthConnectBackgroundReadPermission &&
+                            healthConnectBackgroundReadSupported &&
                             installedXiaomiCompanion != null &&
                             uiState.wearableStopOnSleepEndEnabled &&
                             uiState.latestWearableSleepSessionSourcePackage in XiaomiSleepCompanionApps.packageNames
@@ -422,9 +433,10 @@ fun SettingsScreen(
                             hasXiaomiCompanion = installedXiaomiCompanion != null,
                             hasHealthConnectSleepReadPermission = hasHealthConnectSleepReadPermission,
                             hasHealthConnectBackgroundReadPermission = hasHealthConnectBackgroundReadPermission,
+                            healthConnectBackgroundReadAvailable = healthConnectBackgroundReadSupported,
                             periodicCheckEnabled = uiState.wearableSleepTriggerEnabled,
                             stopOnSleepEndEnabled = uiState.wearableStopOnSleepEndEnabled,
-                            foregroundDetectionActive = wearableSleepDetectionActive,
+                            foregroundDetectionActive = wearableForegroundRecordingActive,
                             latestWearableSleepSessionSourcePackage = uiState.latestWearableSleepSessionSourcePackage
                         ),
                         style = MaterialTheme.typography.labelSmall,
@@ -438,11 +450,26 @@ fun SettingsScreen(
                             color = MaterialTheme.colorScheme.error
                         )
                     }
+                    if (healthConnectSdkStatus == HealthConnectClient.SDK_AVAILABLE &&
+                        !healthConnectBackgroundReadSupported
+                    ) {
+                        Spacer(Modifier.height(Spacing.xs))
+                        Text(
+                            "当前 Health Connect 不支持后台读取：可授权睡眠读取并立即检查，但锁屏后的自动停录不稳定。",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
                     Spacer(Modifier.height(Spacing.sm))
                     SettingSwitchRow(
                         title = "Health Connect 周期检查",
-                        supportingText = "小米运动健康同步到 Health Connect 后，本应用按系统调度读取睡眠会话；当前没有可靠公开的实时小米睡眠 API，也不是实时手环直连。此开关只负责周期检查，睡前请点击下方按钮开启前台鼾声检测。",
-                        checked = uiState.wearableSleepTriggerEnabled,
+                        supportingText = if (healthConnectBackgroundReadSupported) {
+                            "小米运动健康同步到 Health Connect 后，本应用按系统调度读取睡眠会话；当前没有可靠公开的实时小米睡眠 API，也不是实时手环直连。此开关只负责周期检查，睡前请点击下方按钮开启前台鼾声检测。"
+                        } else {
+                            "当前设备或 Health Connect 版本不支持后台读取，周期检查已禁用；可用“立即检查”读取最近同步睡眠。"
+                        },
+                        checked = uiState.wearableSleepTriggerEnabled && healthConnectBackgroundReadSupported,
+                        enabled = healthConnectBackgroundReadSupported,
                         onCheckedChange = viewModel::onWearableSleepTriggerChange
                     )
                     HorizontalDivider(modifier = Modifier.padding(vertical = Spacing.sm))
@@ -545,6 +572,7 @@ fun SettingsScreen(
                         hasNotificationPermission = hasNotificationPermission,
                         hasHealthConnectSleepReadPermission = hasHealthConnectSleepReadPermission,
                         hasHealthConnectBackgroundReadPermission = hasHealthConnectBackgroundReadPermission,
+                        healthConnectBackgroundReadAvailable = healthConnectBackgroundReadSupported,
                         isIgnoringBatteryOptimizations = isIgnoringBatteryOptimizations,
                         xiaomiCompanionText = installedXiaomiCompanion?.let {
                             "${it.label} (${it.packageName})"
@@ -553,7 +581,7 @@ fun SettingsScreen(
                         stopOnSleepEndEnabled = uiState.wearableStopOnSleepEndEnabled,
                         bedtimeReminderEnabled = uiState.bedtimeReminderEnabled,
                         bedtimeReminderTimeText = uiState.bedtimeReminderTimeText,
-                        foregroundDetectionActive = wearableSleepDetectionActive,
+                        foregroundDetectionActive = wearableForegroundRecordingActive,
                         recordingRuntimeText = recordingRuntimeText(recordingState),
                         recordingActive = recordingState.isActive,
                         recordingStartTimeMillis = recordingState.startTime,
@@ -608,7 +636,7 @@ fun SettingsScreen(
                             color = MaterialTheme.colorScheme.error
                         )
                     }
-                    if (wearableSleepDetectionActive) {
+                    if (wearableControlActive) {
                         Text(
                             standbyState.statusText.takeIf { standbyState.isActive }
                                 ?.let { "检测状态：运行中，$it" }
@@ -622,11 +650,14 @@ fun SettingsScreen(
                         enabled = healthConnectSdkStatus == HealthConnectClient.SDK_AVAILABLE,
                         onClick = {
                             healthConnectPermissionLauncher.launch(
-                                HealthConnectSleepTriggerSource.BACKGROUND_REQUIRED_PERMISSIONS
+                                healthConnectPermissionsForRequest(
+                                    includeBackgroundRead = true,
+                                    backgroundReadAvailable = healthConnectBackgroundReadSupported
+                                )
                             )
                         }
                     ) {
-                        Text("授权 Health Connect")
+                        Text(if (healthConnectBackgroundReadSupported) "授权 Health Connect" else "授权睡眠读取")
                     }
                     TextButton(
                         onClick = {
@@ -645,7 +676,7 @@ fun SettingsScreen(
                         Text("立即检查睡眠记录（不录音）")
                     }
                     Text(
-                        "只读取最近同步睡眠；不会开始录音，但会开启 Health Connect 周期检查。",
+                        "只读取最近同步睡眠；不会开始录音，也不会自动开启 Health Connect 周期检查。",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -670,6 +701,7 @@ fun SettingsScreen(
                                         hasNotificationPermission = hasNotificationPermission,
                                         hasHealthConnectSleepReadPermission = hasHealthConnectSleepReadPermission,
                                         hasHealthConnectBackgroundReadPermission = hasHealthConnectBackgroundReadPermission,
+                                        healthConnectBackgroundReadAvailable = healthConnectBackgroundReadSupported,
                                         isIgnoringBatteryOptimizations = isIgnoringBatteryOptimizations,
                                         xiaomiCompanionText = installedXiaomiCompanion?.let {
                                             "${it.label} (${it.packageName})"
@@ -678,7 +710,7 @@ fun SettingsScreen(
                                         stopOnSleepEndEnabled = uiState.wearableStopOnSleepEndEnabled,
                                         bedtimeReminderEnabled = uiState.bedtimeReminderEnabled,
                                         bedtimeReminderTimeText = uiState.bedtimeReminderTimeText,
-                                        foregroundDetectionActive = wearableSleepDetectionActive,
+                                        foregroundDetectionActive = wearableForegroundRecordingActive,
                                         recordingRuntimeText = recordingRuntimeText(recordingState),
                                         recordingActive = recordingState.isActive,
                                         recordingStartTimeMillis = recordingState.startTime,
@@ -716,14 +748,22 @@ fun SettingsScreen(
                     Spacer(Modifier.height(Spacing.sm))
                     Button(
                         onClick = {
-                            if (wearableSleepDetectionActive) {
+                            if (wearableControlActive) {
                                 viewModel.stopWearableSleepStandby()
                             } else {
                                 viewModel.startWearableSleepStandby()
                             }
-                        }
+                        },
+                        enabled = !uiState.wearableActionInProgress
                     ) {
-                        Text(if (wearableSleepDetectionActive) "停止睡前前台检测" else "睡前开启前台检测")
+                        Text(
+                            when {
+                                uiState.wearableActionState == WearableActionState.Stopping -> "正在停止..."
+                                uiState.wearableActionState == WearableActionState.Starting -> "正在开启..."
+                                wearableControlActive -> "停止睡前前台检测"
+                                else -> "睡前开启前台检测"
+                            }
+                        )
                     }
                     Spacer(Modifier.height(Spacing.sm))
                     TextButton(
@@ -817,13 +857,14 @@ private fun SettingSwitchRow(
     title: String,
     supportingText: String,
     checked: Boolean,
+    enabled: Boolean = true,
     onCheckedChange: (Boolean) -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = Spacing.touchTargetMin)
-            .clickable(role = Role.Switch) { onCheckedChange(!checked) },
+            .clickable(enabled = enabled, role = Role.Switch) { onCheckedChange(!checked) },
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -839,7 +880,7 @@ private fun SettingSwitchRow(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
+        Switch(checked = checked, enabled = enabled, onCheckedChange = onCheckedChange)
     }
 }
 

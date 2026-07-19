@@ -7,6 +7,7 @@ import android.os.Build
 import androidx.core.content.ContextCompat
 import androidx.health.connect.client.HealthConnectClient
 import com.sleep.snore.sleeptrigger.HealthConnectSleepTriggerSource
+import com.sleep.snore.sleeptrigger.healthConnectBackgroundReadAvailable
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -38,6 +39,7 @@ open class WearableStandbyPrerequisiteChecker @Inject constructor(
             return "无法检查 Health Connect 权限，请重新授权"
         }
         return wearableStandbyStartBlocker(
+            healthConnectBackgroundReadAvailable = healthConnectBackgroundReadAvailable(context),
             hasHealthConnectSleepReadPermission = grantedPermissions.contains(
                 HealthConnectSleepTriggerSource.READ_SLEEP_PERMISSION
             ),
@@ -49,11 +51,15 @@ open class WearableStandbyPrerequisiteChecker @Inject constructor(
 }
 
 internal fun wearableStandbyStartBlocker(
+    healthConnectBackgroundReadAvailable: Boolean = true,
     hasHealthConnectSleepReadPermission: Boolean,
     hasHealthConnectBackgroundReadPermission: Boolean
 ): String? {
     if (!hasHealthConnectSleepReadPermission) {
         return "缺少 Health Connect 睡眠读取权限，请先授权 Health Connect"
+    }
+    if (!healthConnectBackgroundReadAvailable) {
+        return "当前设备或 Health Connect 版本不支持后台读取，锁屏后无法稳定自动停录；请睡前前台检测并在睡醒后手动停止或立即检查"
     }
     if (!hasHealthConnectBackgroundReadPermission) {
         return "缺少 Health Connect 后台读取权限，请先授权 Health Connect；否则锁屏后可能无法稳定自动停录"

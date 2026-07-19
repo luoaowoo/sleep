@@ -34,4 +34,16 @@ class WearableStandbyPrerequisiteCheckerTest {
             )
         ).contains("Health Connect 后台读取权限")
     }
+
+    @Test
+    fun wearableStandbyStartBlocker_blocksUnsupportedBackgroundReadBeforePermission() {
+        val blocker = wearableStandbyStartBlocker(
+            healthConnectBackgroundReadAvailable = false,
+            hasHealthConnectSleepReadPermission = true,
+            hasHealthConnectBackgroundReadPermission = false
+        )
+
+        assertThat(blocker).contains("不支持后台读取")
+        assertThat(blocker).doesNotContain("后台读取权限")
+    }
 }

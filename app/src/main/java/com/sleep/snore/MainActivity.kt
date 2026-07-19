@@ -117,8 +117,11 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun android.content.Intent?.startRoute(): String? {
-        return when (this?.getStringExtra(EXTRA_START_ROUTE)) {
-            START_ROUTE_SETTINGS -> START_ROUTE_SETTINGS
+        this ?: return null
+        return when {
+            getStringExtra(EXTRA_START_ROUTE) == START_ROUTE_SETTINGS -> START_ROUTE_SETTINGS
+            action == ACTION_SHOW_HEALTH_PERMISSIONS_RATIONALE -> START_ROUTE_SETTINGS
+            action == ACTION_VIEW_PERMISSION_USAGE -> START_ROUTE_SETTINGS
             else -> null
         }
     }
@@ -126,5 +129,8 @@ class MainActivity : ComponentActivity() {
     companion object {
         const val EXTRA_START_ROUTE = "com.sleep.snore.extra.START_ROUTE"
         const val START_ROUTE_SETTINGS = "settings"
+        private const val ACTION_SHOW_HEALTH_PERMISSIONS_RATIONALE =
+            "androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE"
+        private const val ACTION_VIEW_PERMISSION_USAGE = "android.intent.action.VIEW_PERMISSION_USAGE"
     }
 }

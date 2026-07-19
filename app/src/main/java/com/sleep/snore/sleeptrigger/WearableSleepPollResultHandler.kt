@@ -95,6 +95,7 @@ private const val SLEEP_ENDED_EVENT_KEY_PREFIX = "SleepEnded:"
 private fun HealthConnectSleepTriggerSource.PollResult.toLatestWearableSleepSessionStatus(): String {
     return when (this) {
         HealthConnectSleepTriggerSource.PollResult.HealthConnectUnavailable -> "Health Connect 不可用"
+        HealthConnectSleepTriggerSource.PollResult.BackgroundReadUnavailable -> "后台读取不支持"
         HealthConnectSleepTriggerSource.PollResult.PermissionMissing -> "缺少授权"
         HealthConnectSleepTriggerSource.PollResult.NoRecentSleep -> "未发现记录"
         is HealthConnectSleepTriggerSource.PollResult.NoActionableSleep -> when (this.reason) {
@@ -124,6 +125,9 @@ internal fun HealthConnectSleepTriggerSource.PollResult.toWearableSleepStatusTex
 ): String {
     return when (this) {
         HealthConnectSleepTriggerSource.PollResult.HealthConnectUnavailable -> "Health Connect 不可用"
+        HealthConnectSleepTriggerSource.PollResult.BackgroundReadUnavailable -> {
+            "当前设备或 Health Connect 版本不支持后台读取，锁屏后无法稳定自动停录；可使用立即检查或睡醒后手动停止"
+        }
         HealthConnectSleepTriggerSource.PollResult.PermissionMissing -> if (requireBackgroundRead) {
             "缺少 Health Connect 睡眠/后台读取权限"
         } else {

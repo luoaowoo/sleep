@@ -103,7 +103,7 @@ class SettingsViewModelWearableStandbyTest {
     }
 
     @Test
-    fun checkWearableSleepNow_enablesPeriodicCheckWithoutStartingRecording() = runTest(dispatcher) {
+    fun checkWearableSleepNow_runsOneTimeCheckWithoutStartingRecording() = runTest(dispatcher) {
         val repository = createRepository()
         val recordingController = FakeRecordingController()
         val viewModel = SettingsViewModel(
@@ -118,7 +118,7 @@ class SettingsViewModelWearableStandbyTest {
         advanceUntilIdle()
 
         val settings = repository.settingsSnapshot()
-        assertThat(settings.wearableSleepTriggerEnabled).isTrue()
+        assertThat(settings.wearableSleepTriggerEnabled).isFalse()
         assertThat(settings.wearableSleepTriggerStatus).contains("不会开始录音")
         assertThat(settings.wearableSleepTriggerStatus).contains("前台检测")
         assertThat(recordingController.startedSources).isEmpty()
@@ -169,6 +169,31 @@ class SettingsViewModelWearableStandbyTest {
     }
 
     @Test
+    fun onHealthConnectPermissionsResult_whenBackgroundUnsupportedDisablesPeriodicCheck() = runTest(dispatcher) {
+        val repository = createRepository()
+        repository.setWearableSleepTriggerEnabled(true)
+        val recordingController = FakeRecordingController()
+        val viewModel = SettingsViewModel(
+            context = RuntimeEnvironment.getApplication(),
+            preferencesRepository = repository,
+            sleepRepository = fakeSleepRepository(),
+            recordingController = recordingController,
+            wearableStandbyPrerequisiteChecker = FakeWearableStandbyPrerequisiteChecker()
+        )
+
+        viewModel.onHealthConnectPermissionsResult(
+            grantedPermissions = HealthConnectSleepTriggerSource.FOREGROUND_REQUIRED_PERMISSIONS,
+            backgroundReadAvailable = false
+        )
+        advanceUntilIdle()
+
+        val settings = repository.settingsSnapshot()
+        assertThat(settings.wearableSleepTriggerEnabled).isFalse()
+        assertThat(settings.wearableSleepTriggerStatus).contains("不支持后台读取")
+        assertThat(recordingController.startedSources).isEmpty()
+    }
+
+    @Test
     fun startWearableSleepStandby_whenRecordingConfirmedStartsStandbyForegroundService() = runTest(dispatcher) {
         val context = RuntimeEnvironment.getApplication()
         val repository = createRepository()
@@ -195,6 +220,29 @@ class SettingsViewModelWearableStandbyTest {
             .isEqualTo(WearableSleepStandbyService.ACTION_START)
         assertThat(repository.settingsSnapshot().wearableSleepTriggerStatus)
             .isEqualTo("睡前前台检测已开启，录音服务将低频检查 Health Connect 睡眠结束")
+    }
+
+    @Test
+    fun startWearableSleepStandby_ignoresRepeatedTapWhileOpening() = runTest(dispatcher) {
+        val repository = createRepository()
+        val recordingController = FakeRecordingController(
+            startResult = RecordingStartResult.Confirmed("started")
+        )
+        val viewModel = SettingsViewModel(
+            context = RuntimeEnvironment.getApplication(),
+            preferencesRepository = repository,
+            sleepRepository = fakeSleepRepository(),
+            recordingController = recordingController,
+            wearableStandbyPrerequisiteChecker = FakeWearableStandbyPrerequisiteChecker()
+        )
+
+        viewModel.startWearableSleepStandby()
+        viewModel.startWearableSleepStandby()
+        advanceUntilIdle()
+
+        assertThat(recordingController.startedSources)
+            .containsExactly(HealthConnectSleepTriggerSource.SOURCE)
+        assertThat(viewModel.uiState.value.wearableActionInProgress).isFalse()
     }
 
     @Test
@@ -244,6 +292,28 @@ class SettingsViewModelWearableStandbyTest {
         assertThat(shadowOf(context).nextStartedService).isNull()
         assertThat(repository.settingsSnapshot().wearableSleepTriggerStatus)
             .isEqualTo("等待录音服务确认")
+    }
+
+    @Test
+    fun stopWearableSleepStandby_ignoresRepeatedTapWhileStopping() = runTest(dispatcher) {
+        val context = RuntimeEnvironment.getApplication()
+        val repository = createRepository()
+        val recordingController = FakeRecordingController()
+        val viewModel = SettingsViewModel(
+            context = context,
+            preferencesRepository = repository,
+            sleepRepository = fakeSleepRepository(),
+            recordingController = recordingController,
+            wearableStandbyPrerequisiteChecker = FakeWearableStandbyPrerequisiteChecker()
+        )
+
+        viewModel.stopWearableSleepStandby()
+        viewModel.stopWearableSleepStandby()
+        advanceUntilIdle()
+
+        assertThat(recordingController.stoppedSources)
+            .containsExactly(HealthConnectSleepTriggerSource.SOURCE)
+        assertThat(viewModel.uiState.value.wearableActionInProgress).isFalse()
     }
 
     @Test

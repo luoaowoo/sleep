@@ -20,6 +20,7 @@ class WearableDiagnosticReportTest {
                 hasNotificationPermission = false,
                 hasHealthConnectSleepReadPermission = true,
                 hasHealthConnectBackgroundReadPermission = false,
+                healthConnectBackgroundReadAvailable = true,
                 isIgnoringBatteryOptimizations = false,
                 xiaomiCompanionText = "Mi Fitness (com.xiaomi.wearable)",
                 periodicCheckEnabled = true,
@@ -55,6 +56,7 @@ class WearableDiagnosticReportTest {
         assertThat(report).contains("小米伴侣：Mi Fitness")
         assertThat(report).contains("通知权限：未满足")
         assertThat(report).contains("Health Connect 后台读取：未满足")
+        assertThat(report).contains("Health Connect 后台读取支持：已满足")
         assertThat(report).contains("睡前提醒：已开启（22:30）")
         assertThat(report).contains("前台睡前检测：运行中")
         assertThat(report).contains("录音运行态：运行中，事件数 3")
@@ -73,7 +75,8 @@ class WearableDiagnosticReportTest {
         assertThat(report).contains("最近睡眠时长分钟：420")
         assertThat(report).contains("最近睡眠与触发重叠分钟：420")
         assertThat(report).contains("手环前台检测 16 小时兜底截止毫秒：58600000")
-        assertThat(report).contains("最近睡眠自动停录规则判断：满足自动停录时间规则")
+        assertThat(report).contains("最近睡眠自动停录规则判断：不会稳定自动停录")
+        assertThat(report).contains("缺少 Health Connect 后台读取权限")
         assertThat(report).contains("后台任务：")
         assertThat(report).contains("health_connect_sleep_trigger: ENQUEUED(attempt=0)")
         assertThat(report).contains("数据库：")
@@ -234,6 +237,33 @@ class WearableDiagnosticReportTest {
     }
 
     @Test
+    fun sleepAutoStopRuleDiagnostic_reportsMissingBackgroundReadPermissionBeforeTimeRules() {
+        val diagnostic = sleepAutoStopRuleDiagnostic(
+            sleepStartMillis = 1_000L,
+            sleepEndMillis = 7_201_000L,
+            triggerStartedAtMillis = 1_000L,
+            hasHealthConnectBackgroundReadPermission = false
+        )
+
+        assertThat(diagnostic).contains("缺少 Health Connect 后台读取权限")
+        assertThat(diagnostic).doesNotContain("满足自动停录")
+    }
+
+    @Test
+    fun sleepAutoStopRuleDiagnostic_reportsUnsupportedBackgroundReadBeforePermission() {
+        val diagnostic = sleepAutoStopRuleDiagnostic(
+            sleepStartMillis = 1_000L,
+            sleepEndMillis = 7_201_000L,
+            triggerStartedAtMillis = 1_000L,
+            hasHealthConnectBackgroundReadPermission = false,
+            healthConnectBackgroundReadAvailable = false
+        )
+
+        assertThat(diagnostic).contains("不支持后台读取")
+        assertThat(diagnostic).doesNotContain("缺少 Health Connect 后台读取权限")
+    }
+
+    @Test
     fun sleepAutoStopRuleDiagnostic_reportsNonXiaomiSourceBeforeTimeRules() {
         val diagnostic = sleepAutoStopRuleDiagnostic(
             sleepStartMillis = 1_000L,
@@ -273,6 +303,7 @@ class WearableDiagnosticReportTest {
                 hasNotificationPermission = true,
                 hasHealthConnectSleepReadPermission = true,
                 hasHealthConnectBackgroundReadPermission = true,
+                healthConnectBackgroundReadAvailable = true,
                 isIgnoringBatteryOptimizations = true,
                 xiaomiCompanionText = "未检测到 Mi Fitness / 小米运动健康 / Zepp Life",
                 periodicCheckEnabled = true,
@@ -302,6 +333,29 @@ class WearableDiagnosticReportTest {
         assertThat(report).contains("最近睡眠来源：com.example.sleep")
         assertThat(report).contains("来源不是已知小米伴侣")
         assertThat(report).doesNotContain("最近睡眠自动停录规则判断：满足自动停录时间规则")
+    }
+
+    @Test
+    fun wearableDiagnosticReport_reportsMissingBackgroundReadInAutoStopRules() {
+        val report = wearableDiagnosticReport(
+            diagnosticInput(hasHealthConnectBackgroundReadPermission = false)
+        )
+
+        assertThat(report).contains("Health Connect 后台读取：未满足")
+        assertThat(report).contains("最近睡眠自动停录规则判断：不会稳定自动停录")
+    }
+
+    @Test
+    fun wearableDiagnosticReport_reportsUnsupportedBackgroundReadInAutoStopRules() {
+        val report = wearableDiagnosticReport(
+            diagnosticInput(
+                hasHealthConnectBackgroundReadPermission = false,
+                healthConnectBackgroundReadAvailable = false
+            )
+        )
+
+        assertThat(report).contains("Health Connect 后台读取支持：未满足")
+        assertThat(report).contains("当前设备或 Health Connect 版本不支持后台读取")
     }
 
     @Test
@@ -444,6 +498,7 @@ class WearableDiagnosticReportTest {
         hasNotificationPermission: Boolean = true,
         hasHealthConnectSleepReadPermission: Boolean = true,
         hasHealthConnectBackgroundReadPermission: Boolean = true,
+        healthConnectBackgroundReadAvailable: Boolean = true,
         xiaomiCompanionText: String = "Mi Fitness (com.xiaomi.wearable)",
         periodicCheckEnabled: Boolean = true,
         stopOnSleepEndEnabled: Boolean = true,
@@ -464,6 +519,7 @@ class WearableDiagnosticReportTest {
             hasNotificationPermission = hasNotificationPermission,
             hasHealthConnectSleepReadPermission = hasHealthConnectSleepReadPermission,
             hasHealthConnectBackgroundReadPermission = hasHealthConnectBackgroundReadPermission,
+            healthConnectBackgroundReadAvailable = healthConnectBackgroundReadAvailable,
             isIgnoringBatteryOptimizations = true,
             xiaomiCompanionText = xiaomiCompanionText,
             periodicCheckEnabled = periodicCheckEnabled,

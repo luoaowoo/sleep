@@ -41,6 +41,24 @@ class HealthConnectSleepTriggerWorkerTest {
     }
 
     @Test
+    fun doWork_whenDisabledStillAllowsImmediateForegroundCheck() = runTest {
+        val fixture = createFixture(
+            settings = SettingsPreferences(wearableSleepTriggerEnabled = false),
+            inputRequireBackgroundRead = false
+        )
+
+        fixture.worker().doWork()
+
+        coVerify {
+            fixture.source.pollLatestSleepSession(
+                now = any<Instant>(),
+                requireBackgroundRead = false,
+                ignoreEventsBefore = null
+            )
+        }
+    }
+
+    @Test
     fun doWork_whenReadFailsStoresRetryableStatus() = runTest {
         val fixture = createFixture(
             settings = SettingsPreferences(wearableSleepTriggerEnabled = true)

@@ -33,6 +33,9 @@ class HealthConnectSleepTriggerSource @Inject constructor(
             return PollResult.HealthConnectUnavailable
         }
         val client = HealthConnectClient.getOrCreate(context)
+        if (requireBackgroundRead && !client.isBackgroundReadAvailable()) {
+            return PollResult.BackgroundReadUnavailable
+        }
         val grantedPermissions = client.permissionController.getGrantedPermissions()
         val requiredPermissions = if (requireBackgroundRead) {
             BACKGROUND_REQUIRED_PERMISSIONS
@@ -92,6 +95,7 @@ class HealthConnectSleepTriggerSource @Inject constructor(
             get() = null
 
         data object HealthConnectUnavailable : PollResult
+        data object BackgroundReadUnavailable : PollResult
         data object PermissionMissing : PollResult
         data object NoRecentSleep : PollResult
         data class NoActionableSleep(

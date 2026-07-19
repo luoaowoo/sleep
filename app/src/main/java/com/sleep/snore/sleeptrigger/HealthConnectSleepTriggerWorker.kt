@@ -28,12 +28,13 @@ class HealthConnectSleepTriggerWorker @AssistedInject constructor(
 
     override suspend fun doWork(): Result {
         val settings = settingsRepository.settings.first()
-        if (!settings.wearableSleepTriggerEnabled) return Result.success()
+        val requireBackgroundRead = inputData.getBoolean(KEY_REQUIRE_BACKGROUND_READ, true)
+        if (!settings.wearableSleepTriggerEnabled && requireBackgroundRead) return Result.success()
 
         val pollResult = runCatching {
             healthConnectSleepTriggerSource.pollLatestSleepSession(
                 now = Instant.now(),
-                requireBackgroundRead = inputData.getBoolean(KEY_REQUIRE_BACKGROUND_READ, true),
+                requireBackgroundRead = requireBackgroundRead,
                 ignoreEventsBefore = sleepEventIgnoreEventsBefore(settings)
             )
         }.getOrElse { throwable ->
@@ -43,7 +44,6 @@ class HealthConnectSleepTriggerWorker @AssistedInject constructor(
             return Result.success()
         }
 
-        val requireBackgroundRead = inputData.getBoolean(KEY_REQUIRE_BACKGROUND_READ, true)
         val handleResult = handleWearableSleepPollResult(
             pollResult = pollResult,
             stopOnSleepEnd = settings.wearableStopOnSleepEndEnabled,

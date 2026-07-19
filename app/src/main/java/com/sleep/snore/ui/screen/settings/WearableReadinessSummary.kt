@@ -11,13 +11,17 @@ internal fun wearableReadinessSummary(
     hasXiaomiCompanion: Boolean,
     periodicCheckEnabled: Boolean,
     stopOnSleepEndEnabled: Boolean,
-    latestWearableSleepSessionSourcePackage: String
+    latestWearableSleepSessionSourcePackage: String,
+    healthConnectBackgroundReadAvailable: Boolean = true
 ): String {
     val requiredMissingItems = buildList {
         if (!hasRecordAudioPermission) add("麦克风权限")
         if (!hasNotificationPermission) add("通知权限")
         if (!hasHealthConnectSleepReadPermission) add("Health Connect 睡眠读取授权")
-        if (!hasHealthConnectBackgroundReadPermission) add("Health Connect 后台读取授权")
+        if (!healthConnectBackgroundReadAvailable) add("Health Connect 后台读取支持")
+        if (healthConnectBackgroundReadAvailable && !hasHealthConnectBackgroundReadPermission) {
+            add("Health Connect 后台读取授权")
+        }
         if (!hasXiaomiCompanion) add("小米伴侣 App")
         if (!stopOnSleepEndEnabled) add("睡眠结束后自动停止")
     }
@@ -50,7 +54,8 @@ internal fun wearableIntegrationStatusSummary(
     periodicCheckEnabled: Boolean,
     stopOnSleepEndEnabled: Boolean,
     foregroundDetectionActive: Boolean,
-    latestWearableSleepSessionSourcePackage: String
+    latestWearableSleepSessionSourcePackage: String,
+    healthConnectBackgroundReadAvailable: Boolean = true
 ): String {
     return when {
         foregroundDetectionActive && !stopOnSleepEndEnabled -> {
@@ -64,6 +69,9 @@ internal fun wearableIntegrationStatusSummary(
         }
         !hasHealthConnectSleepReadPermission -> {
             "小米伴侣 App 已就绪：下一步授权本应用读取 Health Connect 睡眠数据。"
+        }
+        !healthConnectBackgroundReadAvailable -> {
+            "Health Connect 睡眠读取可用于立即检查，但当前设备或 Health Connect 版本不支持后台读取；锁屏后自动停录不稳定，睡醒后请手动确认。"
         }
         !hasHealthConnectBackgroundReadPermission -> {
             "Health Connect 睡眠读取已授权：可手动检查最近睡眠；后台周期检查和 Worker 兜底停录仍需后台读取授权；已运行的前台检测可继续低频检查睡眠结束。"
