@@ -69,6 +69,16 @@ class SettingsPreferencesRepositoryTest {
     }
 
     @Test
+    fun wearableAutoStartOnSleepStart_persistsEnabledFlag() = runTest {
+        val repository = createFixture().repository
+
+        assertThat(repository.settings.first().wearableAutoStartOnSleepStartEnabled).isFalse()
+        repository.setWearableAutoStartOnSleepStartEnabled(true)
+
+        assertThat(repository.settings.first().wearableAutoStartOnSleepStartEnabled).isTrue()
+    }
+
+    @Test
     fun wearableSleepTriggerStatus_persistsStatusAndLastCheckTime() = runTest {
         val repository = createFixture().repository
 

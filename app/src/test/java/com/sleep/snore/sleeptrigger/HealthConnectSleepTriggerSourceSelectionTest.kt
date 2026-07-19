@@ -155,4 +155,29 @@ class HealthConnectSleepTriggerSourceSelectionTest {
         assertThat(noActionable.reason)
             .isEqualTo(HealthConnectSleepTriggerSource.PollResult.NoActionableSleepReason.SHORT_SLEEP_SESSION)
     }
+
+
+    @Test
+    fun selectXiaomiActionableSleepSession_emitsSleepStartForOngoingXiaomiSessionWhenEnabled() {
+        val ongoingXiaomiSession = SleepSessionSnapshot(
+            startTime = Instant.parse("2026-07-12T07:30:00Z"),
+            endTime = Instant.parse("2026-07-12T12:00:00Z"),
+            dataOriginPackageName = "com.mi.health"
+        )
+
+        val result = selectXiaomiActionableSleepSession(
+            sessions = listOf(ongoingXiaomiSession),
+            now = now,
+            ignoreEventsBefore = Instant.parse("2026-07-12T07:00:00Z"),
+            emitOngoingSleepStart = true
+        )
+
+        assertThat(result).isInstanceOf(XiaomiActionableSleepSelection.Actionable::class.java)
+        val actionable = result as XiaomiActionableSleepSelection.Actionable
+        assertThat(actionable.session).isEqualTo(ongoingXiaomiSession)
+        assertThat(actionable.event.event).isInstanceOf(SleepTriggerEvent.SleepStarted::class.java)
+        assertThat(actionable.event.eventKey)
+            .isEqualTo("SleepStarted:${ongoingXiaomiSession.startTime.toEpochMilli()}")
+    }
+
 }

@@ -7,6 +7,19 @@ class WearableSleepStartRecordingPolicyTest {
 
     @Test
     fun wearableBackgroundChecks_doNotStartRecordingFromSleepStarted() {
-        assertThat(allowSleepStartRecordingFromBackgroundCheck()).isFalse()
+        assertThat(
+            allowSleepStartRecordingFromBackgroundCheck(
+                wearableAutoStartOnSleepStartEnabled = false
+            )
+        ).isFalse()
+    }
+
+    @Test
+    fun wearableBackgroundChecks_allowSleepStartRecordingWhenExperimentEnabled() {
+        assertThat(
+            allowSleepStartRecordingFromBackgroundCheck(
+                wearableAutoStartOnSleepStartEnabled = true
+            )
+        ).isTrue()
     }
 }

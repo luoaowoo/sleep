@@ -29,6 +29,20 @@ class HealthConnectSleepTriggerSource @Inject constructor(
         requireBackgroundRead: Boolean,
         ignoreEventsBefore: Instant?
     ): PollResult {
+        return pollLatestSleepSession(
+            now = now,
+            requireBackgroundRead = requireBackgroundRead,
+            ignoreEventsBefore = ignoreEventsBefore,
+            emitOngoingSleepStart = false
+        )
+    }
+
+    suspend fun pollLatestSleepSession(
+        now: Instant,
+        requireBackgroundRead: Boolean,
+        ignoreEventsBefore: Instant?,
+        emitOngoingSleepStart: Boolean
+    ): PollResult {
         if (HealthConnectClient.getSdkStatus(context) != HealthConnectClient.SDK_AVAILABLE) {
             return PollResult.HealthConnectUnavailable
         }
@@ -70,7 +84,8 @@ class HealthConnectSleepTriggerSource @Inject constructor(
         val actionableSession = selectXiaomiActionableSleepSession(
             sessions = sessions,
             now = now,
-            ignoreEventsBefore = ignoreEventsBefore
+            ignoreEventsBefore = ignoreEventsBefore,
+            emitOngoingSleepStart = emitOngoingSleepStart
         ) ?: return PollResult.NoRecentSleep
         if (actionableSession is XiaomiActionableSleepSelection.NoActionable) {
             return PollResult.NoActionableSleep(
@@ -152,7 +167,8 @@ internal sealed interface XiaomiActionableSleepSelection {
 internal fun selectXiaomiActionableSleepSession(
     sessions: List<SleepSessionSnapshot>,
     now: Instant,
-    ignoreEventsBefore: Instant?
+    ignoreEventsBefore: Instant?,
+    emitOngoingSleepStart: Boolean = false
 ): XiaomiActionableSleepSelection? {
     val latestSession = HealthConnectSleepEventInterpreter.latestValidSession(
         sessions = sessions,
@@ -174,7 +190,8 @@ internal fun selectXiaomiActionableSleepSession(
     val actionableSession = HealthConnectSleepEventInterpreter.latestActionableSession(
         sessions = xiaomiSessions,
         now = now,
-        ignoreEventsBefore = ignoreEventsBefore
+        ignoreEventsBefore = ignoreEventsBefore,
+        emitOngoingSleepStart = emitOngoingSleepStart
     ) ?: return XiaomiActionableSleepSelection.NoActionable(
         observedSession = latestXiaomiSession,
         reason = noActionableSleepReason(

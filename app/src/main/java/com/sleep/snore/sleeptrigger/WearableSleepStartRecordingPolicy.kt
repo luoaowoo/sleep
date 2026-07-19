@@ -1,3 +1,5 @@
 package com.sleep.snore.sleeptrigger
 
-internal fun allowSleepStartRecordingFromBackgroundCheck(): Boolean = false
+internal fun allowSleepStartRecordingFromBackgroundCheck(
+    wearableAutoStartOnSleepStartEnabled: Boolean
+): Boolean = wearableAutoStartOnSleepStartEnabled

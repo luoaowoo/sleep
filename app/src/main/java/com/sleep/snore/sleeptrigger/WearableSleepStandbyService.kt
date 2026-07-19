@@ -146,7 +146,8 @@ class WearableSleepStandbyService : Service() {
                 ignoreEventsBefore = sleepEventIgnoreEventsBefore(
                     settings = settings,
                     fallbackMillis = standbyStartedAtMillis
-                )
+                ),
+                emitOngoingSleepStart = settings.wearableAutoStartOnSleepStartEnabled
             )
         }.getOrElse { throwable ->
             val status = "睡眠结束辅助检查失败：${throwable.message.orEmpty()}".trimEnd('：')
@@ -161,7 +162,9 @@ class WearableSleepStandbyService : Service() {
             coordinator = coordinator,
             settingsRepository = settingsRepository,
             requireBackgroundRead = true,
-            allowSleepStartRecording = allowSleepStartRecordingFromBackgroundCheck()
+            allowSleepStartRecording = allowSleepStartRecordingFromBackgroundCheck(
+                settings.wearableAutoStartOnSleepStartEnabled
+            )
         )
         val status = handleResult.statusText
         persistStandbyStatus(status)

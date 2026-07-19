@@ -30,12 +30,15 @@ class HealthConnectSleepTriggerWorker @AssistedInject constructor(
         val settings = settingsRepository.settings.first()
         val requireBackgroundRead = inputData.getBoolean(KEY_REQUIRE_BACKGROUND_READ, true)
         if (!settings.wearableSleepTriggerEnabled && requireBackgroundRead) return Result.success()
+        val allowSleepStartFromThisCheck = requireBackgroundRead &&
+            settings.wearableAutoStartOnSleepStartEnabled
 
         val pollResult = runCatching {
             healthConnectSleepTriggerSource.pollLatestSleepSession(
                 now = Instant.now(),
                 requireBackgroundRead = requireBackgroundRead,
-                ignoreEventsBefore = sleepEventIgnoreEventsBefore(settings)
+                ignoreEventsBefore = sleepEventIgnoreEventsBefore(settings),
+                emitOngoingSleepStart = allowSleepStartFromThisCheck
             )
         }.getOrElse { throwable ->
             settingsRepository.setWearableSleepTriggerStatus(
@@ -50,7 +53,9 @@ class HealthConnectSleepTriggerWorker @AssistedInject constructor(
             coordinator = coordinator,
             settingsRepository = settingsRepository,
             requireBackgroundRead = requireBackgroundRead,
-            allowSleepStartRecording = allowSleepStartRecordingFromBackgroundCheck()
+            allowSleepStartRecording = allowSleepStartRecordingFromBackgroundCheck(
+                allowSleepStartFromThisCheck
+            )
         )
         settingsRepository.setWearableSleepTriggerStatus(handleResult.statusText)
         return Result.success()

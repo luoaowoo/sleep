@@ -79,6 +79,42 @@ class HealthConnectSleepEventInterpreterTest {
         assertThat(result).isNull()
     }
 
+
+    @Test
+    fun interpret_returnsSleepStartedForOngoingSessionWhenEnabled() {
+        val now = Instant.parse("2026-07-11T02:00:00Z")
+        val start = Instant.parse("2026-07-11T01:00:00Z")
+        val result = HealthConnectSleepEventInterpreter.interpret(
+            session = SleepSessionSnapshot(
+                startTime = start,
+                endTime = Instant.parse("2026-07-11T08:00:00Z")
+            ),
+            now = now,
+            ignoreEventsBefore = Instant.parse("2026-07-11T00:30:00Z"),
+            emitOngoingSleepStart = true
+        )
+
+        val event = result?.event as SleepTriggerEvent.SleepStarted
+        assertThat(event.timestamp).isEqualTo(start.toEpochMilli())
+        assertThat(event.confidence).isEqualTo(HealthConnectSleepTriggerSource.HEALTH_CONNECT_CONFIDENCE)
+        assertThat(result.eventKey).isEqualTo("SleepStarted:${start.toEpochMilli()}")
+    }
+
+    @Test
+    fun interpret_ignoresOngoingSessionBeforeArmedTimeEvenWhenStartEnabled() {
+        val result = HealthConnectSleepEventInterpreter.interpret(
+            session = SleepSessionSnapshot(
+                startTime = Instant.parse("2026-07-11T01:00:00Z"),
+                endTime = Instant.parse("2026-07-11T08:00:00Z")
+            ),
+            now = Instant.parse("2026-07-11T02:00:00Z"),
+            ignoreEventsBefore = Instant.parse("2026-07-11T01:30:00Z"),
+            emitOngoingSleepStart = true
+        )
+
+        assertThat(result).isNull()
+    }
+
     @Test
     fun interpret_returnsSleepEndedForFinishedSession() {
         val now = Instant.parse("2026-07-11T09:00:00Z")

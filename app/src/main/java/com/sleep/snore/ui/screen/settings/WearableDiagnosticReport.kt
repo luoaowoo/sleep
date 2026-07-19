@@ -19,6 +19,7 @@ internal data class WearableDiagnosticReportInput(
     val xiaomiCompanionText: String,
     val periodicCheckEnabled: Boolean,
     val stopOnSleepEndEnabled: Boolean,
+    val autoStartOnSleepStartEnabled: Boolean,
     val bedtimeReminderEnabled: Boolean,
     val bedtimeReminderTimeText: String,
     val foregroundDetectionActive: Boolean,
@@ -58,6 +59,7 @@ internal fun wearableDiagnosticReport(input: WearableDiagnosticReportInput): Str
         appendLine("电池优化放行：${input.isIgnoringBatteryOptimizations.toYesNo()}")
         appendLine("周期检查：${input.periodicCheckEnabled.toOnOff()}")
         appendLine("睡眠结束自动停录：${input.stopOnSleepEndEnabled.toOnOff()}")
+        appendLine("实验睡眠开始触发：${input.autoStartOnSleepStartEnabled.toOnOff()}")
         appendLine("睡前提醒：${input.bedtimeReminderEnabled.toOnOff()}（${input.bedtimeReminderTimeText}）")
         appendLine("前台睡前检测：${input.foregroundDetectionActive.toActiveInactive()}")
         appendLine("录音运行态：${input.recordingRuntimeText}")

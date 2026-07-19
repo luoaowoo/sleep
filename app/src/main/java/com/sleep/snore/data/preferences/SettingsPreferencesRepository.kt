@@ -36,6 +36,8 @@ data class SettingsPreferences(
     val deepSeekModelName: String = SettingsPreferencesRepository.DEFAULT_DEEPSEEK_MODEL_NAME,
     val aiCustomInfo: String = "",
     val wearableSleepTriggerEnabled: Boolean = SettingsPreferencesRepository.DEFAULT_WEARABLE_SLEEP_TRIGGER_ENABLED,
+    val wearableAutoStartOnSleepStartEnabled: Boolean =
+        SettingsPreferencesRepository.DEFAULT_WEARABLE_AUTO_START_ON_SLEEP_START_ENABLED,
     val wearableStopOnSleepEndEnabled: Boolean = SettingsPreferencesRepository.DEFAULT_WEARABLE_STOP_ON_SLEEP_END_ENABLED,
     val bedtimeReminderEnabled: Boolean = SettingsPreferencesRepository.DEFAULT_BEDTIME_REMINDER_ENABLED,
     val bedtimeReminderMinuteOfDay: Int = SettingsPreferencesRepository.DEFAULT_BEDTIME_REMINDER_MINUTE_OF_DAY,
@@ -96,6 +98,8 @@ class SettingsPreferencesRepository @Inject constructor(
                 aiCustomInfo = preferences[Keys.AI_CUSTOM_INFO].orEmpty(),
                 wearableSleepTriggerEnabled = preferences[Keys.WEARABLE_SLEEP_TRIGGER_ENABLED]
                     ?: DEFAULT_WEARABLE_SLEEP_TRIGGER_ENABLED,
+                wearableAutoStartOnSleepStartEnabled = preferences[Keys.WEARABLE_AUTO_START_ON_SLEEP_START_ENABLED]
+                    ?: DEFAULT_WEARABLE_AUTO_START_ON_SLEEP_START_ENABLED,
                 wearableStopOnSleepEndEnabled = preferences[Keys.WEARABLE_STOP_ON_SLEEP_END_ENABLED]
                     ?: DEFAULT_WEARABLE_STOP_ON_SLEEP_END_ENABLED,
                 bedtimeReminderEnabled = preferences[Keys.BEDTIME_REMINDER_ENABLED]
@@ -257,6 +261,12 @@ class SettingsPreferencesRepository @Inject constructor(
         }
     }
 
+    suspend fun setWearableAutoStartOnSleepStartEnabled(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[Keys.WEARABLE_AUTO_START_ON_SLEEP_START_ENABLED] = enabled
+        }
+    }
+
     suspend fun setWearableStopOnSleepEndEnabled(enabled: Boolean) {
         dataStore.edit { preferences ->
             preferences[Keys.WEARABLE_STOP_ON_SLEEP_END_ENABLED] = enabled
@@ -389,6 +399,8 @@ class SettingsPreferencesRepository @Inject constructor(
         val DEEPSEEK_MODEL_NAME = stringPreferencesKey("deepseek_model_name")
         val AI_CUSTOM_INFO = stringPreferencesKey("ai_custom_info")
         val WEARABLE_SLEEP_TRIGGER_ENABLED = booleanPreferencesKey("wearable_sleep_trigger_enabled")
+        val WEARABLE_AUTO_START_ON_SLEEP_START_ENABLED =
+            booleanPreferencesKey("wearable_auto_start_on_sleep_start_enabled")
         val WEARABLE_STOP_ON_SLEEP_END_ENABLED = booleanPreferencesKey("wearable_stop_on_sleep_end_enabled")
         val BEDTIME_REMINDER_ENABLED = booleanPreferencesKey("bedtime_reminder_enabled")
         val BEDTIME_REMINDER_MINUTE_OF_DAY = intPreferencesKey("bedtime_reminder_minute_of_day")
@@ -428,6 +440,7 @@ class SettingsPreferencesRepository @Inject constructor(
         const val DEFAULT_DEEPSEEK_BASE_URL = "https://api.deepseek.com/v1/chat/completions"
         const val DEFAULT_DEEPSEEK_MODEL_NAME = "deepseek-chat"
         const val DEFAULT_WEARABLE_SLEEP_TRIGGER_ENABLED = false
+        const val DEFAULT_WEARABLE_AUTO_START_ON_SLEEP_START_ENABLED = false
         const val DEFAULT_WEARABLE_STOP_ON_SLEEP_END_ENABLED = true
         const val DEFAULT_BEDTIME_REMINDER_ENABLED = false
         const val DEFAULT_BEDTIME_REMINDER_MINUTE_OF_DAY = 22 * 60 + 30

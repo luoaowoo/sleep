@@ -54,6 +54,8 @@ data class SettingsUiState(
     val deepSeekModelName: String = SettingsPreferencesRepository.DEFAULT_DEEPSEEK_MODEL_NAME,
     val aiCustomInfo: String = "",
     val wearableSleepTriggerEnabled: Boolean = SettingsPreferencesRepository.DEFAULT_WEARABLE_SLEEP_TRIGGER_ENABLED,
+    val wearableAutoStartOnSleepStartEnabled: Boolean =
+        SettingsPreferencesRepository.DEFAULT_WEARABLE_AUTO_START_ON_SLEEP_START_ENABLED,
     val wearableStopOnSleepEndEnabled: Boolean = SettingsPreferencesRepository.DEFAULT_WEARABLE_STOP_ON_SLEEP_END_ENABLED,
     val bedtimeReminderEnabled: Boolean = SettingsPreferencesRepository.DEFAULT_BEDTIME_REMINDER_ENABLED,
     val bedtimeReminderMinuteOfDay: Int = SettingsPreferencesRepository.DEFAULT_BEDTIME_REMINDER_MINUTE_OF_DAY,
@@ -124,6 +126,7 @@ class SettingsViewModel @Inject constructor(
                         deepSeekModelName = settings.deepSeekModelName,
                         aiCustomInfo = settings.aiCustomInfo,
                         wearableSleepTriggerEnabled = settings.wearableSleepTriggerEnabled,
+                        wearableAutoStartOnSleepStartEnabled = settings.wearableAutoStartOnSleepStartEnabled,
                         wearableStopOnSleepEndEnabled = settings.wearableStopOnSleepEndEnabled,
                         bedtimeReminderEnabled = settings.bedtimeReminderEnabled,
                         bedtimeReminderMinuteOfDay = settings.bedtimeReminderMinuteOfDay,
@@ -357,6 +360,19 @@ class SettingsViewModel @Inject constructor(
         _uiState.update { it.copy(wearableStopOnSleepEndEnabled = enabled) }
         viewModelScope.launch {
             preferencesRepository.setWearableStopOnSleepEndEnabled(enabled)
+        }
+    }
+
+    fun onWearableAutoStartOnSleepStartChange(enabled: Boolean) {
+        _uiState.update { it.copy(wearableAutoStartOnSleepStartEnabled = enabled) }
+        viewModelScope.launch {
+            preferencesRepository.setWearableAutoStartOnSleepStartEnabled(enabled)
+            val status = if (enabled) {
+                "已开启实验睡眠开始触发；仅在 Health Connect 同步进行中睡眠且系统允许时尝试开录"
+            } else {
+                "已关闭实验睡眠开始触发；请睡前手动开启前台检测"
+            }
+            preferencesRepository.setWearableSleepTriggerMessage(status)
         }
     }
 

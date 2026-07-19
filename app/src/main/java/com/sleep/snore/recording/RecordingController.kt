@@ -4,8 +4,10 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
+import com.sleep.snore.data.preferences.SettingsPreferences
 import com.sleep.snore.data.preferences.SettingsPreferencesRepository
 import com.sleep.snore.service.SleepRecordingService
+import com.sleep.snore.sleeptrigger.HealthConnectSleepTriggerSource
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -55,16 +57,23 @@ class AndroidRecordingController @Inject constructor(
                 startIssue("检测到睡眠，但当前已有检测在运行；不会接管手动录音")
             }
         }
+        val settings = runCatching { settingsRepository.settings.first() }
+            .getOrDefault(SettingsPreferences())
+        val allowBackgroundSleepStart = source == HealthConnectSleepTriggerSource.SOURCE &&
+            settings.wearableSleepTriggerEnabled &&
+            settings.wearableAutoStartOnSleepStartEnabled
         val missingPermissionStatus = missingRequiredPermissionStatus()
         if (missingPermissionStatus != null) {
             return startIssue(missingPermissionStatus)
         }
-        if (!appVisibilityState.isAppVisible) {
+        if (!appVisibilityState.isAppVisible && !allowBackgroundSleepStart) {
             return startIssue("应用不在前台，系统可能拒绝启动麦克风；请睡前打开应用并点击前台检测")
         }
         return runCatching {
             ContextCompat.startForegroundService(context, SleepRecordingService.startIntent(context, source))
-            if (waitForConfirmedSource(source)) {
+            if (allowBackgroundSleepStart) {
+                RecordingStartResult.Submitted("检测到睡眠，已请求开启鼾声检测，正在等待服务确认")
+            } else if (waitForConfirmedSource(source)) {
                 RecordingStartResult.Confirmed("检测到睡眠，已开启鼾声检测")
             } else if (isRecordingActive()) {
                 RecordingStartResult.Submitted("检测到睡眠，已请求开启鼾声检测，正在等待服务确认")

@@ -36,7 +36,7 @@ class HealthConnectSleepTriggerWorkerTest {
 
         assertThat(result).isEqualTo(ListenableWorker.Result.success())
         coVerify(exactly = 0) {
-            fixture.source.pollLatestSleepSession(any(), any(), any())
+            fixture.source.pollLatestSleepSession(any(), any(), any(), any())
         }
     }
 
@@ -53,7 +53,8 @@ class HealthConnectSleepTriggerWorkerTest {
             fixture.source.pollLatestSleepSession(
                 now = any<Instant>(),
                 requireBackgroundRead = false,
-                ignoreEventsBefore = null
+                ignoreEventsBefore = null,
+                emitOngoingSleepStart = false
             )
         }
     }
@@ -64,7 +65,7 @@ class HealthConnectSleepTriggerWorkerTest {
             settings = SettingsPreferences(wearableSleepTriggerEnabled = true)
         )
         coEvery {
-            fixture.source.pollLatestSleepSession(any(), any(), any())
+            fixture.source.pollLatestSleepSession(any(), any(), any(), any())
         } throws IllegalStateException("boom")
 
         val result = fixture.worker().doWork()
@@ -91,7 +92,30 @@ class HealthConnectSleepTriggerWorkerTest {
             fixture.source.pollLatestSleepSession(
                 now = any<Instant>(),
                 requireBackgroundRead = false,
-                ignoreEventsBefore = null
+                ignoreEventsBefore = null,
+                emitOngoingSleepStart = false
+            )
+        }
+    }
+
+    @Test
+    fun doWork_immediateCheckDoesNotEmitSleepStartEvenWhenExperimentEnabled() = runTest {
+        val fixture = createFixture(
+            settings = SettingsPreferences(
+                wearableSleepTriggerEnabled = true,
+                wearableAutoStartOnSleepStartEnabled = true
+            ),
+            inputRequireBackgroundRead = false
+        )
+
+        fixture.worker().doWork()
+
+        coVerify {
+            fixture.source.pollLatestSleepSession(
+                now = any<Instant>(),
+                requireBackgroundRead = false,
+                ignoreEventsBefore = null,
+                emitOngoingSleepStart = false
             )
         }
     }
@@ -109,7 +133,8 @@ class HealthConnectSleepTriggerWorkerTest {
             fixture.source.pollLatestSleepSession(
                 now = any<Instant>(),
                 requireBackgroundRead = true,
-                ignoreEventsBefore = null
+                ignoreEventsBefore = null,
+                emitOngoingSleepStart = false
             )
         }
     }
@@ -122,7 +147,7 @@ class HealthConnectSleepTriggerWorkerTest {
             recordingController = recordingController
         )
         coEvery {
-            fixture.source.pollLatestSleepSession(any(), any(), any())
+            fixture.source.pollLatestSleepSession(any(), any(), any(), any())
         } returns HealthConnectSleepTriggerSource.PollResult.EventEmitted(
             event = SleepTriggerEvent.SleepStarted(
                 source = HealthConnectSleepTriggerSource.SOURCE,
@@ -147,6 +172,46 @@ class HealthConnectSleepTriggerWorkerTest {
     }
 
     @Test
+    fun doWork_sleepStartedStartsRecordingWhenExperimentEnabled() = runTest {
+        val recordingController = FakeRecordingController()
+        val fixture = createFixture(
+            settings = SettingsPreferences(
+                wearableSleepTriggerEnabled = true,
+                wearableAutoStartOnSleepStartEnabled = true
+            ),
+            recordingController = recordingController
+        )
+        coEvery {
+            fixture.source.pollLatestSleepSession(any(), any(), any(), any())
+        } returns HealthConnectSleepTriggerSource.PollResult.EventEmitted(
+            event = SleepTriggerEvent.SleepStarted(
+                source = HealthConnectSleepTriggerSource.SOURCE,
+                timestamp = 1000L,
+                confidence = HealthConnectSleepTriggerSource.HEALTH_CONNECT_CONFIDENCE
+            ),
+            eventKey = "SleepStarted:1000"
+        )
+
+        fixture.worker().doWork()
+
+        assertThat(recordingController.started).isTrue()
+        coVerify {
+            fixture.source.pollLatestSleepSession(
+                now = any<Instant>(),
+                requireBackgroundRead = true,
+                ignoreEventsBefore = null,
+                emitOngoingSleepStart = true
+            )
+        }
+        coVerify {
+            fixture.settingsRepository.setLastWearableSleepEventKey("SleepStarted:1000")
+        }
+        coVerify {
+            fixture.settingsRepository.setWearableSleepTriggerStatus("started", any())
+        }
+    }
+
+    @Test
     fun doWork_sleepEndedStopsRecordingAndRemembersEvent() = runTest {
         val recordingController = FakeRecordingController()
         val fixture = createFixture(
@@ -158,7 +223,7 @@ class HealthConnectSleepTriggerWorkerTest {
             activeRecordingTriggerSource = HealthConnectSleepTriggerSource.SOURCE
         )
         coEvery {
-            fixture.source.pollLatestSleepSession(any(), any(), any())
+            fixture.source.pollLatestSleepSession(any(), any(), any(), any())
         } returns HealthConnectSleepTriggerSource.PollResult.EventEmitted(
             event = SleepTriggerEvent.SleepEnded(
                 source = HealthConnectSleepTriggerSource.SOURCE,
@@ -192,7 +257,7 @@ class HealthConnectSleepTriggerWorkerTest {
         coEvery { settingsRepository.getActiveRecordingTriggerSource() } returns activeRecordingTriggerSource
         val source = mockk<HealthConnectSleepTriggerSource>()
         coEvery {
-            source.pollLatestSleepSession(any(), any(), any())
+            source.pollLatestSleepSession(any(), any(), any(), any())
         } returns HealthConnectSleepTriggerSource.PollResult.NoRecentSleep
         val coordinator = AutoSnoreDetectionCoordinator(recordingController)
         return WorkerFixture(

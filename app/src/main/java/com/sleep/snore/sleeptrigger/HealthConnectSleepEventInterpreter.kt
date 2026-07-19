@@ -30,7 +30,8 @@ object HealthConnectSleepEventInterpreter {
     fun latestActionableSession(
         sessions: List<SleepSessionSnapshot>,
         now: Instant,
-        ignoreEventsBefore: Instant? = null
+        ignoreEventsBefore: Instant? = null,
+        emitOngoingSleepStart: Boolean = false
     ): Pair<SleepSessionSnapshot, InterpretedSleepEvent>? {
         return sessions
             .asSequence()
@@ -40,7 +41,8 @@ object HealthConnectSleepEventInterpreter {
                 val event = interpret(
                     session = session,
                     now = now,
-                    ignoreEventsBefore = ignoreEventsBefore
+                    ignoreEventsBefore = ignoreEventsBefore,
+                    emitOngoingSleepStart = emitOngoingSleepStart
                 ) ?: return@mapNotNull null
                 session to event
             }
@@ -52,10 +54,23 @@ object HealthConnectSleepEventInterpreter {
         now: Instant,
         ignoreEventsBefore: Instant? = null,
         minimumOverlapAfterIgnoreBoundaryMillis: Long = MINIMUM_OVERLAP_AFTER_IGNORE_BOUNDARY_MILLIS,
+        emitOngoingSleepStart: Boolean = false,
         source: String = HealthConnectSleepTriggerSource.SOURCE
     ): InterpretedSleepEvent? {
         if (session.startTime.isAfter(now)) return null
-        if (session.endTime.isAfter(now)) return null
+        if (session.endTime.isAfter(now)) {
+            if (!emitOngoingSleepStart) return null
+            if (ignoreEventsBefore != null && session.startTime.isBefore(ignoreEventsBefore)) return null
+            val event = SleepTriggerEvent.SleepStarted(
+                source = source,
+                timestamp = session.startTime.toEpochMilli(),
+                confidence = HealthConnectSleepTriggerSource.HEALTH_CONNECT_CONFIDENCE
+            )
+            return InterpretedSleepEvent(
+                event = event,
+                eventKey = "$EVENT_TYPE_SLEEP_STARTED:${event.timestamp}"
+            )
+        }
         if (ignoreEventsBefore != null && session.endTime.isBefore(ignoreEventsBefore)) {
             return null
         }
@@ -94,6 +109,7 @@ object HealthConnectSleepEventInterpreter {
         return ChronoUnit.MILLIS.between(session.startTime, session.endTime).coerceAtLeast(0L)
     }
 
+    private const val EVENT_TYPE_SLEEP_STARTED = "SleepStarted"
     private const val EVENT_TYPE_SLEEP_ENDED = "SleepEnded"
     private const val MINIMUM_OVERLAP_AFTER_IGNORE_BOUNDARY_MILLIS = 30L * 60L * 1000L
     internal const val MINIMUM_AUTO_STOP_SLEEP_SESSION_DURATION_MILLIS = 2L * 60L * 60L * 1000L

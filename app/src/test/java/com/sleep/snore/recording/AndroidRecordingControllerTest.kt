@@ -9,6 +9,7 @@ import com.sleep.snore.data.preferences.SettingsPreferences
 import com.sleep.snore.data.preferences.SettingsPreferencesRepository
 import com.sleep.snore.recording.ActiveRecordingFinalizerWorker.Companion.WORK_NAME
 import com.sleep.snore.service.SleepRecordingService
+import com.sleep.snore.sleeptrigger.HealthConnectSleepTriggerSource
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -72,6 +73,40 @@ class AndroidRecordingControllerTest {
         assertThat(startedService.component?.className).isEqualTo(SleepRecordingService::class.java.name)
         assertThat(startedService.action).isEqualTo(SleepRecordingService.ACTION_START)
         assertThat(startedService.getStringExtra("trigger_source")).isEqualTo("health_connect_sleep")
+    }
+
+    @Test
+    fun startFromSleepTrigger_whenBackgroundSleepStartEnabledSubmitsServiceStart() = runTest {
+        val context = RuntimeEnvironment.getApplication()
+        shadowOf(context).grantPermissions(Manifest.permission.RECORD_AUDIO)
+        val settingsRepository = mockk<SettingsPreferencesRepository>(relaxed = true)
+        every { settingsRepository.settings } returns flowOf(
+            SettingsPreferences(
+                wearableSleepTriggerEnabled = true,
+                wearableAutoStartOnSleepStartEnabled = true
+            )
+        )
+        coEvery { settingsRepository.getActiveRecordingTriggerSource() } returns null
+        val notifier = mockk<RecordingFailureNotifier>(relaxed = true)
+        val controller = AndroidRecordingController(
+            context = context,
+            settingsRepository = settingsRepository,
+            recordingFailureNotifier = notifier,
+            appVisibilityState = object : AppVisibilityState {
+                override val isAppVisible: Boolean = false
+            }
+        )
+
+        val result = controller.startFromSleepTrigger(HealthConnectSleepTriggerSource.SOURCE)
+
+        assertThat(result.confirmed).isFalse()
+        assertThat(result.requestSubmitted).isTrue()
+        assertThat(result.statusText).contains("正在等待服务确认")
+        val startedService = shadowOf(context).nextStartedService
+        assertThat(startedService.component?.className).isEqualTo(SleepRecordingService::class.java.name)
+        assertThat(startedService.action).isEqualTo(SleepRecordingService.ACTION_START)
+        assertThat(startedService.getStringExtra("trigger_source"))
+            .isEqualTo(HealthConnectSleepTriggerSource.SOURCE)
     }
 
     @Test

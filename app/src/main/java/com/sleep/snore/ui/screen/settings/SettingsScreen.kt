@@ -469,6 +469,13 @@ fun SettingsScreen(
                     )
                     HorizontalDivider(modifier = Modifier.padding(vertical = Spacing.sm))
                     SettingSwitchRow(
+                        title = "实验：睡眠开始尝试开录",
+                        supportingText = "仅当小米伴侣把进行中的睡眠同步到 Health Connect 时尝试触发；Android/MIUI 仍可能拒绝后台麦克风，失败会提醒，最稳方案仍是睡前前台检测。",
+                        checked = uiState.wearableAutoStartOnSleepStartEnabled,
+                        onCheckedChange = viewModel::onWearableAutoStartOnSleepStartChange
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(vertical = Spacing.sm))
+                    SettingSwitchRow(
                         title = "睡前提醒通知",
                         supportingText = "每天 ${uiState.bedtimeReminderTimeText} 提醒打开本页，手动开启前台鼾声检测；不会在后台自动开麦。",
                         checked = uiState.bedtimeReminderEnabled,
@@ -567,6 +574,7 @@ fun SettingsScreen(
                         } ?: "未检测到 ${XiaomiSleepCompanionApps.displayNames}",
                         periodicCheckEnabled = uiState.wearableSleepTriggerEnabled,
                         stopOnSleepEndEnabled = uiState.wearableStopOnSleepEndEnabled,
+                        autoStartOnSleepStartEnabled = uiState.wearableAutoStartOnSleepStartEnabled,
                         bedtimeReminderEnabled = uiState.bedtimeReminderEnabled,
                         bedtimeReminderTimeText = uiState.bedtimeReminderTimeText,
                         foregroundDetectionActive = wearableForegroundRecordingActive,
@@ -706,6 +714,7 @@ fun SettingsScreen(
                                         } ?: "未检测到 ${XiaomiSleepCompanionApps.displayNames}",
                                         periodicCheckEnabled = uiState.wearableSleepTriggerEnabled,
                                         stopOnSleepEndEnabled = uiState.wearableStopOnSleepEndEnabled,
+                                        autoStartOnSleepStartEnabled = uiState.wearableAutoStartOnSleepStartEnabled,
                                         bedtimeReminderEnabled = uiState.bedtimeReminderEnabled,
                                         bedtimeReminderTimeText = uiState.bedtimeReminderTimeText,
                                         foregroundDetectionActive = wearableForegroundRecordingActive,
