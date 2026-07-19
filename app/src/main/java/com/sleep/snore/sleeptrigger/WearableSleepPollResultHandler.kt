@@ -26,6 +26,29 @@ internal suspend fun handleWearableSleepPollResult(
             sourcePackage = session.dataOriginPackageName
         )
     }
+    if (
+        pollResult is HealthConnectSleepTriggerSource.PollResult.DuplicateEvent &&
+        stopOnSleepEnd &&
+        pollResult.eventKey.startsWith(SLEEP_ENDED_EVENT_KEY_PREFIX)
+    ) {
+        val activeTriggerSource = settingsRepository.getActiveRecordingTriggerSource()
+        if (activeTriggerSource == HealthConnectSleepTriggerSource.SOURCE) {
+            val result = coordinator.handleEvent(
+                event = SleepTriggerEvent.SleepEnded(
+                    source = HealthConnectSleepTriggerSource.SOURCE,
+                    timestamp = pollResult.observedSession.endTime.toEpochMilli()
+                ),
+                enabled = true,
+                stopOnSleepEnd = true
+            )
+            return WearableSleepPollHandleResult(
+                statusText = result.statusText ?: pollResult.toWearableSleepStatusText(requireBackgroundRead),
+                emittedSleepEnd = true,
+                eventHandled = result.handled,
+                eventKey = pollResult.eventKey
+            )
+        }
+    }
     if (pollResult !is HealthConnectSleepTriggerSource.PollResult.EventEmitted) {
         return WearableSleepPollHandleResult(
             statusText = pollResult.toWearableSleepStatusText(requireBackgroundRead)
@@ -66,6 +89,8 @@ internal suspend fun handleWearableSleepPollResult(
         eventKey = pollResult.eventKey
     )
 }
+
+private const val SLEEP_ENDED_EVENT_KEY_PREFIX = "SleepEnded:"
 
 private fun HealthConnectSleepTriggerSource.PollResult.toLatestWearableSleepSessionStatus(): String {
     return when (this) {

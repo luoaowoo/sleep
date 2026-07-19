@@ -90,6 +90,7 @@ import com.sleep.snore.sleeptrigger.HealthConnectSleepTriggerSource
 import com.sleep.snore.sleeptrigger.HealthConnectSleepTriggerWorker
 import com.sleep.snore.sleeptrigger.WearableSleepStandbyService
 import com.sleep.snore.sleeptrigger.XiaomiSleepCompanionApps
+import com.sleep.snore.ui.theme.LocalThemePreviewController
 import com.sleep.snore.ui.theme.LocalUiPreferences
 import com.sleep.snore.ui.theme.Spacing
 import kotlin.math.atan2
@@ -914,12 +915,29 @@ private fun CustomAccentColorSelector(
     dynamicColorEnabled: Boolean,
     onColorChange: (Int) -> Unit
 ) {
+    val themePreviewController = LocalThemePreviewController.current
     var showDialog by remember { mutableStateOf(false) }
-    var tempArgb by remember(selectedArgb, showDialog) { mutableStateOf(selectedArgb) }
+    var tempArgb by remember { mutableStateOf(selectedArgb) }
     val supportingText = if (dynamicColorEnabled) {
         "点按后关闭动态色，并使用自定义 RGB 主题"
+    } else if (themePreviewController.previewAccentColorArgb != null) {
+        "正在预览 ${themePreviewController.previewAccentColorArgb.toHexString()}，应用后保存"
     } else {
         "自定义主题色生效中，当前 ${selectedArgb.toHexString()}"
+    }
+
+    fun previewColor(argb: Int) {
+        tempArgb = argb
+        themePreviewController.setPreviewAccentColorArgb(argb)
+    }
+
+    fun closeDialog(apply: Boolean) {
+        if (apply) {
+            onColorChange(tempArgb)
+        } else {
+            themePreviewController.clearPreviewAccentColorArgb()
+        }
+        showDialog = false
     }
 
     Card(
@@ -927,7 +945,7 @@ private fun CustomAccentColorSelector(
             .fillMaxWidth()
             .heightIn(min = 72.dp)
             .clickable(role = Role.Button) {
-                tempArgb = selectedArgb
+                tempArgb = themePreviewController.previewAccentColorArgb ?: selectedArgb
                 showDialog = true
             },
         shape = MaterialTheme.shapes.large
@@ -949,7 +967,7 @@ private fun CustomAccentColorSelector(
 
     if (showDialog) {
         AlertDialog(
-            onDismissRequest = { showDialog = false },
+            onDismissRequest = { closeDialog(apply = false) },
             title = { Text("自定义 RGB 主题色") },
             text = {
                 Column(
@@ -964,7 +982,7 @@ private fun CustomAccentColorSelector(
                     ) {
                         HueColorWheel(
                             selectedArgb = tempArgb,
-                            onHueChange = { hue -> tempArgb = tempArgb.withHue(hue) }
+                            onHueChange = { hue -> previewColor(tempArgb.withHue(hue)) }
                         )
                     }
                     Row(
@@ -976,28 +994,31 @@ private fun CustomAccentColorSelector(
                         ColorSwatch(tempArgb, size = 48.dp)
                     }
                     RgbSlider("R", AndroidColor.red(tempArgb)) { red ->
-                        tempArgb = AndroidColor.argb(255, red, AndroidColor.green(tempArgb), AndroidColor.blue(tempArgb))
+                        previewColor(
+                            AndroidColor.argb(255, red, AndroidColor.green(tempArgb), AndroidColor.blue(tempArgb))
+                        )
                     }
                     RgbSlider("G", AndroidColor.green(tempArgb)) { green ->
-                        tempArgb = AndroidColor.argb(255, AndroidColor.red(tempArgb), green, AndroidColor.blue(tempArgb))
+                        previewColor(
+                            AndroidColor.argb(255, AndroidColor.red(tempArgb), green, AndroidColor.blue(tempArgb))
+                        )
                     }
                     RgbSlider("B", AndroidColor.blue(tempArgb)) { blue ->
-                        tempArgb = AndroidColor.argb(255, AndroidColor.red(tempArgb), AndroidColor.green(tempArgb), blue)
+                        previewColor(
+                            AndroidColor.argb(255, AndroidColor.red(tempArgb), AndroidColor.green(tempArgb), blue)
+                        )
                     }
                 }
             },
             confirmButton = {
                 Button(
-                    onClick = {
-                        onColorChange(tempArgb)
-                        showDialog = false
-                    }
+                    onClick = { closeDialog(apply = true) }
                 ) {
                     Text("应用")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showDialog = false }) {
+                TextButton(onClick = { closeDialog(apply = false) }) {
                     Text("取消")
                 }
             }

@@ -24,3 +24,11 @@ data class UiPreferences(
 }
 
 val LocalUiPreferences = staticCompositionLocalOf { UiPreferences() }
+
+data class ThemePreviewController(
+    val previewAccentColorArgb: Int? = null,
+    val setPreviewAccentColorArgb: (Int) -> Unit = {},
+    val clearPreviewAccentColorArgb: () -> Unit = {}
+)
+
+val LocalThemePreviewController = staticCompositionLocalOf { ThemePreviewController() }

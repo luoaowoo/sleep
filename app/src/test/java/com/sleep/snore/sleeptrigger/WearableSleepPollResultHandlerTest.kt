@@ -116,6 +116,93 @@ class WearableSleepPollResultHandlerTest {
     }
 
     @Test
+    fun handleWearableSleepPollResult_stopsActiveRecordingForDuplicateSleepEnd() = runTest {
+        val settingsRepository = mockk<SettingsPreferencesRepository>(relaxed = true)
+        coEvery {
+            settingsRepository.getActiveRecordingTriggerSource()
+        } returns HealthConnectSleepTriggerSource.SOURCE
+        val controller = FakeRecordingController()
+        val coordinator = AutoSnoreDetectionCoordinator(controller)
+        val session = SleepSessionSnapshot(
+            startTime = Instant.ofEpochMilli(1_000L),
+            endTime = Instant.ofEpochMilli(8_000L),
+            dataOriginPackageName = "com.xiaomi.wearable"
+        )
+
+        val result = handleWearableSleepPollResult(
+            pollResult = HealthConnectSleepTriggerSource.PollResult.DuplicateEvent(
+                observedSession = session,
+                eventKey = "SleepEnded:8000:1000"
+            ),
+            stopOnSleepEnd = true,
+            coordinator = coordinator,
+            settingsRepository = settingsRepository,
+            requireBackgroundRead = true
+        )
+
+        assertThat(result.emittedSleepEnd).isTrue()
+        assertThat(result.eventHandled).isTrue()
+        assertThat(controller.stoppedSource).isEqualTo(HealthConnectSleepTriggerSource.SOURCE)
+        assertThat(controller.stoppedAtMillis).isEqualTo(8_000L)
+    }
+
+    @Test
+    fun handleWearableSleepPollResult_doesNotStopDuplicateSleepEndWithoutActiveRecording() = runTest {
+        val settingsRepository = mockk<SettingsPreferencesRepository>(relaxed = true)
+        coEvery { settingsRepository.getActiveRecordingTriggerSource() } returns null
+        val controller = FakeRecordingController()
+        val coordinator = AutoSnoreDetectionCoordinator(controller)
+        val session = SleepSessionSnapshot(
+            startTime = Instant.ofEpochMilli(1_000L),
+            endTime = Instant.ofEpochMilli(8_000L),
+            dataOriginPackageName = "com.xiaomi.wearable"
+        )
+
+        val result = handleWearableSleepPollResult(
+            pollResult = HealthConnectSleepTriggerSource.PollResult.DuplicateEvent(
+                observedSession = session,
+                eventKey = "SleepEnded:8000:1000"
+            ),
+            stopOnSleepEnd = true,
+            coordinator = coordinator,
+            settingsRepository = settingsRepository,
+            requireBackgroundRead = true
+        )
+
+        assertThat(result.eventHandled).isFalse()
+        assertThat(controller.stoppedSource).isNull()
+    }
+
+    @Test
+    fun handleWearableSleepPollResult_doesNotStopDuplicateWhenAutoStopDisabled() = runTest {
+        val settingsRepository = mockk<SettingsPreferencesRepository>(relaxed = true)
+        coEvery {
+            settingsRepository.getActiveRecordingTriggerSource()
+        } returns HealthConnectSleepTriggerSource.SOURCE
+        val controller = FakeRecordingController()
+        val coordinator = AutoSnoreDetectionCoordinator(controller)
+        val session = SleepSessionSnapshot(
+            startTime = Instant.ofEpochMilli(1_000L),
+            endTime = Instant.ofEpochMilli(8_000L),
+            dataOriginPackageName = "com.xiaomi.wearable"
+        )
+
+        val result = handleWearableSleepPollResult(
+            pollResult = HealthConnectSleepTriggerSource.PollResult.DuplicateEvent(
+                observedSession = session,
+                eventKey = "SleepEnded:8000:1000"
+            ),
+            stopOnSleepEnd = false,
+            coordinator = coordinator,
+            settingsRepository = settingsRepository,
+            requireBackgroundRead = true
+        )
+
+        assertThat(result.eventHandled).isFalse()
+        assertThat(controller.stoppedSource).isNull()
+    }
+
+    @Test
     fun handleWearableSleepPollResult_savesObservedSleepSessionForOldRecord() = runTest {
         val settingsRepository = mockk<SettingsPreferencesRepository>(relaxed = true)
         val session = SleepSessionSnapshot(

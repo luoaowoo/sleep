@@ -6,9 +6,11 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.sleep.snore.data.model.AccentColor
@@ -17,8 +19,10 @@ import com.sleep.snore.data.model.FontScale
 import com.sleep.snore.data.preferences.SettingsPreferences
 import com.sleep.snore.data.preferences.SettingsPreferencesRepository
 import com.sleep.snore.navigation.SleepScaffold
+import com.sleep.snore.ui.theme.LocalThemePreviewController
 import com.sleep.snore.ui.theme.LocalUiPreferences
 import com.sleep.snore.ui.theme.SleepSnoreTheme
+import com.sleep.snore.ui.theme.ThemePreviewController
 import com.sleep.snore.ui.theme.UiPreferences
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -44,17 +48,37 @@ class MainActivity : ComponentActivity() {
                 .collectAsStateWithLifecycle(FontScale.STANDARD)
             val cardCornerStyle by settingsPreferencesRepository.cardCornerStyle
                 .collectAsStateWithLifecycle(CardCornerStyle.STANDARD)
+            var previewAccentColorArgb by remember { mutableStateOf<Int?>(null) }
+            LaunchedEffect(
+                previewAccentColorArgb,
+                settings.dynamicColorEnabled,
+                accentColor,
+                customAccentColorArgb
+            ) {
+                val previewArgb = previewAccentColorArgb
+                if (
+                    previewArgb != null &&
+                    !settings.dynamicColorEnabled &&
+                    accentColor == AccentColor.CUSTOM &&
+                    customAccentColorArgb == previewArgb
+                ) {
+                    previewAccentColorArgb = null
+                }
+            }
             val systemDark = isSystemInDarkTheme()
             val darkTheme = when (settings.themeMode) {
                 SettingsPreferencesRepository.THEME_MODE_LIGHT -> false
                 SettingsPreferencesRepository.THEME_MODE_DARK -> true
                 else -> systemDark
             }
+            val effectiveAccentColor = if (previewAccentColorArgb != null) AccentColor.CUSTOM else accentColor
+            val effectiveCustomAccentColorArgb = previewAccentColorArgb ?: customAccentColorArgb
+            val effectiveDynamicColor = settings.dynamicColorEnabled && previewAccentColorArgb == null
             SleepSnoreTheme(
                 darkTheme = darkTheme,
-                dynamicColor = settings.dynamicColorEnabled,
-                accentColor = accentColor,
-                customAccentColorArgb = customAccentColorArgb,
+                dynamicColor = effectiveDynamicColor,
+                accentColor = effectiveAccentColor,
+                customAccentColorArgb = effectiveCustomAccentColorArgb,
                 fontScale = fontScale,
                 cardCornerStyle = cardCornerStyle
             ) {
@@ -65,6 +89,11 @@ class MainActivity : ComponentActivity() {
                         accentColor = accentColor,
                         fontScale = fontScale,
                         cardCornerStyle = cardCornerStyle
+                    ),
+                    LocalThemePreviewController provides ThemePreviewController(
+                        previewAccentColorArgb = previewAccentColorArgb,
+                        setPreviewAccentColorArgb = { previewAccentColorArgb = it },
+                        clearPreviewAccentColorArgb = { previewAccentColorArgb = null }
                     )
                 ) {
                     SleepScaffold(
