@@ -123,7 +123,7 @@ fun SettingsScreen(
     var healthConnectPermissionRefreshTick by remember { mutableStateOf(0) }
     var powerStateRefreshTick by remember { mutableStateOf(0) }
     var companionAppRefreshTick by remember { mutableStateOf(0) }
-    var healthConnectBackgroundReadSupported by remember(context) { mutableStateOf(true) }
+    var healthConnectBackgroundReadSupported by remember(context) { mutableStateOf<Boolean?>(null) }
     val installedXiaomiCompanion = remember(context, companionAppRefreshTick) {
         findInstalledXiaomiCompanion(context)
     }
@@ -133,7 +133,7 @@ fun SettingsScreen(
         healthConnectPermissionRefreshTick++
         viewModel.onHealthConnectPermissionsResult(
             grantedPermissions = grantedPermissions,
-            backgroundReadAvailable = healthConnectBackgroundReadSupported
+            backgroundReadAvailable = healthConnectBackgroundReadSupported == true
         )
     }
     val audioPermissionLauncher = rememberLauncherForActivityResult(
@@ -170,7 +170,7 @@ fun SettingsScreen(
     var healthConnectGrantedPermissionsText by remember(context) { mutableStateOf("未读取") }
     LaunchedEffect(context, healthConnectPermissionRefreshTick) {
         healthConnectSdkStatus = HealthConnectClient.getSdkStatus(context)
-        var backgroundReadSupported = false
+        var backgroundReadSupported: Boolean? = null
         val grantedPermissions = runCatching {
             if (healthConnectSdkStatus != HealthConnectClient.SDK_AVAILABLE) {
                 emptySet<String>()
@@ -220,43 +220,16 @@ fun SettingsScreen(
             Text("外观", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
             Card(shape = MaterialTheme.shapes.extraLarge) {
                 Column(modifier = Modifier.padding(uiPreferences.cardPadding)) {
-                    SettingSwitchRow(
-                        title = "Material You 动态色",
-                        supportingText = "开启后跟随系统壁纸；关闭后使用下方自定义 RGB 主题色",
-                        checked = uiState.dynamicColorEnabled,
-                        onCheckedChange = viewModel::onDynamicColorChange
-                    )
-                    Spacer(Modifier.height(Spacing.sm))
-                    ThemeModeSelector(
-                        selected = uiState.themeMode,
-                        onSelect = viewModel::onThemeModeChange
-                    )
-                    Spacer(Modifier.height(Spacing.sm))
-                    Text("主题强调色", style = MaterialTheme.typography.bodyMedium)
-                    Spacer(Modifier.height(Spacing.xs))
-                    AccentPresetSelector(
-                        selected = accentColor,
-                        onSelect = viewModel::setAccentColor
-                    )
-                    Spacer(Modifier.height(Spacing.sm))
-                    CustomAccentColorSelector(
-                        selectedArgb = customAccentColorArgb,
-                        dynamicColorEnabled = uiState.dynamicColorEnabled,
-                        onColorChange = viewModel::setCustomAccentColorArgb
-                    )
-                    Spacer(Modifier.height(Spacing.sm))
-                    Text("字号缩放", style = MaterialTheme.typography.bodyMedium)
-                    Spacer(Modifier.height(Spacing.xs))
-                    FontScaleSelector(
-                        selected = fontScale,
-                        onSelect = viewModel::setFontScale
-                    )
-                    Spacer(Modifier.height(Spacing.sm))
-                    Text("卡片圆角风格", style = MaterialTheme.typography.bodyMedium)
-                    Spacer(Modifier.height(Spacing.xs))
-                    CardCornerStyleSelector(
-                        selected = cardCornerStyle,
-                        onSelect = viewModel::setCardCornerStyle
+                                        SettingSwitchRow(
+                        title = "Health Connect 周期检查",
+                        supportingText = when (healthConnectBackgroundReadSupported) {
+                            null -> "正在检查 Health Connect 后台读取支持，完成后可开启周期检查。"
+                            true -> "小米运动健康同步到 Health Connect 后，本应用按系统调度读取睡眠会话；当前没有可靠公开的实时小米睡眠 API，也不是实时手环直连。此开关只负责周期检查，睡前请点击下方按钮开启前台鼾声检测。"
+                            false -> "当前设备或 Health Connect 版本不支持后台读取，周期检查已禁用；可用“立即检查”读取最近同步睡眠。"
+                        },
+                        checked = uiState.wearableSleepTriggerEnabled && healthConnectBackgroundReadSupported == true,
+                        enabled = healthConnectBackgroundReadSupported == true,
+                        onCheckedChange = viewModel::onWearableSleepTriggerChange
                     )
                     HorizontalDivider(modifier = Modifier.padding(vertical = Spacing.sm))
                     SettingSwitchRow(
@@ -432,7 +405,7 @@ fun SettingsScreen(
                             hasNotificationPermission &&
                             hasHealthConnectSleepReadPermission &&
                             hasHealthConnectBackgroundReadPermission &&
-                            healthConnectBackgroundReadSupported &&
+                            healthConnectBackgroundReadSupported == true &&
                             installedXiaomiCompanion != null &&
                             uiState.wearableStopOnSleepEndEnabled &&
                             uiState.latestWearableSleepSessionSourcePackage in XiaomiSleepCompanionApps.packageNames
@@ -466,7 +439,7 @@ fun SettingsScreen(
                         )
                     }
                     if (healthConnectSdkStatus == HealthConnectClient.SDK_AVAILABLE &&
-                        !healthConnectBackgroundReadSupported
+                        healthConnectBackgroundReadSupported == false
                     ) {
                         Spacer(Modifier.height(Spacing.xs))
                         Text(
@@ -478,13 +451,13 @@ fun SettingsScreen(
                     Spacer(Modifier.height(Spacing.sm))
                     SettingSwitchRow(
                         title = "Health Connect 周期检查",
-                        supportingText = if (healthConnectBackgroundReadSupported) {
-                            "小米运动健康同步到 Health Connect 后，本应用按系统调度读取睡眠会话；当前没有可靠公开的实时小米睡眠 API，也不是实时手环直连。此开关只负责周期检查，睡前请点击下方按钮开启前台鼾声检测。"
-                        } else {
-                            "当前设备或 Health Connect 版本不支持后台读取，周期检查已禁用；可用“立即检查”读取最近同步睡眠。"
+                        supportingText = when (healthConnectBackgroundReadSupported) {
+                            null -> "正在检查 Health Connect 后台读取支持，完成后可开启周期检查。"
+                            true -> "小米运动健康同步到 Health Connect 后，本应用按系统调度读取睡眠会话；当前没有可靠公开的实时小米睡眠 API，也不是实时手环直连。此开关只负责周期检查，睡前请点击下方按钮开启前台鼾声检测。"
+                            false -> "当前设备或 Health Connect 版本不支持后台读取，周期检查已禁用；可用“立即检查”读取最近同步睡眠。"
                         },
-                        checked = uiState.wearableSleepTriggerEnabled && healthConnectBackgroundReadSupported,
-                        enabled = healthConnectBackgroundReadSupported,
+                        checked = uiState.wearableSleepTriggerEnabled && healthConnectBackgroundReadSupported == true,
+                        enabled = healthConnectBackgroundReadSupported == true,
                         onCheckedChange = viewModel::onWearableSleepTriggerChange
                     )
                     HorizontalDivider(modifier = Modifier.padding(vertical = Spacing.sm))
@@ -671,12 +644,18 @@ fun SettingsScreen(
                             healthConnectPermissionLauncher.launch(
                                 healthConnectPermissionsForRequest(
                                     includeBackgroundRead = true,
-                                    backgroundReadAvailable = healthConnectBackgroundReadSupported
+                                    backgroundReadAvailable = healthConnectBackgroundReadSupported == true
                                 )
                             )
                         }
                     ) {
-                        Text(if (healthConnectBackgroundReadSupported) "授权 Health Connect" else "授权睡眠读取")
+                        Text(
+                            when (healthConnectBackgroundReadSupported) {
+                                true -> "授权 Health Connect"
+                                false -> "授权睡眠读取"
+                                null -> "正在检查"
+                            }
+                        )
                     }
                     TextButton(
                         onClick = {

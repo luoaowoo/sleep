@@ -14,7 +14,7 @@ internal data class WearableDiagnosticReportInput(
     val hasNotificationPermission: Boolean,
     val hasHealthConnectSleepReadPermission: Boolean,
     val hasHealthConnectBackgroundReadPermission: Boolean,
-    val healthConnectBackgroundReadAvailable: Boolean,
+    val healthConnectBackgroundReadAvailable: Boolean?,
     val isIgnoringBatteryOptimizations: Boolean,
     val xiaomiCompanionText: String,
     val periodicCheckEnabled: Boolean,
@@ -54,7 +54,7 @@ internal fun wearableDiagnosticReport(input: WearableDiagnosticReportInput): Str
         appendLine("通知权限：${input.hasNotificationPermission.toYesNo()}")
         appendLine("Health Connect 睡眠读取：${input.hasHealthConnectSleepReadPermission.toYesNo()}")
         appendLine("Health Connect 后台读取：${input.hasHealthConnectBackgroundReadPermission.toYesNo()}")
-        appendLine("Health Connect 后台读取支持：${input.healthConnectBackgroundReadAvailable.toYesNo()}")
+        appendLine("Health Connect 后台读取支持：${input.healthConnectBackgroundReadAvailable.toYesNoUnknown()}")
         appendLine("电池优化放行：${input.isIgnoringBatteryOptimizations.toYesNo()}")
         appendLine("周期检查：${input.periodicCheckEnabled.toOnOff()}")
         appendLine("睡眠结束自动停录：${input.stopOnSleepEndEnabled.toOnOff()}")
@@ -136,6 +136,9 @@ internal fun wearableDiagnosticNextStep(input: WearableDiagnosticReportInput): S
         !input.hasHealthConnectSleepReadPermission -> {
             "先授权本应用读取 Health Connect 睡眠数据。"
         }
+        input.healthConnectBackgroundReadAvailable == null -> {
+            "Health Connect 后台读取支持正在检查，请稍后再点立即检查。"
+        }
         !input.healthConnectBackgroundReadAvailable -> {
             "当前设备或 Health Connect 版本不支持后台读取；可立即检查同步睡眠，睡醒后请手动确认是否停录。"
         }
@@ -197,7 +200,7 @@ internal fun sleepAutoStopRuleDiagnostic(
     activeRecordingTriggerSource: String = HealthConnectSleepTriggerSource.SOURCE,
     hasHealthConnectSleepReadPermission: Boolean = true,
     hasHealthConnectBackgroundReadPermission: Boolean = true,
-    healthConnectBackgroundReadAvailable: Boolean = true
+    healthConnectBackgroundReadAvailable: Boolean? = true
 ): String {
     if (!stopOnSleepEndEnabled) {
         return "不会自动停录：睡眠结束自动停录开关已关闭"
@@ -210,6 +213,9 @@ internal fun sleepAutoStopRuleDiagnostic(
     }
     if (!hasHealthConnectSleepReadPermission) {
         return "不会自动停录：缺少 Health Connect 睡眠读取权限"
+    }
+    if (healthConnectBackgroundReadAvailable == null) {
+        return "不会稳定自动停录：Health Connect 后台读取支持正在检查"
     }
     if (!healthConnectBackgroundReadAvailable) {
         return "不会稳定自动停录：当前设备或 Health Connect 版本不支持后台读取，锁屏后周期检查和兜底停录会受限"
@@ -272,6 +278,12 @@ internal fun healthConnectGrantedPermissionsText(grantedPermissions: Set<String>
 }
 
 private fun Boolean.toYesNo(): String = if (this) "已满足" else "未满足"
+
+private fun Boolean?.toYesNoUnknown(): String = when (this) {
+    true -> "已满足"
+    false -> "未满足"
+    null -> "检查中"
+}
 
 private fun Boolean.toOnOff(): String = if (this) "已开启" else "已关闭"
 
